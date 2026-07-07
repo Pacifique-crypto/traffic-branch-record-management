@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Lanka Police - Login</title>
+    <link rel="stylesheet" href="./auth.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="page-wrapper">
+        <!-- Left Sidebar -->
+        <div class="sidebar-left"></div>
+
+        <!-- Right Content Area -->
+        <div class="content-right">
+            <div class="auth-container">
+                <!-- LOGIN PAGE -->
+                <div class="auth-card" id="loginCard">
+                    <div class="logo-section">
+                        <img src="https://seeklogo.com/images/S/sri-lanka-police-logo-F9F5D0A2FC-seeklogo.com.png" alt="Sri Lanka Police Logo" class="police-logo">
+                        <h1 class="org-title">SRI LANKA POLICE</h1>
+                        <p class="department-name">Traffic Branch- Negombo</p>
+                    </div>
+
+                    <form id="loginForm">
+                        <!-- Username Field -->
+                        <div class="form-group">
+                            <label for="username">UserName</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user"></i>
+                                <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                            </div>
+                        </div>
+
+                        <!-- Remember Me & Reset Password -->
+                        <div class="options">
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="remember" name="remember">
+                                <label for="remember">Remember me</label>
+                            </div>
+                            <a href="javascript:void(0);" onclick="togglePage()" class="reset-link">Reset password</a>
+                        </div>
+
+                        <!-- Login Button -->
+                        <button type="submit" class="btn btn-login">Login</button>
+                    </form>
+
+                    <!-- Footer -->
+                    <div class="footer">
+                        <p>© 2024 Sri Lanka Traffic Branch<br>For official use only</p>
+                    </div>
+                </div>
+
+                <!-- RESET PASSWORD PAGE -->
+                <div class="auth-card auth-card-hidden" id="resetCard">
+                    <button type="button" class="back-button" onclick="togglePage()">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back</span>
+                    </button>
+
+                    <h2>Reset Password</h2>
+                    <p class="subtitle">Enter your email to receive new password</p>
+
+                    <form id="resetForm">
+                        <!-- Email Field -->
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-envelope"></i>
+                                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                            </div>
+                        </div>
+
+                        <!-- Send Button -->
+                        <button type="button" class="btn btn-send" onclick="handleSendCode()">
+                            <i class="fas fa-paper-plane"></i>
+                            SEND
+                        </button>
+
+                        <!-- New Password Field -->
+                        <div class="form-group" style="margin-top: 24px;">
+                            <label for="newPassword">New Password</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password" required>
+                            </div>
+                        </div>
+
+                        <!-- Reset Password Button -->
+                        <button type="submit" class="btn btn-reset">Reset Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle between Login and Reset Password pages
+        function togglePage() {
+            const loginCard = document.getElementById('loginCard');
+            const resetCard = document.getElementById('resetCard');
+            
+            if (loginCard && resetCard) {
+                loginCard.classList.toggle('auth-card-hidden');
+                resetCard.classList.toggle('auth-card-hidden');
+            }
+        }
+
+        // Handle send code button
+        function handleSendCode() {
+            const email = document.getElementById('email').value;
+            if (email) {
+                alert(`Reset code sent to ${email}`);
+            } else {
+                alert('Please enter your email');
+            }
+        }
+
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Login form submission
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    const remember = document.getElementById('remember').checked;
+                    
+                    console.log('Login:', { username, password, remember });
+                    alert(`Login successful for ${username}`);
+                    // Add your login logic here
+                });
+            }
+
+            // Reset password form submission
+            const resetForm = document.getElementById('resetForm');
+            if (resetForm) {
+                resetForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const email = document.getElementById('email').value;
+                    const newPassword = document.getElementById('newPassword').value;
+                    
+                    console.log('Reset:', { email, newPassword });
+                    alert(`Password reset successful for ${email}`);
+                    // Add your reset logic here
+                });
+            }
+
+            // Email validation
+            const emailInput = document.getElementById('email');
+            if (emailInput) {
+                emailInput.addEventListener('input', function() {
+                    const email = this.value;
+                    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                    this.style.borderColor = isValid ? '#a8b5c8' : '#dc2626';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

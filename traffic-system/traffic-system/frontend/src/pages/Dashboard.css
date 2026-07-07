@@ -1,0 +1,40 @@
+.dashboard {
+  padding: 24px;
+  background: var(--background);
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: var(--text);
+}
+
+/* Cards grid */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Dashboard card */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: 0.2s ease;
+}
+
+.card:hover {
+  background: var(--hover);
+  transform: translateY(-2px);
+}
+
+/* Section */
+.section {
+  margin-top: 30px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 12px;
+}
