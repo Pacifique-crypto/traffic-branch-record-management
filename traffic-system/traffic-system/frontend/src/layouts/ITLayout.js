@@ -1,14 +1,17 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  FiGrid, FiUsers, FiSettings, FiLogOut, FiBell, FiFileText, FiBarChart2
+  FiGrid, FiUsers, FiSettings, FiLogOut, FiBell, FiFileText, FiBarChart2, FiAlertTriangle, FiAlertCircle, FiCalendar
 } from "react-icons/fi";
 
 const navItems = [
-  { label: "Dashboard",    path: "/it-dashboard",    icon: <FiGrid /> },
-  { label: "Officer Management",    path: "/user-management", icon: <FiUsers /> },
-  { label: "Reports",      path: "/reports",          icon: <FiFileText /> },
-  { label: "Analytics",    path: "/analytics",        icon: <FiBarChart2 /> },
+{ label: "Dashboard",   path: "/dashboard",   icon: <FiGrid /> },
+  { label: "AIR",         path: "/accidents",   icon: <FiAlertTriangle /> },
+  { label: "TOR",         path: "/tor",          icon: <FiAlertCircle /> },
+  { label: "Reports",     path: "/reports",      icon: <FiFileText /> },
+  { label: "Duty Roster", path: "/duty-roster",  icon: <FiCalendar /> },
+  { label: "Analytics",   path: "/analytics",    icon: <FiBarChart2 /> },
+  { label: "Officer Management",   path: "/user-management", icon: <FiUsers /> },
 ];
 
 function ITLayout({ children }) {

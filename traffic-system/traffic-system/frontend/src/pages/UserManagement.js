@@ -66,11 +66,18 @@ function UserManagement() {
   const handleApprove = (id) => setApprovals(approvals.filter(a => a.id !== id));
   const handleReject  = (id) => setApprovals(approvals.filter(a => a.id !== id));
 
-  const handleToggleStatus = (id) => {
-    setOfficers(officers.map(o =>
-      o.id === id ? { ...o, status: o.status === "Active" ? "Deactive" : "Active" } : o
-    ));
-  };
+  
+ const handleToggleStatus = (officerId) => {
+  // Your logic to toggle status
+  // Example:
+  setOfficers(prev => 
+    prev.map(o => 
+      o.id === officerId 
+        ? { ...o, status: o.status === "Active" ? "Deactive" : "Active" }
+        : o
+    )
+  );
+};
 
   return (
     <LayoutComponent>
@@ -155,7 +162,7 @@ function UserManagement() {
                 <FiUserPlus size={18} color="#1e3a5f" />
                 <h3 className="um-section-title">New Officer Approvals</h3>
               </div>
-              <span className="um-action-required">ACTION REQUIRED</span>
+              
             </div>
             <table className="um-table">
               <thead>
@@ -239,7 +246,7 @@ function UserManagement() {
                 <th>RANK & ID</th>
                 {userRole === "OIC" && <th>ROLE</th>}
                 <th>STATUS</th>
-                <th>ACTION</th>
+                 
               </tr>
             </thead>
             <tbody>
@@ -252,7 +259,7 @@ function UserManagement() {
                         <div className="um-avatar">{o.fullName.charAt(0)}</div>
                         <div>
                           <p className="um-officer-name">{o.fullName}</p>
-                          <p className="um-officer-email">{o.email}</p>
+                           
                         </div>
                       </div>
                     </td>
@@ -263,43 +270,21 @@ function UserManagement() {
                     {userRole === "OIC" && (
                       <td><span className="um-role-badge">{o.role}</span></td>
                     )}
-                    <td>
-                      <span className={`um-status-badge ${o.status === "Active" ? "um-active" : "um-deactive"}`}>
-                        {o.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {userRole === "IT Officer" && (
-                          <button
-                            className="um-reset-pw-btn"
-                            onClick={() => setResetTarget(o)}
-                          >
-                            Reset PW
-                          </button>
-                        )}
-                        {userRole === "OIC" && (
-                          <button
-                            className={`um-toggle-btn ${o.status === "Active" ? "um-deactivate" : "um-activate"}`}
-                            onClick={() => handleToggleStatus(o.id)}
-                          >
-                            {o.status === "Active" ? "Deactivate" : "Activate"}
-                          </button>
-                        )}
-                        <button
-                          className="um-dots-btn"
-                          onClick={() => setDetailsOfficer(o)}
-                          title="View details"
-                        >
-                          <FiMoreVertical size={16} />
-                        </button>
-                      </div>
-                    </td>
+                   <td>
+  <span 
+    className={`um-status-badge ${o.status === "Active" ? "um-active" : "um-deactive"}`}
+    onClick={() => handleToggleStatus(o.id)}
+    style={{ cursor: "pointer" }}
+  >
+    {o.status}
+  </span>
+</td>
+                     
                   </tr>
                 );
               })}
               {paginated.length === 0 && (
-                <tr><td colSpan={5} className="no-data">No officers found.</td></tr>
+                <tr><td colSpan={userRole === "OIC" ? 4 : 3} className="no-data">No officers found.</td></tr>
               )}
             </tbody>
           </table>
