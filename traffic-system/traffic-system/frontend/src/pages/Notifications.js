@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import Layout from "../components/Layout";
+import OICLayout from "../layouts/OICLayout";
+ 
 
 const initialNotifications = [
   {
     id: 1,
-    icon: "⚙️",
     title: "System Maintenance",
     desc: "",
     time: "2 days ago",
@@ -13,7 +13,6 @@ const initialNotifications = [
   },
   {
     id: 2,
-    icon: "🔄",
     title: "Shift Update",
     desc: "Duty roster for next week has been published.",
     time: "2 hours ago",
@@ -22,7 +21,6 @@ const initialNotifications = [
   },
   {
     id: 3,
-    icon: "⚠️",
     title: "Emergency Alert",
     desc: "",
     time: "15 min ago",
@@ -56,7 +54,7 @@ function Notifications() {
   };
 
   return (
-    <Layout>
+    <OICLayout>
       <div className="page-box">
         <div className="notif-header-row">
           <h2 className="page-heading" style={{ marginBottom: 0 }}>Notifications</h2>
@@ -121,7 +119,7 @@ function Notifications() {
           ))}
         </div>
       </div>
-    </Layout>
+    </OICLayout>
   );
 }
 

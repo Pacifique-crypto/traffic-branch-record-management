@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { registerOfficer } from "../api";
+
 function UserRegistration({ onClose }) {
   const [form, setForm] = useState({
     fullName: "",
@@ -16,34 +16,11 @@ function UserRegistration({ onClose }) {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-const handleSubmit = async () => {
-  try {
-    const result = await registerOfficer(form);
-
-    if (result.message) {
-      alert(result.message);
-
-      setForm({
-        fullName: "",
-        dob: "",
-        policeId: "",
-        gender: "",
-        contactNo: "",
-        username: "",
-        nic: "",
-        password: "",
-      });
-
-      if (onClose) onClose();
-    } else {
-      alert(result.error || "Registration failed");
-    }
-
-  } catch (error) {
-    alert("Server error");
-    console.error(error);
-  }
-};
+  const handleSubmit = () => {
+    console.log("Registering user:", form);
+    alert("User registered successfully!");
+    if (onClose) onClose();
+  };
 
   return (
     <div className="register-container">

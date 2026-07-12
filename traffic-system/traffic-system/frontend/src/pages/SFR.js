@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import Layout from "../components/Layout";
+import OICLayout from "../layouts/OICLayout";
+ 
 
 const allRecords = [
   {
@@ -69,7 +70,7 @@ function SFR() {
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <Layout>
+    <OICLayout>
       <div className="page-box">
         <h2 className="page-heading">Spot Fine Register</h2>
 
@@ -160,7 +161,7 @@ function SFR() {
           </button>
         </div>
       </div>
-    </Layout>
+    </OICLayout>
   );
 }
 

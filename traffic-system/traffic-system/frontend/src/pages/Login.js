@@ -1,132 +1,104 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { FiUser, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 
-const roles = ["OIC", "Traffic Officer", "Administrator"];
+// Sample credentials
+// OIC:        username = oic2024      password = OIC@Negombo1
+// IT Officer: username = itoffice2024 password = IT@Traffic99
+
+const USERS = {
+  oic2024:        { password: "OIC@Negombo1",  role: "OIC",        name: "PS Perera" },
+  itoffice2024:   { password: "IT@Traffic99",  role: "IT Officer", name: "IT Admin" },
+};
 
 function Login() {
   const navigate = useNavigate();
-  const [step, setStep]       = useState(1); // 1 = role, 2 = credentials
-  const [role, setRole]       = useState("");
-  const [dropOpen, setDropOpen] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError]     = useState("");
+  const [username, setUsername]   = useState("");
+  const [password, setPassword]   = useState("");
+  const [showPw, setShowPw]       = useState(false);
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
 
-  // STEP 1 — Role selection
-  const handleEnter = () => {
-    if (!role) { setError("Please select a user role."); return; }
+  const handleLogin = (e) => {
+    e.preventDefault();
     setError("");
-    setStep(2);
-  };
+    if (!username || !password) { setError("Please enter username and password."); return; }
 
-  // STEP 2 — Login
-  const handleLogin = () => {
-    setError("");
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("userRole", role);
-    navigate("/dashboard");
+    const user = USERS[username];
+    if (!user || user.password !== password) {
+      setError("Invalid username or password.");
+      return;
+    }
+
+    setLoading(true);
+    setTimeout(() => {
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userRole", user.role);
+      localStorage.setItem("officer", JSON.stringify({ name: user.name, role: user.role }));
+      navigate("/dashboard");
+    }, 600);
   };
 
   return (
-    <div className="nlp-page">
-      <div className="nlp-card">
-
-        {/* Logo */}
+    <div className="login-page-pro">
+      <div className="login-card-pro">
         <img
           src="https://images.seeklogo.com/logo-png/37/1/sri-lanka-police-logo-png_seeklogo-374521.png"
           alt="Sri Lanka Police"
-          className="nlp-logo"
+          className="login-logo-pro"
         />
-        <h2 className="nlp-title">SRI LANKA POLICE</h2>
-        <p className="nlp-subtitle">Traffic Branch- Negombo</p>
+        <h2 className="login-title-pro">SRI LANKA POLICE</h2>
+        <p className="login-sub-pro">Traffic Branch - Negombo</p>
 
-        {/* ── STEP 1 — Role Selection ── */}
-        {step === 1 && (
-          <>
-            <div className="nlp-field-label">UserRole</div>
-
-            {/* Custom dropdown */}
-            <div className="nlp-dropdown-wrap">
-              <div
-                className="nlp-dropdown-box"
-                onClick={() => { setDropOpen(!dropOpen); setError(""); }}
-              >
-                <span className="nlp-drop-icon">👤</span>
-                <span className="nlp-drop-value" style={{ color: role ? "#1e293b" : "#94a3b8" }}>
-                  {role || ""}
-                </span>
-                <span className="nlp-drop-arrow">▾</span>
-              </div>
-
-              {dropOpen && (
-                <div className="nlp-dropdown-list">
-                  {roles.map((r) => (
-                    <div
-                      key={r}
-                      className={`nlp-dropdown-item ${role === r ? "nlp-drop-selected" : ""}`}
-                      onClick={() => { setRole(r); setDropOpen(false); }}
-                    >
-                      {r}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {error && <p className="nlp-error">{error}</p>}
-
-            <button className="nlp-btn" onClick={handleEnter}>Enter</button>
-          </>
-        )}
-
-        {/* ── STEP 2 — Username & Password ── */}
-        {step === 2 && (
-          <>
-            <div className="nlp-field-label">UserName</div>
-            <div className="nlp-input-box">
-              <span className="nlp-input-icon">👤</span>
+        <form onSubmit={handleLogin}>
+          <div className="login-field-pro">
+            <label className="login-label-pro">Username</label>
+            <div className="login-input-wrap-pro">
+              <FiUser className="login-icon-pro" />
               <input
-                className="nlp-input"
+                className="login-input-pro"
                 type="text"
-                placeholder=""
+                placeholder="Enter username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); setError(""); }}
+                autoComplete="username"
               />
             </div>
+          </div>
 
-            <div className="nlp-field-label" style={{ marginTop: "14px" }}>Password</div>
-            <div className="nlp-input-box">
-              <span className="nlp-input-icon">🔒</span>
+          <div className="login-field-pro">
+            <label className="login-label-pro">Password</label>
+            <div className="login-input-wrap-pro">
+              <FiLock className="login-icon-pro" />
               <input
-                className="nlp-input"
-                type="password"
-                placeholder=""
+                className="login-input-pro"
+                type={showPw ? "text" : "password"}
+                placeholder="Enter password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                autoComplete="current-password"
               />
+              <button type="button" className="login-eye-pro" onClick={() => setShowPw(!showPw)}>
+                {showPw ? <FiEyeOff /> : <FiEye />}
+              </button>
             </div>
+          </div>
 
-            {error && <p className="nlp-error">{error}</p>}
+          {error && <p className="login-error-pro">{error}</p>}
 
-            <div className="nlp-options-row">
-              <label className="nlp-remember">
-                <input type="checkbox" /> Remember me
-              </label>
-              <Link to="/reset-password" className="nlp-forgot">Reset password</Link>
-            </div>
+          <div className="login-options-pro">
+            <label className="login-remember-pro">
+              <input type="checkbox" /> Remember me
+            </label>
+            <Link to="/reset-password" className="login-forgot-pro">Forgot password?</Link>
+          </div>
 
-            <button className="nlp-btn" onClick={handleLogin}>Login</button>
+          <button className="login-btn-pro" type="submit" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
 
-            <button
-              className="nlp-back-btn"
-              onClick={() => { setStep(1); setError(""); }}
-            >
-              ← Back
-            </button>
-          </>
-        )}
-
-        <p className="nlp-footer">
+        <p className="login-footer-pro">
           © 2024 Sri Lanka Police Traffic Branch<br />All rights reserved.
         </p>
       </div>

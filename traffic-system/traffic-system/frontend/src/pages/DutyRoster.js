@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout from "../components/Layout";
+import OICLayout from "../layouts/OICLayout";
+ 
 
 const days = [
   { day: "Mon", date: "23 Oct" },
@@ -37,7 +38,7 @@ function DutyRoster() {
   };
 
   return (
-    <Layout>
+    <OICLayout>
       <div className="page-box">
         {/* Header row */}
         <div className="dr-header-row">
@@ -45,7 +46,7 @@ function DutyRoster() {
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span className="dr-week-label">&lt;Oct 23 – Oct 29, 2026&gt;</span>
             <button className="btn-view-schedule" onClick={() => navigate("/duty-roster/schedule")}>
-              📋 View Full Schedule
+               View Full Schedule
             </button>
           </div>
         </div>
@@ -131,7 +132,7 @@ function DutyRoster() {
           <button className="btn-assign" onClick={handleAssign}>Assign</button>
         </div>
       </div>
-    </Layout>
+    </OICLayout>
   );
 }
 

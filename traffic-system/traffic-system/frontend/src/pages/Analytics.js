@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import Layout from "../components/Layout";
+import OICLayout from "../layouts/OICLayout";
 
 // ── tiny recharts-free chart helpers ──────────────────────────────────────────
 
@@ -407,7 +407,7 @@ function Analytics() {
   const [activeTab, setActiveTab] = useState("Accidents");
 
   return (
-    <Layout>
+    <OICLayout>
       <div className="page-box">
         <h2 className="page-heading">Analytics</h2>
 
@@ -432,7 +432,7 @@ function Analytics() {
           {activeTab === "Insights"    && <InsightsTab />}
         </div>
       </div>
-    </Layout>
+    </OICLayout>
   );
 }
 

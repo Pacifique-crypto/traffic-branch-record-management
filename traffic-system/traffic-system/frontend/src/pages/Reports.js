@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import Layout from "../components/Layout";
+import OICLayout from "../layouts/OICLayout";
+ 
 
 const reportTypes = [
   "Accident Summary Report",
@@ -49,7 +50,7 @@ function Reports() {
   };
 
   return (
-    <Layout>
+    <OICLayout>
       <div className="page-box">
         <h2 className="page-heading">Reports</h2>
 
@@ -206,7 +207,7 @@ function Reports() {
           </div>
         </div>
       </div>
-    </Layout>
+    </OICLayout>
   );
 }
 

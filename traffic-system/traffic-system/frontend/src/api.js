@@ -1,4 +1,4 @@
-const BASE_URL = "https://traffic-branch-backend.onrender.com/api";
+const BASE_URL = "http://localhost:5000/api";
 
 const getHeaders = () => ({
   "Content-Type": "application/json",
@@ -78,37 +78,16 @@ export const updateViolation = async (id, data) => {
 };
 
 export const loginUser = async (username, password) => {
-  const res = await fetch(`${BASE_URL}/officers/login`, {
+  const res = await fetch(`${BASE_URL}/users/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      username,
-      password,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
   });
-
-  return res.json();
-};
-
-export const adminLogin = async (username, password) => {
-  const res = await fetch(`${BASE_URL}/admin/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      username,
-      password,
-    }),
-  });
-
   return res.json();
 };
 
 export const registerUser = async (data) => {
-  const res = await fetch(`${BASE_URL}/officers/register`, {
+  const res = await fetch(`${BASE_URL}/users/register`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(data),
@@ -142,53 +121,3 @@ export const createDutyRoster = async (data) => {
   });
   return res.json();
 };
-
-export const registerOfficer = async (officerData) => {
-  const response = await fetch(
-    "https://traffic-branch-backend.onrender.com/api/officers/register",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(officerData),
-    }
-  );
-
-  return response.json();
-};
-
-// ===============================
-// OFFICER MANAGEMENT
-// ===============================
-
-// Get all officers
-export const getOfficers = async () => {
-  const res = await fetch(`${BASE_URL}/officers`, {
-    headers: getHeaders(),
-  });
-
-  return res.json();
-};
-
-// Update officer
-export const updateOfficer = async (id, officerData) => {
-  const res = await fetch(`${BASE_URL}/officers/${id}`, {
-    method: "PUT",
-    headers: getHeaders(),
-    body: JSON.stringify(officerData),
-  });
-
-  return res.json();
-};
-
-// Delete officer
-export const deleteOfficer = async (id) => {
-  const res = await fetch(`${BASE_URL}/officers/${id}`, {
-    method: "DELETE",
-    headers: getHeaders(),
-  });
-
-  return res.json();
-};
-
