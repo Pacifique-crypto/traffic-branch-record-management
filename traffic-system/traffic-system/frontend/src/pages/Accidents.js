@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiFilter, FiPlus, FiMoreVertical, FiCheckCircle } from "react-icons/fi";
-import { getAccidents, createAccident } from "../api";
+import { getAccidents, createAccident, updateAccident } from "../api";
 
 const severityColors = {
   FATAL:    { bg: "#fee2e2", color: "#dc2626" },
@@ -64,8 +64,22 @@ function Accidents() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
-  const handleVerify = (id) => {
-    setAccidents(accidents.map(a => a.id === id ? { ...a, verified: !a.verified } : a));
+  const handleVerify = async (id) => {
+    try {
+      const accident = accidents.find(a => a.id === id);
+      if (!accident) return;
+      const newVerified = !accident.verified;
+      
+      const res = await updateAccident(id, { status: newVerified ? "Completed" : "Pending" });
+      if (res && !res.error) {
+        setAccidents(accidents.map(a => a.id === id ? { ...a, verified: newVerified, status: newVerified ? "Completed" : "Pending" } : a));
+      } else {
+        alert(res.error || "Failed to update verification status.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
   };
 
   return (
@@ -152,7 +166,7 @@ function Accidents() {
                   const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");
                   return (
                     <tr key={a.id} className="ar-tr" onClick={() => navigate(`/accidents/${a.id}`)}>
-                      <td className="ar-ref">{a.id ? a.id.slice(-6).toUpperCase() : "ACD-NEW"}</td>
+                      <td className="ar-ref">{a.id.startsWith("ACD-") ? a.id : a.id.slice(-6).toUpperCase()}</td>
                       <td className="ar-datetime">
                         <span>{datePart}</span><br/>
                         <span style={{ color: "#94a3b8", fontSize: 12 }}>{timePart ? timePart.slice(0, 5) : ""}</span>

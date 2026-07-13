@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiPrinter, FiPlus, FiPaperclip, FiUpload } from "react-icons/fi";
-import { getAccidentById } from "../api";
+import { FiArrowLeft, FiPrinter, FiPlus, FiPaperclip, FiUpload, FiCheckCircle } from "react-icons/fi";
+import { getAccidentById, updateAccident } from "../api";
 
 const accidentData = {
   "ACD-1020": {
@@ -70,12 +70,24 @@ function AccidentDetails() {
     fetchDetails();
   }, [id]);
 
-  const addNote = () => {
+  const addNote = async () => {
     if (!newNote.trim()) return;
     const officer = JSON.parse(localStorage.getItem("officer") || "{}");
-    setRemarks([...remarks, { text: newNote, author: officer.name || "OIC" }]);
-    setNewNote("");
-    setShowNoteInput(false);
+    const updatedRemarks = [...remarks, { text: newNote, author: officer.name || "OIC" }];
+    
+    try {
+      const res = await updateAccident(id, { remarks: updatedRemarks });
+      if (res && !res.error) {
+        setRemarks(updatedRemarks);
+        setNewNote("");
+        setShowNoteInput(false);
+      } else {
+        alert(res.error || "Failed to save operational note.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving operational note to server.");
+    }
   };
 
   if (loading) {
@@ -134,9 +146,49 @@ function AccidentDetails() {
           <button className="acd-back-btn" onClick={() => navigate("/accidents")}>
             <FiArrowLeft size={16} style={{ marginRight: 6 }} /> Accident Ref. No: {id}
           </button>
-          <button className="acd-print-btn" onClick={() => window.print()}>
-            <FiPrinter size={14} style={{ marginRight: 6 }} /> Print Report
-          </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {isOIC && data.status !== "Completed" && (
+              <button
+                className="acd-verify-btn"
+                onClick={async () => {
+                  try {
+                    const res = await updateAccident(id, { status: "Completed" });
+                    if (res && !res.error) {
+                      setData({ ...data, status: "Completed" });
+                      alert("Accident record verified and checked successfully.");
+                    } else {
+                      alert(res.error || "Failed to verify record.");
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert("Error connecting to server.");
+                  }
+                }}
+                style={{
+                  background: "#22c55e",
+                  color: "white",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                  fontSize: 14,
+                }}
+              >
+                <FiCheckCircle size={14} style={{ marginRight: 6 }} /> Mark as Checked
+              </button>
+            )}
+            {isOIC && data.status === "Completed" && (
+              <span style={{ display: "flex", alignItems: "center", color: "#22c55e", fontWeight: "600", gap: "6px", fontSize: 14 }}>
+                <FiCheckCircle size={16} /> Checked & Verified
+              </span>
+            )}
+            <button className="acd-print-btn" onClick={() => window.print()}>
+              <FiPrinter size={14} style={{ marginRight: 6 }} /> Print Report
+            </button>
+          </div>
         </div>
 
         <div className="acd-two-col">

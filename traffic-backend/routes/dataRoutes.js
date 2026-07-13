@@ -20,7 +20,7 @@ router.get("/accidents", async (req, res) => {
       const obj = a.toObject();
       obj.driver = obj.driver || obj.driverName;
       obj.vehicle = obj.vehicle || obj.vehicleNumber;
-      obj.id = obj.id || obj._id;
+      obj.id = obj.referenceNumber || obj._id.toString();
       return obj;
     });
     res.json(mapped);
@@ -33,7 +33,15 @@ router.get("/accidents", async (req, res) => {
 // ==============================
 router.get("/accidents/:id", async (req, res) => {
   try {
-    const accident = await Accident.findById(req.params.id);
+    const mongoose = require("mongoose");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      query = { _id: req.params.id };
+    } else {
+      query = { referenceNumber: req.params.id };
+    }
+
+    const accident = await Accident.findOne(query);
 
     if (!accident) {
       return res.status(404).json({
@@ -44,8 +52,76 @@ router.get("/accidents/:id", async (req, res) => {
     const obj = accident.toObject();
     obj.driver = obj.driver || obj.driverName;
     obj.vehicle = obj.vehicle || obj.vehicleNumber;
-    obj.id = obj.id || obj._id;
+    obj.id = obj.referenceNumber || obj._id.toString();
     res.json(obj);
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
+// ==============================
+// ✅ UPDATE ACCIDENT
+// ==============================
+router.put("/accidents/:id", async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      query = { _id: req.params.id };
+    } else {
+      query = { referenceNumber: req.params.id };
+    }
+
+    const updatedAccident = await Accident.findOneAndUpdate(
+      query,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedAccident) {
+      return res.status(404).json({
+        message: "Accident not found",
+      });
+    }
+
+    const obj = updatedAccident.toObject();
+    obj.id = obj.referenceNumber || obj._id.toString();
+    res.json(obj);
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+
+// ==============================
+// ✅ DELETE ACCIDENT
+// ==============================
+router.delete("/accidents/:id", async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      query = { _id: req.params.id };
+    } else {
+      query = { referenceNumber: req.params.id };
+    }
+
+    const deleted = await Accident.findOneAndDelete(query);
+
+    if (!deleted) {
+      return res.status(404).json({
+        message: "Accident not found",
+      });
+    }
+
+    res.json({
+      message: "Accident deleted successfully",
+    });
 
   } catch (err) {
     res.status(500).json({
