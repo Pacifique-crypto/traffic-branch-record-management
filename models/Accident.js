@@ -155,6 +155,19 @@ const accidentSchema = new mongoose.Schema(
     default: "MINOR",
   },
 
+  referenceNumber: {
+    type: String,
+    unique: true,
+  },
+
+  remarks: [
+    {
+      text: { type: String, required: true },
+      author: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ],
+
 },
 
 {
@@ -162,6 +175,18 @@ const accidentSchema = new mongoose.Schema(
 }
 
 );
+
+accidentSchema.pre("save", async function(next) {
+  if (!this.referenceNumber) {
+    try {
+      const count = await mongoose.model("Accident").countDocuments();
+      this.referenceNumber = `ACD-${1020 + count + 1}`;
+    } catch (err) {
+      return next(err);
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model(
   "Accident",
