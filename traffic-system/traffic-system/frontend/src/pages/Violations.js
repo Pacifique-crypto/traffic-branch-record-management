@@ -1,128 +1,148 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import OICLayout from "../layouts/OICLayout";
- 
+import { FiSearch, FiMoreVertical, FiCheckCircle, FiFilter } from "react-icons/fi";
 
-const allViolations = [
-  { id: "VID-1020", date: "2023-04-02", location: "Main Street",   type: "Speeding",       status: "Pending",  office: "Negombo" },
-  { id: "VID-1021", date: "2023-04-02", location: "Chilaw Road",   type: "Signal Jump",    status: "Paid",     office: "Negombo" },
-  { id: "VID-1022", date: "2023-04-02", location: "Galle Road",    type: "Drunk Driving",  status: "Pending",  office: "Negombo" },
-  { id: "VID-1023", date: "2023-04-03", location: "Colombo Road",  type: "Speeding",       status: "Paid",     office: "Negombo" },
-  { id: "VID-1024", date: "2023-04-03", location: "Negombo Town",  type: "No Seat Belt",   status: "Pending",  office: "Negombo" },
-  { id: "VID-1025", date: "2023-04-04", location: "Kandy Road",    type: "Signal Jump",    status: "Pending",  office: "Negombo" },
-  { id: "VID-1026", date: "2023-04-04", location: "Main Street",   type: "Overloading",    status: "Paid",     office: "Negombo" },
-  { id: "VID-1027", date: "2023-04-05", location: "Puttalam Road", type: "Drunk Driving",  status: "Pending",  office: "Negombo" },
+const actionColors = {
+  "Court Referral":       { bg: "#fee2e2", color: "#dc2626" },
+  "Spot Fine Issued":     { bg: "#fef3c7", color: "#b45309" },
+  "Vehicle Impounded":    { bg: "#dbeafe", color: "#2563eb" },
+  "Warning Issued":       { bg: "#dcfce7", color: "#16a34a" },
+};
+
+const initialViolations = [
+  { id: "TR-2023-8842", date: "24 Oct", time: "09:15 AM", offence: "Driving Under Influence",  lawSection: "RTA Sec 151(1)", action: "Court Referral",    place: "Galle Road, Colombo 03",    officer: "Sgt. Perera (4429)",      verified: false },
+  { id: "TR-2023-8841", date: "24 Oct", time: "08:40 AM", offence: "Exceeding Speed Limit",    lawSection: "RTA Sec 148",    action: "Spot Fine Issued",  place: "Marine Drive, Wellawatte",  officer: "Cpl. Silva (8831)",        verified: false },
+  { id: "TR-2023-8840", date: "23 Oct", time: "11:55 PM", offence: "No Valid License",          lawSection: "RTA Sec 123",    action: "Vehicle Impounded", place: "Town Hall, Colombo 07",     officer: "Insp. Fernando (1022)",    verified: true  },
+  { id: "TR-2023-8839", date: "23 Oct", time: "18:20 PM", offence: "Dangerous Overtaking",     lawSection: "RTA Sec 148",    action: "Spot Fine Issued",  place: "Baseline Road, Dematagoda", officer: "Sgt. Jayasinghe (5512)",   verified: false },
+  { id: "TR-2023-8838", date: "23 Oct", time: "14:10 PM", offence: "Obstructing Traffic",      lawSection: "RTA Sec 155",    action: "Warning Issued",    place: "Liberty Plaza Junct.",      officer: "Cpl. Wickramasuriya (9902)", verified: false },
 ];
 
 const PAGE_SIZE = 5;
 
-const statusColor = (s) => {
-  if (s === "Pending") return "#f59e0b";
-  if (s === "Paid")    return "#22c55e";
-  return "#94a3b8";
-};
-
 function Violations() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const userRole  = localStorage.getItem("userRole") || "IT Officer";
+  const isOIC     = userRole === "OIC";
+
+  let Layout;
+  if (isOIC) Layout = require("../layouts/OICLayout").default;
+  else        Layout = require("../layouts/ITLayout").default;
+
+  const [violations, setViolations] = useState(initialViolations);
   const [search, setSearch]         = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [action, setAction]         = useState("All Type");
   const [page, setPage]             = useState(1);
 
-  const filtered = allViolations.filter((v) => {
-    const matchSearch =
-      v.id.toLowerCase().includes(search.toLowerCase()) ||
-      v.location.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All" || v.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const filtered = violations.filter(v =>
+    v.id.toLowerCase().includes(search.toLowerCase()) ||
+    v.offence.toLowerCase().includes(search.toLowerCase()) ||
+    v.officer.toLowerCase().includes(search.toLowerCase())
+  ).filter(v => action === "All Type" || v.action === action);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  const handleVerify = (id) => {
+    setViolations(violations.map(v => v.id === id ? { ...v, verified: !v.verified } : v));
+  };
 
   return (
-    <OICLayout>
-      <div className="page-box">
-        <h2 className="page-heading">Traffic Offence Register (TOR)</h2>
+    <Layout>
+      <div className="ar-page">
+        <div className="ar-header">
+          <div>
+            <h1 className="ar-title">Traffic Offence Register</h1>
+            <p className="ar-sub">Centralized record of all detected violations and regulatory actions taken.</p>
+          </div>
+        </div>
 
-        {/* Toolbar */}
-        <div className="air-toolbar">
-          <div className="search-wrap">
-            <span className="search-icon">🔍</span>
+        {/* Filters */}
+        <div className="ar-filters">
+          <div className="ar-search-wrap">
+            <FiSearch size={14} color="#94a3b8" />
             <input
-              className="search-input"
-              placeholder="Search by ID, Location"
+              className="ar-search-input"
+              placeholder="Search by Ref No, Name or Officer"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          >
-            <option value="All">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Paid">Paid</option>
+          <select className="ar-select" value={action} onChange={e => { setAction(e.target.value); setPage(1); }}>
+            <option>All Type</option>
+            <option>Court Referral</option>
+            <option>Spot Fine Issued</option>
+            <option>Vehicle Impounded</option>
+            <option>Warning Issued</option>
           </select>
+          <button className="ar-date-btn">📅 Oct 01, 2023 – Oct 24, 2023</button>
+          <button className="ar-filter-icon-btn"><FiFilter size={15} /></button>
         </div>
 
         {/* Table */}
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Violation ID</th>
-              <th>Date</th>
-              <th>Location</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Reporting Office</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginated.map((v) => (
-              <tr
-                key={v.id}
-                className="table-row"
-                onClick={() => navigate(`/tor/${v.id}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <td>{v.id}</td>
-                <td>{v.date}</td>
-                <td>{v.location}</td>
-                <td>{v.type}</td>
-                <td>
-                  <span className="severity-badge" style={{ background: statusColor(v.status) }}>
-                    {v.status}
-                  </span>
-                </td>
-                <td>{v.office}</td>
-                <td className="action-dots">⋮</td>
+        <div className="ar-table-wrap">
+          <table className="ar-table">
+            <thead>
+              <tr>
+                <th>REF NO</th>
+                <th>DATE & TIME</th>
+                <th>NAME OF OFFENCE</th>
+                <th>LAW SECTION</th>
+                <th>ACTION TAKEN</th>
+                <th>PLACE</th>
+                <th>OFFICERS DETECTING</th>
+                <th>ACTIONS</th>
+                {isOIC && <th>VERIFY</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginated.map(v => {
+                const ac = actionColors[v.action] || { bg: "#f1f5f9", color: "#374151" };
+                return (
+                  <tr key={v.id} className="ar-tr" onClick={() => navigate(`/tor/${v.id}`)}>
+                    <td className="ar-ref">{v.id}</td>
+                    <td className="ar-datetime">
+                      <span>{v.date}</span><br/>
+                      <span style={{ color: "#94a3b8", fontSize: 12 }}>{v.time}</span>
+                    </td>
+                    <td>{v.offence}</td>
+                    <td><span className="ar-law-section">{v.lawSection}</span></td>
+                    <td>
+                      <span className="ar-action-badge" style={{ background: ac.bg, color: ac.color }}>
+                        {v.action}
+                      </span>
+                    </td>
+                    <td>{v.place}</td>
+                    <td>{v.officer}</td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
+                    </td>
+                    {isOIC && (
+                      <td onClick={e => e.stopPropagation()}>
+                        <button
+                          className={`ar-verify-btn ${v.verified ? "ar-verified" : ""}`}
+                          onClick={() => handleVerify(v.id)}
+                        >
+                          <FiCheckCircle size={18} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div> 
 
-        {/* Pagination */}
-        <div className="pagination">
-          <button
-            className="page-btn"
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Previous
-          </button>
-          <span className="page-info">{page} / {totalPages}</span>
-          <button
-            className="page-btn"
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </button>
+        <div className="ar-pagination">
+          <p className="ar-page-info">Showing {Math.min((page-1)*PAGE_SIZE+1, filtered.length)}–{Math.min(page*PAGE_SIZE, filtered.length)} of {filtered.length} entries</p>
+          <div className="ar-page-btns">
+            <button className="ar-page-btn" disabled={page===1} onClick={() => setPage(p=>p-1)}>‹</button>
+            {[1,2,3].map(n => <button key={n} className={`ar-page-btn ${page===n?"ar-page-active":""}`} onClick={() => setPage(n)}>{n}</button>)}
+            <button className="ar-page-btn" disabled={page===totalPages} onClick={() => setPage(p=>p+1)}>›</button>
+          </div>
         </div>
       </div>
-    </OICLayout>
+    </Layout>
   );
 }
 

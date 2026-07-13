@@ -798,3 +798,669 @@ body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #1e293b; }
 .um-details-label { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; margin-bottom: 4px; text-transform: uppercase; }
 .um-details-value { font-size: 14px; font-weight: 600; color: #0f172a; }
 .um-details-rank-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+
+/* =============================================
+   ACCIDENT REGISTER & TOR STYLES
+   Paste at the bottom of your styles.css
+   ============================================= */
+
+/* ── Page wrapper ── */
+.ar-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Header ── */
+.ar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.ar-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.ar-sub {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ── Buttons ── */
+.ar-new-btn {
+  display: flex;
+  align-items: center;
+  background: #1e3a5f;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.ar-new-btn:hover { background: #16304f; }
+
+.ar-filter-btn {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #374151;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ar-filter-btn:hover { background: #e2e8f0; }
+
+.ar-filter-icon-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #374151;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ar-filter-icon-btn:hover { background: #e2e8f0; }
+
+/* ── Filters row ── */
+.ar-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.ar-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+}
+
+.ar-search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: #0f172a;
+  width: 100%;
+}
+
+.ar-select {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: #374151;
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.ar-date-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.ar-date-btn:hover { background: #e2e8f0; }
+
+/* ── Table wrapper ── */
+.ar-table-wrap {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+/* ── Table ── */
+.ar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ar-table thead tr {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ar-table th {
+  text-align: left;
+  padding: 13px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.ar-table td {
+  padding: 14px 16px;
+  color: #374151;
+  border-bottom: 1px solid #f8fafc;
+  vertical-align: middle;
+}
+
+.ar-tr {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ar-tr:hover { background: #f8fafc; }
+.ar-tr:last-child td { border-bottom: none; }
+
+/* ── Cell types ── */
+.ar-ref {
+  font-weight: 700;
+  color: #1e3a5f;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ar-datetime span:first-child {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  display: block;
+}
+
+/* ── Severity badge ── */
+.ar-severity-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ── Action badge (TOR) ── */
+.ar-action-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+/* ── Law section (TOR) ── */
+.ar-law-section {
+  font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* ── Action dots button ── */
+.ar-dots-btn {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.15s;
+}
+.ar-dots-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+/* ── Verify button ── */
+.ar-verify-btn {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.15s;
+}
+.ar-verify-btn:hover { background: #dcfce7; border-color: #86efac; color: #16a34a; }
+.ar-verified { background: #dcfce7 !important; border-color: #86efac !important; color: #16a34a !important; }
+
+/* ── Pagination ── */
+.ar-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  padding: 0 2px;
+}
+
+.ar-page-info {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.ar-page-btns {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.ar-page-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #374151;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ar-page-btn:hover:not(:disabled) { background: #e2e8f0; }
+.ar-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ar-page-active { background: #1e3a5f !important; color: white !important; border-color: #1e3a5f !important; }
+.ar-page-ellipsis { font-size: 13px; color: #94a3b8; padding: 0 4px; }
+
+/* =============================================
+   ACCIDENT DETAIL & VIOLATION DETAIL STYLES
+   ============================================= */
+
+.acd-page {
+  max-width: 1100px;
+}
+
+/* Breadcrumb */
+.acd-breadcrumb {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Header */
+.acd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.acd-back-btn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  padding: 0;
+  gap: 4px;
+}
+.acd-back-btn:hover { color: #1e3a5f; }
+
+.acd-print-btn {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.acd-print-btn:hover { background: #e2e8f0; }
+
+/* Two column layout */
+.acd-two-col {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.acd-left, .acd-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Section card */
+.acd-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.acd-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Grid helpers */
+.acd-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+}
+
+.acd-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.acd-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.acd-bold {
+  font-weight: 700;
+}
+
+.acd-severity-pill {
+  display: inline-block;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+}
+
+/* Vehicles grid */
+.acd-vehicles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.acd-vehicle-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+/* Table inside detail */
+.acd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.acd-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.acd-table td {
+  padding: 10px 10px;
+  color: #374151;
+  font-size: 12px;
+  border-bottom: 1px solid #f8fafc;
+}
+
+/* Casualty card (Section 4) */
+.acd-casualty-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.acd-killed-badge {
+  background: #dc2626;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* Description text */
+.acd-description {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.7;
+}
+
+/* Remarks (Section 6) */
+.acd-remark-card {
+  background: #f8fafc;
+  border-left: 3px solid #1e3a5f;
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.acd-remark-text {
+  font-size: 13px;
+  font-style: italic;
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.acd-remark-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: right;
+}
+
+/* Add Operational Note button */
+.acd-add-note-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 11px;
+  background: #f8fafc;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.acd-add-note-btn:hover {
+  background: #f1f5f9;
+  border-color: #1e3a5f;
+  color: #1e3a5f;
+}
+
+/* Operational note textarea */
+.acd-note-input {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: #0f172a;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.acd-note-input:focus { border-color: #1e3a5f; background: white; }
+
+/* Evidence grid (Section 7) */
+.acd-evidence-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.acd-evidence-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.acd-evidence-img {
+  width: 90px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.acd-evidence-name {
+  font-size: 10px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Attachment row */
+.acd-attachment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.acd-attachment-name {
+  font-size: 12px;
+  color: #1e3a5f;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.acd-upload-btn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 6px;
+}
+.acd-upload-btn:hover { background: #f1f5f9; border-color: #1e3a5f; color: #1e3a5f; }
+
+/* Vehicle number big display (ViolationDetails) */
+.acd-vehicle-number-big {
+  font-size: 28px;
+  font-weight: 900;
+  color: #0f172a;
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+/* Officers grid (ViolationDetails) */
+.acd-officers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.acd-officer-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}

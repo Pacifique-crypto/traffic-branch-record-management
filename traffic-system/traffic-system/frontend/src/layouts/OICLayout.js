@@ -8,7 +8,7 @@ import {
 
 const navItems = [
   { label: "Dashboard",   path: "/dashboard",   icon: <FiGrid /> },
-  { label: "AIR",         path: "/accidents",   icon: <FiAlertTriangle /> },
+  { label: "AR",         path: "/accidents",   icon: <FiAlertTriangle /> },
   { label: "TOR",         path: "/tor",          icon: <FiAlertCircle /> },
   { label: "Reports",     path: "/reports",      icon: <FiFileText /> },
   { label: "Duty Roster", path: "/duty-roster",  icon: <FiCalendar /> },
