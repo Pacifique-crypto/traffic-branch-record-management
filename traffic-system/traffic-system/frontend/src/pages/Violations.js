@@ -42,15 +42,21 @@ function Violations() {
   const fetchViolations = async () => {
     try {
       const data = await getViolations();
-      setViolations(data || []);
+      if (Array.isArray(data)) {
+        setViolations(data);
+      } else {
+        console.error("Expected array from getViolations but got:", data);
+        setViolations([]);
+      }
     } catch (err) {
       console.error("Failed to load violations:", err);
+      setViolations([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filtered = violations.filter(v => {
+  const filtered = Array.isArray(violations) ? violations.filter(v => {
     const idVal = v.id || v._id || "";
     const offenceVal = v.violationType || v.offence || "";
     const officerVal = v.assistantOfficer || v.officer || "";
@@ -60,7 +66,7 @@ function Violations() {
   }).filter(v => {
     const actionVal = v.actionTaken || v.action || "";
     return action === "All Type" || actionVal === action;
-  });
+  }) : [];
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);

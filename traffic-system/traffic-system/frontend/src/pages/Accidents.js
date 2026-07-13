@@ -45,21 +45,27 @@ function Accidents() {
   const fetchAccidents = async () => {
     try {
       const data = await getAccidents();
-      setAccidents(data || []);
+      if (Array.isArray(data)) {
+        setAccidents(data);
+      } else {
+        console.error("Expected array from getAccidents but got:", data);
+        setAccidents([]);
+      }
     } catch (err) {
       console.error("Failed to load accidents:", err);
+      setAccidents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filtered = accidents.filter(a => {
-    const matchSearch = a.id.toLowerCase().includes(search.toLowerCase()) ||
-      a.location.toLowerCase().includes(search.toLowerCase()) ||
-      a.officer.toLowerCase().includes(search.toLowerCase());
+  const filtered = Array.isArray(accidents) ? accidents.filter(a => {
+    const matchSearch = (a.id || "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.location || "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.officer || "").toLowerCase().includes(search.toLowerCase());
     const matchSev = severity === "All" || a.severity === severity;
     return matchSearch && matchSev;
-  });
+  }) : [];
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
