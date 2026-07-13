@@ -1,77 +1,117 @@
-import React, { useContext, useState } from 'react';
+import React, { useState, useContext } from "react";
+
 import {
   View,
   Text,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
-  Image,
+  ScrollView,
+  StyleSheet,
   Alert,
-} from 'react-native';
-import { LanguageContext } from '../context/LanguageContext';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
+  Image,
+} from "react-native";
 
-export default function AddAccidentScreen() {
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import * as ImagePicker from "expo-image-picker";
+
+import * as DocumentPicker from "expo-document-picker";
+
+import { Audio } from "expo-av";
+
+import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
+import { LanguageContext } from "../context/LanguageContext";
+import { BASE_URL } from "../config";
+
+export default function AddAccidentScreen({ navigation }) {
+
   const { language } = useContext(LanguageContext);
 
-  const BASE_URL = "https://traffic-branch-backend.onrender.com/api";
+  // ============================
+  // STEP NAVIGATION
+  // ============================
+
+  const [step, setStep] = useState(1);
+
+  // ============================
+  // STEP 1
+  // ============================
+
+  const [dateTime, setDateTime] = useState("");
+
+  const [station, setStation] = useState("");
+
+  const [location, setLocation] = useState("");
+
+  const [assistantOfficer, setAssistantOfficer] = useState("");
+
+  // ============================
+  // STEP 2
+  // ============================
+
+  const [vehicleNumber, setVehicleNumber] = useState("");
+
+  const [vehicleClass, setVehicleClass] = useState("");
+
+  const [vehicleAge, setVehicleAge] = useState("");
+
+  const [driverName, setDriverName] = useState("");
+
+  const [driverAddress, setDriverAddress] = useState("");
+
+  const [driverAge, setDriverAge] = useState("");
+
+  const [drivingLicence, setDrivingLicence] = useState("");
+
+  // ============================
+  // STEP 3
+  // ============================
+
+  const [victimName, setVictimName] = useState("");
+
+  const [victimAddress, setVictimAddress] = useState("");
+
+  const [victimAge, setVictimAge] = useState("");
+
+  const [gender, setGender] = useState("");
+
+  // ============================
+  // STEP 4
+  // ============================
+
+  const [description, setDescription] = useState("");
 
   const [image, setImage] = useState(null);
 
-  const [severity, setSeverity] = useState("");
-  const [driver, setDriver] = useState("");
-  const [location, setLocation] = useState("");
-  const [date, setDate] = useState("");
-  const [vehicle, setVehicle] = useState("");
+  const [attachment, setAttachment] = useState(null);
 
-  const translations = {
-    EN: {
-      title: "Add Accident",
-      severity: "Severity Type",
-      driver: "Driver Details",
-      location: "Location",
-      date: "Date & Time",
-      vehicle: "Vehicle Details",
-      upload: "Upload Evidence",
-      submit: "Submit",
-    },
-    SI: {
-      title: "අනතුර එක් කරන්න",
-      severity: "බරපතලත්වය",
-      driver: "රියදුරු විස්තර",
-      location: "ස්ථානය",
-      date: "දිනය හා වේලාව",
-      vehicle: "වාහන විස්තර",
-      upload: "සාක්ෂි උඩුගත කරන්න",
-      submit: "යවන්න",
-    },
-  };
+  const [voiceNote, setVoiceNote] = useState(null);
 
-  const t = translations[language];
+  const [recording, setRecording] = useState(null);
 
-  // Gallery
-  const pickImage = async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // ============================
+  // STEP FUNCTIONS
+  // ============================
 
-    if (!permission.granted) {
-      Alert.alert("Permission required");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+  const nextStep = () => {
+    if (step < 4) {
+      setStep(step + 1);
     }
   };
 
-  // Camera
+  const previousStep = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
+    // ============================
+  // CAMERA
+  // ============================
+
   const openCamera = async () => {
+
     const permission =
       await ImagePicker.requestCameraPermissionsAsync();
 
@@ -80,199 +120,1051 @@ export default function AddAccidentScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 1,
-    });
+    const result =
+      await ImagePicker.launchCameraAsync({
+        quality: 1,
+      });
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
     }
   };
 
-  // Submit Accident
-  const handleSubmit = async () => {
-    if (
-      !severity ||
-      !driver ||
-      !location ||
-      !date ||
-      !vehicle
-    ) {
-      Alert.alert("Please fill all fields");
+  // ============================
+  // GALLERY
+  // ============================
+
+  const pickImage = async () => {
+
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert("Permission required");
       return;
     }
 
-    try {
-    
-  console.log("Submitting Accident:");
-  console.log({
-    severity,
-    driver,
-    location,
-    accidentDate: date,
-    vehicle,
-    evidencePhoto: image,
-  });
+    const result =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
 
-  const response = await fetch(`${BASE_URL}/accidents`, {
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+
+  };
+
+    // ============================
+  // DOCUMENT PICKER
+  // ============================
+
+  const pickDocument = async () => {
+
+    const result =
+      await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+      });
+
+    if (!result.canceled) {
+      setAttachment(result.assets[0]);
+    }
+
+  };
+
+    // ============================
+  // START RECORDING
+  // ============================
+
+  const startRecording = async () => {
+
+    try {
+
+      await Audio.requestPermissionsAsync();
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } =
+        await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+
+      setRecording(recording);
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
+
+  // ============================
+  // STOP RECORDING
+  // ============================
+
+  const stopRecording = async () => {
+
+    try {
+
+      await recording.stopAndUnloadAsync();
+
+      const uri = recording.getURI();
+
+      setVoiceNote(uri);
+
+      setRecording(null);
+
+      Alert.alert("Voice note saved");
+
+    } catch (err) {
+
+      console.log(err);
+
+    }
+
+  };
+
+    // ============================
+  // SUBMIT
+  // ============================
+
+ const handleSubmit = async () => {
+
+  // Required field validation
+  if (
+    !dateTime ||
+    !station ||
+    !location ||
+    !assistantOfficer ||
+    !vehicleNumber ||
+    !vehicleClass ||
+    !vehicleAge ||
+    !driverName ||
+    !driverAddress ||
+    !driverAge ||
+    !drivingLicence ||
+    !victimName ||
+    !victimAddress ||
+    !victimAge ||
+    !gender ||
+    !description
+  ) {
+
+    Alert.alert(
+      "Missing Information",
+      "Please complete all required fields."
+    );
+
+    return;
+  }
+
+  try {
+
+    const response = await fetch(
+      `${BASE_URL}/accidents`,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-      body: JSON.stringify({
-  severity,
-  driver,
-  location,
-  accidentDate: date,
-  vehicle,
-  evidencePhoto: image,
-}),
-      });
 
-      const data = await response.json();
+        body: JSON.stringify({
 
-      if (response.ok) {
-        Alert.alert("Success", "Accident submitted successfully");
+          dateTime,
+          station,
+          location,
+          assistantOfficer,
 
-        setSeverity("");
-        setDriver("");
-        setLocation("");
-        setDate("");
-        setVehicle("");
-        setImage(null);
-      } else {
-        Alert.alert("Error", data.error || "Failed to submit");
+          vehicleNumber,
+          vehicleClass,
+          vehicleAge,
+
+          driverName,
+          driverAddress,
+          driverAge,
+          drivingLicence,
+
+          victimName,
+          victimAddress,
+          victimAge,
+          gender,
+
+          description,
+
+          evidencePhoto: image,
+          attachment,
+          voiceNote,
+
+          status: "Pending",
+
+        }),
       }
-    } catch (error) {
-      console.log(error);
-      Alert.alert("Error", "Server error");
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+
+      Alert.alert(
+        "Success",
+        "Accident submitted successfully."
+      );
+
+      navigation.goBack();
+
+    } else {
+
+      Alert.alert(
+        "Error",
+        data.error || "Submission failed"
+      );
+
     }
-  };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.header}>{t.title}</Text>
+  } catch (error) {
 
-      <TextInput
-        placeholder={t.severity}
-        style={styles.input}
-        value={severity}
-        onChangeText={setSeverity}
-      />
+    console.log(error);
 
-      <TextInput
-        placeholder={t.driver}
-        style={styles.input}
-        value={driver}
-        onChangeText={setDriver}
-      />
+    Alert.alert(
+      "Server Error",
+      "Unable to connect to server."
+    );
 
-      <TextInput
-        placeholder={t.location}
-        style={styles.input}
-        value={location}
-        onChangeText={setLocation}
-      />
+  }
 
-      <TextInput
-        placeholder={t.date}
-        style={styles.input}
-        value={date}
-        onChangeText={setDate}
-      />
+};
 
-      <TextInput
-        placeholder={t.vehicle}
-        style={styles.input}
-        value={vehicle}
-        onChangeText={setVehicle}
-      />
+    return (
 
-      <View style={styles.uploadRow}>
-        <TouchableOpacity
-          style={styles.uploadBtn}
-          onPress={pickImage}
-        >
-          <Text>{t.upload}</Text>
-        </TouchableOpacity>
+<SafeAreaView style={styles.container}>
 
-        <Ionicons
-          name="camera"
-          size={28}
-          style={{ marginLeft: 15 }}
-          onPress={openCamera}
-        />
-      </View>
+<ScrollView
+showsVerticalScrollIndicator={false}
+contentContainerStyle={styles.scroll}
+>
 
-      {image && (
-        <Image
-          source={{ uri: image }}
-          style={styles.preview}
-        />
-      )}
+{/* HEADER */}
 
-      <TouchableOpacity
-        style={styles.btn}
-        onPress={handleSubmit}
-      >
-        <Text
-          style={{
-            color: "#fff",
-            fontWeight: "bold",
-          }}
-        >
-          {t.submit}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+<View style={styles.header}>
+
+<TouchableOpacity
+onPress={() => navigation.goBack()}
+>
+
+<Ionicons
+name="arrow-back"
+size={24}
+color="#1e3a8a"
+/>
+
+</TouchableOpacity>
+
+<Text style={styles.headerTitle}>
+Add Accident
+</Text>
+
+<View style={{ width: 24 }} />
+
+</View>
+
+{/* PROGRESS */}
+
+<View style={styles.progressContainer}>
+
+{[1,2,3,4].map((item)=>(
+
+<React.Fragment key={item}>
+
+<View
+style={[
+styles.circle,
+step>=item && styles.activeCircle
+]}
+>
+
+<Text
+style={[
+styles.circleText,
+step>=item && styles.activeCircleText
+]}
+>
+
+{item}
+
+</Text>
+
+</View>
+
+{item!==4 && (
+
+<View
+style={[
+styles.line,
+step>item && styles.activeLine
+]}
+/>
+
+)}
+
+</React.Fragment>
+
+))}
+
+</View>
+
+<Text style={styles.pageTitle}>
+
+{step===1 && "Accident Details"}
+
+{step===2 && "Vehicle & Driver"}
+
+{step===3 && "Victim Details"}
+
+{step===4 && "Evidence"}
+
+</Text>
+
+{step===1 && (
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Date & Time
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Date & Time"
+value={dateTime}
+onChangeText={setDateTime}
+/>
+
+<Text style={styles.label}>
+Police Station
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Police Station"
+value={station}
+onChangeText={setStation}
+/>
+
+<Text style={styles.label}>
+Accident Location
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Location"
+value={location}
+onChangeText={setLocation}
+/>
+
+<Text style={styles.label}>
+Assistant Officer
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Assistant Officer"
+value={assistantOfficer}
+onChangeText={setAssistantOfficer}
+/>
+
+<TouchableOpacity
+style={styles.nextButton}
+onPress={nextStep}
+>
+
+<Text style={styles.buttonText}>
+Continue →
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+)}
+
+{step===2 && (
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Vehicle Number
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Vehicle Number"
+value={vehicleNumber}
+onChangeText={setVehicleNumber}
+/>
+
+<Text style={styles.label}>
+Vehicle Class
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Car / Bus / Motorcycle"
+value={vehicleClass}
+onChangeText={setVehicleClass}
+/>
+
+<Text style={styles.label}>
+Vehicle Age
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Vehicle Age"
+value={vehicleAge}
+onChangeText={setVehicleAge}
+/>
+
+<Text style={styles.label}>
+Driver Name
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Driver Name"
+value={driverName}
+onChangeText={setDriverName}
+/>
+
+<Text style={styles.label}>
+Driver Address
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Driver Address"
+value={driverAddress}
+onChangeText={setDriverAddress}
+/>
+
+<Text style={styles.label}>
+Driver Age
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Driver Age"
+value={driverAge}
+onChangeText={setDriverAge}
+/>
+
+<Text style={styles.label}>
+Driving Licence No.
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Driving Licence Number"
+value={drivingLicence}
+onChangeText={setDrivingLicence}
+/>
+
+<View
+style={{
+flexDirection:"row",
+justifyContent:"space-between",
+marginTop:20,
+}}
+>
+
+<TouchableOpacity
+style={[
+styles.nextButton,
+{
+backgroundColor:"#6b7280",
+flex:0.47,
+}
+]}
+onPress={previousStep}
+>
+
+<Text style={styles.buttonText}>
+← Previous
+</Text>
+
+</TouchableOpacity>
+
+<TouchableOpacity
+style={[
+styles.nextButton,
+{
+flex:0.47,
+}
+]}
+onPress={nextStep}
+>
+
+<Text style={styles.buttonText}>
+Continue →
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+</View>
+
+)}
+
+{step === 3 && (
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Assistant Officer
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Assistant Officer"
+value={assistantOfficer}
+onChangeText={setAssistantOfficer}
+/>
+
+<Text style={styles.label}>
+Killed / Injured Name
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Name"
+value={victimName}
+onChangeText={setVictimName}
+/>
+
+<Text style={styles.label}>
+Address
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Address"
+value={victimAddress}
+onChangeText={setVictimAddress}
+multiline
+/>
+
+<Text style={styles.label}>
+Age
+</Text>
+
+<TextInput
+style={styles.input}
+placeholder="Enter Age"
+value={victimAge}
+onChangeText={setVictimAge}
+keyboardType="numeric"
+/>
+
+<Text style={styles.label}>
+Gender
+</Text>
+
+<View style={styles.pickerBox}>
+
+<Picker
+selectedValue={gender}
+onValueChange={setGender}
+>
+
+<Picker.Item
+label="Select Gender"
+value=""
+/>
+
+<Picker.Item
+label="Male"
+value="Male"
+/>
+
+<Picker.Item
+label="Female"
+value="Female"
+/>
+
+<Picker.Item
+label="Other"
+value="Other"
+/>
+
+</Picker>
+
+</View>
+
+<View
+style={{
+flexDirection:"row",
+justifyContent:"space-between",
+marginTop:20,
+}}
+>
+
+<TouchableOpacity
+style={[
+styles.nextButton,
+{
+backgroundColor:"#6b7280",
+flex:0.47,
+}
+]}
+onPress={previousStep}
+>
+
+<Text style={styles.buttonText}>
+← Previous
+</Text>
+
+</TouchableOpacity>
+
+<TouchableOpacity
+style={[
+styles.nextButton,
+{
+flex:0.47,
+}
+]}
+onPress={nextStep}
+>
+
+<Text style={styles.buttonText}>
+Continue →
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+</View>
+
+)}
+
+{step === 4 && (
+
+<View style={styles.card}>
+
+<Text style={styles.label}>
+Description
+</Text>
+
+<TextInput
+style={[styles.input,{height:120}]}
+placeholder="Enter Accident Description"
+value={description}
+onChangeText={setDescription}
+multiline
+/>
+
+<Text style={styles.label}>
+Upload Evidence
+</Text>
+
+{/* Camera & Gallery */}
+
+<View
+style={{
+flexDirection:"row",
+justifyContent:"space-between",
+marginBottom:15,
+}}
+>
+
+<TouchableOpacity
+style={[styles.uploadButton,{width:"48%"}]}
+onPress={openCamera}
+>
+
+<Ionicons
+name="camera"
+size={30}
+color="#1e3a8a"
+/>
+
+<Text style={styles.uploadText}>
+Camera
+</Text>
+
+</TouchableOpacity>
+
+<TouchableOpacity
+style={[styles.uploadButton,{width:"48%"}]}
+onPress={pickImage}
+>
+
+<Ionicons
+name="images"
+size={30}
+color="#1e3a8a"
+/>
+
+<Text style={styles.uploadText}>
+Gallery
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+{/* Attach File */}
+
+<TouchableOpacity
+style={[styles.uploadButton,{marginBottom:15}]}
+onPress={pickDocument}
+>
+
+<Ionicons
+name="attach"
+size={30}
+color="#1e3a8a"
+/>
+
+<Text style={styles.uploadText}>
+Attach File
+</Text>
+
+</TouchableOpacity>
+
+{/* Image Preview */}
+
+{image && (
+
+<Image
+source={{uri:image}}
+style={styles.preview}
+/>
+
+)}
+
+{/* Attachment Preview */}
+
+{attachment && (
+
+<View
+style={{
+backgroundColor:"#eef2ff",
+padding:12,
+borderRadius:10,
+marginTop:15,
+}}
+>
+
+<Text
+style={{
+color:"#1e3a8a",
+fontWeight:"600",
+}}
+>
+
+📎 {attachment.name}
+
+</Text>
+
+</View>
+
+)}
+
+{/* Voice Recording */}
+
+<View style={{marginTop:15}}>
+
+<TouchableOpacity
+style={[
+styles.voiceButton,
+recording && {
+backgroundColor:"#dc2626"
+}
+]}
+onPress={
+recording
+? stopRecording
+: startRecording
+}
+>
+
+<Ionicons
+name={
+recording
+? "stop-circle"
+: "mic"
+}
+size={28}
+color="white"
+/>
+
+<Text style={styles.voiceText}>
+
+{recording
+? "Stop Recording"
+: "Record Voice Note"}
+
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+{/* Voice Preview */}
+
+{voiceNote && (
+
+<View
+style={{
+marginTop:15,
+padding:12,
+backgroundColor:"#eef2ff",
+borderRadius:10,
+}}
+>
+
+<Text
+style={{
+fontWeight:"600",
+color:"#1e3a8a",
+}}
+>
+
+🎤 Voice note attached
+
+</Text>
+
+</View>
+
+)}
+
+<View
+style={{
+flexDirection:"row",
+justifyContent:"space-between",
+marginTop:30,
+}}
+>
+
+<TouchableOpacity
+style={[
+styles.nextButton,
+{
+backgroundColor:"#6b7280",
+flex:0.47,
+}
+]}
+onPress={previousStep}
+>
+
+<Text style={styles.buttonText}>
+← Previous
+</Text>
+
+</TouchableOpacity>
+
+<TouchableOpacity
+style={[
+styles.nextButton,
+{
+flex:0.47,
+}
+]}
+onPress={handleSubmit}
+>
+
+<Text style={styles.buttonText}>
+Submit
+</Text>
+
+</TouchableOpacity>
+
+</View>
+
+</View>
+
+)}
+
+</ScrollView>
+
+</SafeAreaView>
+
+);
+
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#f5f6fa",
-  },
 
-  header: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
+container:{
+flex:1,
+backgroundColor:"#f3f4f6",
+},
 
-  input: {
-    backgroundColor: "#fff",
-    padding: 12,
-    marginBottom: 12,
-    borderRadius: 10,
-  },
+scroll:{
+padding:20,
+paddingBottom:40,
+},
 
-  uploadRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
+header:{
+flexDirection:"row",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:25,
+},
 
-  uploadBtn: {
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderColor: "#1e3a8a",
-  },
+headerTitle:{
+fontSize:22,
+fontWeight:"bold",
+color:"#1e3a8a",
+},
 
-  preview: {
-    width: "100%",
-    height: 150,
-    marginTop: 15,
-    borderRadius: 10,
-  },
+pageTitle:{
+fontSize:20,
+fontWeight:"700",
+textAlign:"center",
+color:"#1e3a8a",
+marginBottom:20,
+},
 
-  btn: {
-    backgroundColor: "#1e3a8a",
-    padding: 15,
-    alignItems: "center",
-    borderRadius: 10,
-    marginTop: 25,
-  },
+progressContainer:{
+flexDirection:"row",
+justifyContent:"center",
+alignItems:"center",
+marginBottom:25,
+},
+
+circle:{
+width:36,
+height:36,
+borderRadius:18,
+backgroundColor:"#d1d5db",
+justifyContent:"center",
+alignItems:"center",
+},
+
+activeCircle:{
+backgroundColor:"#1e3a8a",
+},
+
+circleText:{
+color:"#555",
+fontWeight:"bold",
+},
+
+activeCircleText:{
+color:"#fff",
+},
+
+line:{
+width:40,
+height:3,
+backgroundColor:"#d1d5db",
+},
+
+activeLine:{
+backgroundColor:"#1e3a8a",
+},
+
+card:{
+backgroundColor:"#fff",
+borderRadius:15,
+padding:20,
+elevation:3,
+shadowColor:"#000",
+shadowOpacity:0.08,
+shadowRadius:6,
+marginBottom:20,
+},
+
+label:{
+fontSize:14,
+fontWeight:"600",
+color:"#374151",
+marginBottom:6,
+marginTop:12,
+},
+
+input:{
+backgroundColor:"#f9fafb",
+borderWidth:1,
+borderColor:"#d1d5db",
+borderRadius:10,
+paddingHorizontal:15,
+paddingVertical:12,
+fontSize:15,
+marginBottom:15,
+},
+
+pickerBox:{
+borderWidth:1,
+borderColor:"#d1d5db",
+borderRadius:10,
+backgroundColor:"#f9fafb",
+marginBottom:15,
+overflow:"hidden",
+},
+
+nextButton:{
+backgroundColor:"#1e3a8a",
+paddingVertical:15,
+borderRadius:10,
+justifyContent:"center",
+alignItems:"center",
+marginTop:15,
+},
+
+buttonText:{
+color:"#fff",
+fontSize:16,
+fontWeight:"bold",
+},
+
+uploadButton:{
+height:100,
+borderWidth:1,
+borderColor:"#d1d5db",
+borderRadius:12,
+justifyContent:"center",
+alignItems:"center",
+backgroundColor:"#fff",
+padding:10,
+},
+
+uploadText:{
+marginTop:10,
+fontWeight:"600",
+color:"#1e3a8a",
+},
+
+preview:{
+width:"100%",
+height:220,
+borderRadius:12,
+marginTop:15,
+resizeMode:"cover",
+},
+
+voiceButton:{
+marginTop:10,
+backgroundColor:"#1e3a8a",
+padding:15,
+borderRadius:12,
+flexDirection:"row",
+justifyContent:"center",
+alignItems:"center",
+},
+
+voiceText:{
+color:"#fff",
+fontWeight:"bold",
+marginLeft:10,
+},
+
 });
+

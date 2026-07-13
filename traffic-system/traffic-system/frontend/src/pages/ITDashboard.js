@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ITLayout from "../layouts/ITLayout";
 import { FiUsers, FiFileText, FiBarChart2, FiActivity } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { getAccidents, getViolations } from "../api";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -10,12 +11,7 @@ const getGreeting = () => {
   return "Good Evening";
 };
 
-const stats = [
-  { icon: <FiUsers size={24} />,    value: 5,  label: "Total\nUsers",   bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
-  { icon: <FiFileText size={24} />, value: 12, label: "Total\nReports", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
-  { icon: <FiBarChart2 size={24}/>, value: 3,  label: "Analytics\nRuns",bg: "#fef9c3", iconBg: "#fde68a", iconColor: "#b45309" },
-  { icon: <FiActivity size={24} />, value: 1,  label: "System\nAlerts", bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
-];
+// Stats list is moved inside the component to read from state.
 
 const recentUsers = [
   { name: "PS Perera",     role: "OIC",            date: "2026-07-01", status: "Active" },
@@ -27,6 +23,28 @@ function ITDashboard() {
   const navigate = useNavigate();
   const officer  = JSON.parse(localStorage.getItem("officer") || "{}");
   const name     = officer.name || "IT Admin";
+
+  const [reportsCount, setReportsCount] = useState(0);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const accs = await getAccidents();
+        const viols = await getViolations();
+        setReportsCount((accs.length || 0) + (viols.length || 0));
+      } catch (err) {
+        console.error("Failed to load IT dashboard stats:", err);
+      }
+    };
+    loadStats();
+  }, []);
+
+  const stats = [
+    { icon: <FiUsers size={24} />,    value: 5,  label: "Total\nUsers",   bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
+    { icon: <FiFileText size={24} />, value: reportsCount, label: "Total\nReports", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
+    { icon: <FiBarChart2 size={24}/>, value: 3,  label: "Analytics\nRuns",bg: "#fef9c3", iconBg: "#fde68a", iconColor: "#b45309" },
+    { icon: <FiActivity size={24} />, value: 1,  label: "System\nAlerts", bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
+  ];
 
   return (
     <ITLayout>

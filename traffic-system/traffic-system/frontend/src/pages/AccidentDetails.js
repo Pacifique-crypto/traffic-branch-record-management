@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiPrinter, FiPlus, FiPaperclip, FiUpload } from "react-icons/fi";
+import { getAccidentById } from "../api";
 
 const accidentData = {
   "ACD-1020": {
@@ -48,11 +49,26 @@ function AccidentDetails() {
   if (isOIC) Layout = require("../layouts/OICLayout").default;
   else        Layout = require("../layouts/ITLayout").default;
 
-  const data = accidentData[id] || defaultData(id);
-
-  const [remarks, setRemarks]         = useState(data.remarks);
+  const [data, setData]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [remarks, setRemarks]         = useState([]);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [newNote, setNewNote]         = useState("");
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+        const result = await getAccidentById(id);
+        setData(result);
+        setRemarks(result.remarks || []);
+      } catch (err) {
+        console.error("Failed to load accident details:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [id]);
 
   const addNote = () => {
     if (!newNote.trim()) return;
@@ -62,8 +78,45 @@ function AccidentDetails() {
     setShowNoteInput(false);
   };
 
+  if (loading) {
+    return (
+      <Layout>
+        <div style={{ padding: "40px", textAlign: "center", fontWeight: "bold" }}>
+          Loading accident details...
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Layout>
+        <div style={{ padding: "40px", textAlign: "center", fontWeight: "bold", color: "#dc2626" }}>
+          Accident record not found.
+        </div>
+      </Layout>
+    );
+  }
+
+  const dateStr = data.accidentDate || "";
+  const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");
+  const dateVal = datePart;
+  const timeVal = timePart ? timePart.slice(0, 5) : "";
+
+  const vehicles = data.vehicles || [
+    { no: "01", vehicleNo: data.vehicleNumber || "Unknown", vehicleClass: data.vehicleClass || "Unknown", age: `${data.vehicleAge || 0} Years` }
+  ];
+
+  const drivers = data.drivers || [
+    { vehicle: "01", name: data.driverName || data.driver || "Unknown", age: data.driverAge || "Unknown", dlNo: data.drivingLicence || "Unknown", address: data.driverAddress || "Unknown" }
+  ];
+
+  const killed = data.killed || (data.casualtyStatus === "Killed" ? [{ name: data.casualtyName, gender: data.casualtyGender, age: data.casualtyAge, address: data.casualtyAddress }] : []);
+  const injured = data.injured || (data.casualtyStatus === "Injured" ? [{ name: data.casualtyName, gender: data.casualtyGender, age: data.casualtyAge, address: data.casualtyAddress }] : []);
+  const evidence = data.evidence || (data.evidencePhoto ? [{ type: "image", url: data.evidencePhoto, name: "Evidence Photo" }] : []);
+
   const severityColors = { FATAL: "#dc2626", SERIOUS: "#b45309", MINOR: "#2563eb", PROPERTY: "#7c3aed" };
-  const sc = severityColors[data.severityType] || "#374151";
+  const sc = severityColors[data.severity] || "#374151";
 
   return (
     <Layout>
@@ -94,17 +147,17 @@ function AccidentDetails() {
             <div className="acd-section">
               <div className="acd-section-title"><span>🕐</span> SECTION 1: ACCIDENT OVERVIEW</div>
               <div className="acd-grid-2">
-                <div><p className="acd-label">DATE & TIME</p><p className="acd-value">{data.date} | {data.time}</p></div>
+                <div><p className="acd-label">DATE & TIME</p><p className="acd-value">{dateVal} | {timeVal}</p></div>
                 <div><p className="acd-label">STATION</p><p className="acd-value">{data.station}</p></div>
                 <div><p className="acd-label">LOCATION</p><p className="acd-value">{data.location}</p></div>
-                <div><p className="acd-label">ACCIDENT TYPE</p><p className="acd-value">{data.accidentType}</p></div>
+                <div><p className="acd-label">ACCIDENT TYPE</p><p className="acd-value">{data.accidentType || data.description || "Collision"}</p></div>
                 <div>
                   <p className="acd-label">SEVERITY TYPE</p>
                   <span className="acd-severity-pill" style={{ background: sc }}>
-                    {data.severityType}
+                    {data.severity}
                   </span>
                 </div>
-                <div><p className="acd-label">INQUIRING OFFICERS</p><p className="acd-value">{data.inquiringOfficer}</p></div>
+                <div><p className="acd-label">INQUIRING OFFICERS</p><p className="acd-value">{data.assistantOfficer || data.officer || "Unknown"}</p></div>
               </div>
             </div>
 
@@ -112,7 +165,7 @@ function AccidentDetails() {
             <div className="acd-section">
               <div className="acd-section-title"><span>🚗</span> SECTION 2: VEHICLES DETAILS</div>
               <div className="acd-vehicles-grid">
-                {data.vehicles.map((v, i) => (
+                {vehicles.map((v, i) => (
                   <div className="acd-vehicle-card" key={i}>
                     <p className="acd-label">VEHICLE {v.no}</p>
                     <div className="acd-grid-2" style={{ marginTop: 8 }}>
@@ -135,7 +188,7 @@ function AccidentDetails() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.drivers.map((d, i) => (
+                  {drivers.map((d, i) => (
                     <tr key={i}>
                       <td>{d.vehicle}</td>
                       <td>{d.name}</td>
@@ -162,7 +215,7 @@ function AccidentDetails() {
             {/* Section 4: Killed/Injured */}
             <div className="acd-section">
               <div className="acd-section-title"><span>⚠️</span> SECTION 4: KILLED/INJURED DETAILS</div>
-              {data.killed.map((k, i) => (
+              {killed.map((k, i) => (
                 <div className="acd-casualty-card" key={i}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                     <span className="acd-bold">{k.name}</span>
@@ -173,6 +226,19 @@ function AccidentDetails() {
                     <div><p className="acd-label">AGE</p><p className="acd-value">{k.age}</p></div>
                   </div>
                   <div><p className="acd-label">ADDRESS</p><p className="acd-value">{k.address}</p></div>
+                </div>
+              ))}
+              {injured.map((inju, i) => (
+                <div className="acd-casualty-card" key={i}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span className="acd-bold">{inju.name}</span>
+                    <span className="acd-injured-badge" style={{ background: "#fef3c7", color: "#d97706" }}>INJURED</span>
+                  </div>
+                  <div className="acd-grid-2">
+                    <div><p className="acd-label">GENDER</p><p className="acd-value">{inju.gender}</p></div>
+                    <div><p className="acd-label">AGE</p><p className="acd-value">{inju.age}</p></div>
+                  </div>
+                  <div><p className="acd-label">ADDRESS</p><p className="acd-value">{inju.address}</p></div>
                 </div>
               ))}
             </div>
@@ -213,7 +279,7 @@ function AccidentDetails() {
             <div className="acd-section">
               <div className="acd-section-title"><span>📎</span> SECTION 7: EVIDENCES AND ATTACHEMENT MARK</div>
               <div className="acd-evidence-grid">
-                {data.evidence.map((e, i) => (
+                {evidence.map((e, i) => (
                   <div key={i} className="acd-evidence-item">
                     <img src={e.url} alt={e.name} className="acd-evidence-img" />
                     <p className="acd-evidence-name">{e.name}</p>
@@ -221,7 +287,7 @@ function AccidentDetails() {
                 ))}
               </div>
               {/* Attachments */}
-              {data.attachments.map((a, i) => (
+              {(data.attachments || []).map((a, i) => (
                 <div className="acd-attachment-row" key={i}>
                   <FiPaperclip size={14} color="#64748b" />
                   <span className="acd-attachment-name">{a}</span>

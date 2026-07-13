@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiMoreVertical, FiCheckCircle, FiFilter } from "react-icons/fi";
+import { getViolations } from "../api";
 
 const actionColors = {
   "Court Referral":       { bg: "#fee2e2", color: "#dc2626" },
@@ -28,16 +29,38 @@ function Violations() {
   if (isOIC) Layout = require("../layouts/OICLayout").default;
   else        Layout = require("../layouts/ITLayout").default;
 
-  const [violations, setViolations] = useState(initialViolations);
+  const [violations, setViolations] = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [action, setAction]         = useState("All Type");
   const [page, setPage]             = useState(1);
 
-  const filtered = violations.filter(v =>
-    v.id.toLowerCase().includes(search.toLowerCase()) ||
-    v.offence.toLowerCase().includes(search.toLowerCase()) ||
-    v.officer.toLowerCase().includes(search.toLowerCase())
-  ).filter(v => action === "All Type" || v.action === action);
+  useEffect(() => {
+    fetchViolations();
+  }, []);
+
+  const fetchViolations = async () => {
+    try {
+      const data = await getViolations();
+      setViolations(data || []);
+    } catch (err) {
+      console.error("Failed to load violations:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = violations.filter(v => {
+    const idVal = v.id || v._id || "";
+    const offenceVal = v.violationType || v.offence || "";
+    const officerVal = v.assistantOfficer || v.officer || "";
+    return idVal.toLowerCase().includes(search.toLowerCase()) ||
+      offenceVal.toLowerCase().includes(search.toLowerCase()) ||
+      officerVal.toLowerCase().includes(search.toLowerCase());
+  }).filter(v => {
+    const actionVal = v.actionTaken || v.action || "";
+    return action === "All Type" || actionVal === action;
+  });
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
@@ -95,40 +118,57 @@ function Violations() {
               </tr>
             </thead>
             <tbody>
-              {paginated.map(v => {
-                const ac = actionColors[v.action] || { bg: "#f1f5f9", color: "#374151" };
-                return (
-                  <tr key={v.id} className="ar-tr" onClick={() => navigate(`/tor/${v.id}`)}>
-                    <td className="ar-ref">{v.id}</td>
-                    <td className="ar-datetime">
-                      <span>{v.date}</span><br/>
-                      <span style={{ color: "#94a3b8", fontSize: 12 }}>{v.time}</span>
-                    </td>
-                    <td>{v.offence}</td>
-                    <td><span className="ar-law-section">{v.lawSection}</span></td>
-                    <td>
-                      <span className="ar-action-badge" style={{ background: ac.bg, color: ac.color }}>
-                        {v.action}
-                      </span>
-                    </td>
-                    <td>{v.place}</td>
-                    <td>{v.officer}</td>
-                    <td onClick={e => e.stopPropagation()}>
-                      <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
-                    </td>
-                    {isOIC && (
-                      <td onClick={e => e.stopPropagation()}>
-                        <button
-                          className={`ar-verify-btn ${v.verified ? "ar-verified" : ""}`}
-                          onClick={() => handleVerify(v.id)}
-                        >
-                          <FiCheckCircle size={18} />
-                        </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={isOIC ? 9 : 8} className="no-data" style={{ textAlign: "center", padding: "20px" }}>
+                    Loading violations...
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={isOIC ? 9 : 8} className="no-data" style={{ textAlign: "center", padding: "20px" }}>
+                    No violations found.
+                  </td>
+                </tr>
+              ) : (
+                paginated.map(v => {
+                  const actionVal = v.actionTaken || v.action || "Issued";
+                  const ac = actionColors[actionVal] || { bg: "#f1f5f9", color: "#374151" };
+                  const dateStr = v.violationDate || "";
+                  const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");
+                  return (
+                    <tr key={v.id} className="ar-tr" onClick={() => navigate(`/tor/${v.id}`)}>
+                      <td className="ar-ref">{v.id ? v.id.slice(-6).toUpperCase() : "VID-NEW"}</td>
+                      <td className="ar-datetime">
+                        <span>{datePart}</span><br/>
+                        <span style={{ color: "#94a3b8", fontSize: 12 }}>{timePart ? timePart.slice(0, 5) : ""}</span>
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
+                      <td>{v.violationType || v.offence}</td>
+                      <td><span className="ar-law-section">{v.lawSection}</span></td>
+                      <td>
+                        <span className="ar-action-badge" style={{ background: ac.bg, color: ac.color }}>
+                          {actionVal}
+                        </span>
+                      </td>
+                      <td>{v.location || v.place}</td>
+                      <td>{v.assistantOfficer || v.officer || "Unknown"}</td>
+                      <td onClick={e => e.stopPropagation()}>
+                        <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
+                      </td>
+                      {isOIC && (
+                        <td onClick={e => e.stopPropagation()}>
+                          <button
+                            className={`ar-verify-btn ${v.verified || v.status === "Paid" ? "ar-verified" : ""}`}
+                            onClick={() => handleVerify(v.id)}
+                          >
+                            <FiCheckCircle size={18} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div> 

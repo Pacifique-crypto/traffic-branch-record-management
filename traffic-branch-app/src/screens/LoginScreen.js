@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { LanguageContext } from '../context/LanguageContext';
+import { BASE_URL } from '../config';
 
 export default function LoginScreen({ navigation }) {
 
@@ -17,9 +18,6 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const { language, setLanguage } = useContext(LanguageContext);
   const [rememberMe, setRememberMe] = useState(false);
-
-  // 🔥 CHANGE THIS IP
-  const BASE_URL = "https://traffic-branch-backend.onrender.com/api";
 
   const translations = {
     EN: {

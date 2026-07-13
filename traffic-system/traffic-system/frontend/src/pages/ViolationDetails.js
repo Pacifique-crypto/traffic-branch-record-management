@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiPrinter, FiPlus, FiUpload } from "react-icons/fi";
+import { getViolationById } from "../api";
 
 const vData = {
   "TR-2023-8842": {
@@ -47,10 +48,26 @@ function ViolationDetails() {
   if (isOIC) Layout = require("../layouts/OICLayout").default;
   else        Layout = require("../layouts/ITLayout").default;
 
-  const data = vData[id] || defaultV(id);
-  const [remarks, setRemarks]     = useState(data.remarks);
+  const [data, setData]           = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [remarks, setRemarks]     = useState([]);
   const [showNote, setShowNote]   = useState(false);
   const [newNote, setNewNote]     = useState("");
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+        const result = await getViolationById(id);
+        setData(result);
+        setRemarks(result.remarks || []);
+      } catch (err) {
+        console.error("Failed to load violation details:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [id]);
 
   const addNote = () => {
     if (!newNote.trim()) return;
@@ -58,6 +75,48 @@ function ViolationDetails() {
     setRemarks([...remarks, { text: newNote, author: officer.name || "OIC" }]);
     setNewNote(""); setShowNote(false);
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div style={{ padding: "40px", textAlign: "center", fontWeight: "bold" }}>
+          Loading violation details...
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Layout>
+        <div style={{ padding: "40px", textAlign: "center", fontWeight: "bold", color: "#dc2626" }}>
+          Violation record not found.
+        </div>
+      </Layout>
+    );
+  }
+
+  const driver = {
+    name: data.driver || "Unknown",
+    nic: data.driverNIC || "Unknown",
+    dlNo: data.drivingLicence || "Unknown",
+    licenseValidity: data.licenseValidity || "N/A",
+    address: data.driverAddress || "Unknown",
+  };
+
+  const vehicle = {
+    no: data.vehicle || "Unknown",
+    type: data.vehicleType || "Unknown",
+    make: data.vehicleMake || "N/A",
+    color: data.vehicleColor || "N/A",
+    fuelType: data.vehicleFuelType || "N/A",
+  };
+
+  const officers = data.officers || [
+    { name: data.assistantOfficer || "Unknown", station: "Negombo HQ" }
+  ];
+
+  const evidence = data.evidence || (data.evidencePhoto ? [{ url: data.evidencePhoto, name: "Evidence Photo" }] : []);
 
   return (
     <Layout>
@@ -94,26 +153,26 @@ function ViolationDetails() {
             <div className="acd-section">
               <div className="acd-section-title"><span>⚠️</span> OFFENCE DETAILS</div>
               <div className="acd-grid-2">
-                <div><p className="acd-label">NAME OF OFFENCE</p><p className="acd-value">{data.offence}</p></div>
+                <div><p className="acd-label">NAME OF OFFENCE</p><p className="acd-value">{data.violationType || data.offence}</p></div>
                 <div><p className="acd-label">LAW SECTION</p><p className="acd-value">{data.lawSection}</p></div>
-                <div><p className="acd-label">DATE AND TIME</p><p className="acd-value">{data.dateTime}</p></div>
-                <div><p className="acd-label">PLACE</p><p className="acd-value">{data.place}</p></div>
+                <div><p className="acd-label">DATE AND TIME</p><p className="acd-value">{data.violationDate || data.dateTime}</p></div>
+                <div><p className="acd-label">PLACE</p><p className="acd-value">{data.location || data.place}</p></div>
               </div>
               <div style={{ marginTop: 10 }}>
                 <p className="acd-label">GEOGRAPHIC COORDINATES</p>
-                <p className="acd-value">{data.geoCoords}</p>
+                <p className="acd-value">{data.geoCoords || "Not Available"}</p>
               </div>
             </div>
 
             {/* Vehicle Details */}
             <div className="acd-section">
               <div className="acd-section-title"><span>🚗</span> VEHICLE DETAILS</div>
-              <div className="acd-vehicle-number-big">{data.vehicle.no}</div>
+              <div className="acd-vehicle-number-big">{vehicle.no}</div>
               <div className="acd-grid-2" style={{ marginTop: 12 }}>
-                <div><p className="acd-label">TYPE</p><p className="acd-value">{data.vehicle.type}</p></div>
-                <div><p className="acd-label">MAKE / MODEL</p><p className="acd-value">{data.vehicle.make}</p></div>
-                <div><p className="acd-label">COLOR</p><p className="acd-value">{data.vehicle.color}</p></div>
-                <div><p className="acd-label">FUEL TYPE</p><p className="acd-value">{data.vehicle.fuelType}</p></div>
+                <div><p className="acd-label">TYPE</p><p className="acd-value">{vehicle.type}</p></div>
+                <div><p className="acd-label">MAKE / MODEL</p><p className="acd-value">{vehicle.make}</p></div>
+                <div><p className="acd-label">COLOR</p><p className="acd-value">{vehicle.color}</p></div>
+                <div><p className="acd-label">FUEL TYPE</p><p className="acd-value">{vehicle.fuelType}</p></div>
               </div>
             </div>
 
@@ -121,7 +180,7 @@ function ViolationDetails() {
             <div className="acd-section">
               <div className="acd-section-title"><span>👮</span> OFFICERS DETECTING</div>
               <div className="acd-officers-grid">
-                {data.officers.map((o, i) => (
+                {officers.map((o, i) => (
                   <div className="acd-officer-card" key={i}>
                     <p style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>Detecting Officer {String.fromCharCode(65+i)}</p>
                     <p className="acd-value">{o.name}</p>
@@ -131,11 +190,11 @@ function ViolationDetails() {
               </div>
               <div style={{ marginTop: 14, padding: "12px 14px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
                 <p className="acd-label">DESCRIPTION</p>
-                <p className="acd-description" style={{ marginTop: 6 }}>{data.description}</p>
+                <p className="acd-description" style={{ marginTop: 6 }}>{data.description || data.remarks || "No description provided."}</p>
               </div>
               <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
-                <div><p className="acd-label">ACTION TAKEN</p><p className="acd-value" style={{ color: "#dc2626" }}>{data.actionTaken}</p></div>
-                <div><p className="acd-label">NEXT APPEARANCE</p><p className="acd-value">{data.nextAppearance}</p></div>
+                <div><p className="acd-label">ACTION TAKEN</p><p className="acd-value" style={{ color: "#dc2626" }}>{data.actionTaken || "Pending"}</p></div>
+                <div><p className="acd-label">NEXT APPEARANCE</p><p className="acd-value">{data.nextAppearance || "N/A"}</p></div>
               </div>
             </div>
 
@@ -146,7 +205,7 @@ function ViolationDetails() {
                 <button className="acd-upload-btn"><FiUpload size={13} style={{ marginRight: 6 }} /> Upload More</button>
               </div>
               <div className="acd-evidence-grid">
-                {data.evidence.map((e, i) => (
+                {evidence.map((e, i) => (
                   <div key={i} className="acd-evidence-item">
                     <img src={e.url} alt={e.name} className="acd-evidence-img" />
                     <p className="acd-evidence-name">{e.name}</p>
@@ -162,18 +221,18 @@ function ViolationDetails() {
             {/* Driver Details */}
             <div className="acd-section">
               <div className="acd-section-title"><span>👤</span> DRIVER DETAILS</div>
-              <p className="acd-bold" style={{ fontSize: 15, marginBottom: 10 }}>{data.driver.name}</p>
+              <p className="acd-bold" style={{ fontSize: 15, marginBottom: 10 }}>{driver.name}</p>
               <div className="acd-grid-2">
-                <div><p className="acd-label">NIC</p><p className="acd-value">{data.driver.nic}</p></div>
-                <div><p className="acd-label">DL NO</p><p className="acd-value">{data.driver.dlNo}</p></div>
+                <div><p className="acd-label">NIC</p><p className="acd-value">{driver.nic}</p></div>
+                <div><p className="acd-label">DL NO</p><p className="acd-value">{driver.dlNo}</p></div>
               </div>
               <div style={{ marginTop: 10 }}>
                 <p className="acd-label">REGISTERED ADDRESS</p>
-                <p className="acd-value">{data.driver.address}</p>
+                <p className="acd-value">{driver.address}</p>
               </div>
               <div style={{ marginTop: 10 }}>
                 <p className="acd-label">LICENSE VALIDITY</p>
-                <p className="acd-value" style={{ color: "#16a34a" }}>{data.driver.licenseValidity}</p>
+                <p className="acd-value" style={{ color: "#16a34a" }}>{driver.licenseValidity}</p>
               </div>
             </div>
 

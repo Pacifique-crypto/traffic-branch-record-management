@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiFilter, FiPlus, FiMoreVertical, FiCheckCircle } from "react-icons/fi";
+import { getAccidents, createAccident } from "../api";
 
 const severityColors = {
   FATAL:    { bg: "#fee2e2", color: "#dc2626" },
@@ -28,13 +29,29 @@ function Accidents() {
   if (isOIC) Layout = require("../layouts/OICLayout").default;
   else        Layout = require("../layouts/ITLayout").default;
 
-  const [accidents, setAccidents] = useState(initialAccidents);
+  const [accidents, setAccidents] = useState([]);
+  const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState("");
   const [severity, setSeverity]   = useState("All");
   const [dateRange, setDateRange] = useState("Last 7 Days");
   const [station, setStation]     = useState("All Stations");
   const [page, setPage]           = useState(1);
   const [showNew, setShowNew]     = useState(false);
+
+  useEffect(() => {
+    fetchAccidents();
+  }, []);
+
+  const fetchAccidents = async () => {
+    try {
+      const data = await getAccidents();
+      setAccidents(data || []);
+    } catch (err) {
+      console.error("Failed to load accidents:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = accidents.filter(a => {
     const matchSearch = a.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -116,41 +133,57 @@ function Accidents() {
               </tr>
             </thead>
             <tbody>
-              {paginated.map(a => {
-                const sc = severityColors[a.severity] || { bg: "#f1f5f9", color: "#374151" };
-                return (
-                  <tr key={a.id} className="ar-tr" onClick={() => navigate(`/accidents/${a.id}`)}>
-                    <td className="ar-ref">{a.id}</td>
-                    <td className="ar-datetime">
-                      <span>{a.date}</span><br/>
-                      <span style={{ color: "#94a3b8", fontSize: 12 }}>{a.time}</span>
-                    </td>
-                    <td>{a.station}</td>
-                    <td>{a.location}</td>
-                    <td>{a.officer}</td>
-                    <td>
-                      <span className="ar-severity-badge" style={{ background: sc.bg, color: sc.color }}>
-                        {a.severity}
-                      </span>
-                    </td>
-                    <td>{a.type}</td>
-                    <td onClick={e => e.stopPropagation()}>
-                      <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
-                    </td>
-                    {isOIC && (
-                      <td onClick={e => e.stopPropagation()}>
-                        <button
-                          className={`ar-verify-btn ${a.verified ? "ar-verified" : ""}`}
-                          onClick={() => handleVerify(a.id)}
-                          title={a.verified ? "Verified" : "Click to verify"}
-                        >
-                          <FiCheckCircle size={18} />
-                        </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={isOIC ? 9 : 8} className="no-data" style={{ textAlign: "center", padding: "20px" }}>
+                    Loading accidents...
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={isOIC ? 9 : 8} className="no-data" style={{ textAlign: "center", padding: "20px" }}>
+                    No accidents found.
+                  </td>
+                </tr>
+              ) : (
+                paginated.map(a => {
+                  const sc = severityColors[a.severity] || { bg: "#f1f5f9", color: "#374151" };
+                  const dateStr = a.accidentDate || "";
+                  const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");
+                  return (
+                    <tr key={a.id} className="ar-tr" onClick={() => navigate(`/accidents/${a.id}`)}>
+                      <td className="ar-ref">{a.id ? a.id.slice(-6).toUpperCase() : "ACD-NEW"}</td>
+                      <td className="ar-datetime">
+                        <span>{datePart}</span><br/>
+                        <span style={{ color: "#94a3b8", fontSize: 12 }}>{timePart ? timePart.slice(0, 5) : ""}</span>
                       </td>
-                    )}
-                  </tr>
-                );
-              })}
+                      <td>{a.station}</td>
+                      <td>{a.location}</td>
+                      <td>{a.assistantOfficer || a.officer || "Unknown"}</td>
+                      <td>
+                        <span className="ar-severity-badge" style={{ background: sc.bg, color: sc.color }}>
+                          {a.severity}
+                        </span>
+                      </td>
+                      <td>{a.description ? a.description.replace("Type: ", "") : a.type || "Collision"}</td>
+                      <td onClick={e => e.stopPropagation()}>
+                        <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
+                      </td>
+                      {isOIC && (
+                        <td onClick={e => e.stopPropagation()}>
+                          <button
+                            className={`ar-verify-btn ${a.verified || a.status === "Completed" ? "ar-verified" : ""}`}
+                            onClick={() => handleVerify(a.id)}
+                            title={a.verified || a.status === "Completed" ? "Verified" : "Click to verify"}
+                          >
+                            <FiCheckCircle size={18} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -175,7 +208,32 @@ function Accidents() {
       </div>
 
       {/* New Entry Modal */}
-      {showNew && <NewAccidentModal onClose={() => setShowNew(false)} onSave={(a) => { setAccidents([a, ...accidents]); setShowNew(false); }} />}
+      {showNew && (
+        <NewAccidentModal
+          onClose={() => setShowNew(false)}
+          onSave={async (a) => {
+            try {
+              const res = await createAccident({
+                accidentDate: `${a.date} ${a.time || "00:00"}`,
+                station: a.station,
+                location: a.location,
+                severity: a.severity,
+                assistantOfficer: a.officer || "",
+                description: `Type: ${a.type}`,
+              });
+              if (res && !res.error) {
+                fetchAccidents();
+                setShowNew(false);
+              } else {
+                alert(res.error || "Failed to create accident");
+              }
+            } catch (err) {
+              console.error(err);
+              alert("Error connecting to server.");
+            }
+          }}
+        />
+      )}
     </Layout>
   );
 }

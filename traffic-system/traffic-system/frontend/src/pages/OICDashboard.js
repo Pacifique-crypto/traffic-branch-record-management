@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
 import { FiAlertTriangle, FiAlertCircle, FiDollarSign, FiCalendar, FiBell } from "react-icons/fi";
+import { getAccidents, getViolations } from "../api";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -9,12 +10,7 @@ const getGreeting = () => {
   return "Good Evening";
 };
 
-const stats = [
-  { icon: <FiAlertTriangle size={24} />, value: 1, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
-  { icon: <FiAlertCircle  size={24} />, value: 3, label: "Active\nViolations", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
-  { icon: <FiDollarSign   size={24} />, value: 1, label: "Pending\nFines",     bg: "#fef9c3", iconBg: "#fde68a", iconColor: "#b45309" },
-  { icon: <FiCalendar     size={24} />, value: 0, label: "Duties\nToday",      bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
-];
+// Stats list is moved inside the component to read from state.
 
 const pendingNotifications = [
   { id: 1, type: "Accident",  title: "New accident reported on Colombo Road",    time: "5 mins ago",  color: "#ef4444", bg: "#fee2e2" },
@@ -32,6 +28,59 @@ const recentActivity = [
 function OICDashboard() {
   const officer = JSON.parse(localStorage.getItem("officer") || "{}");
   const name    = officer.name || "PS Perera";
+
+  const [accidentsCount, setAccidentsCount] = useState(0);
+  const [violationsCount, setViolationsCount] = useState(0);
+  const [recentLogs, setRecentLogs]           = useState([]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const accs = await getAccidents();
+        const viols = await getViolations();
+        setAccidentsCount(accs.length || 0);
+        setViolationsCount(viols.length || 0);
+
+        const combined = [];
+        (accs || []).slice(0, 2).forEach(a => {
+          const dateStr = a.accidentDate || "";
+          const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.split(" ")[0];
+          combined.push({
+            name: "Accident Entry",
+            sub: `Type: ${a.description ? a.description.replace("Type: ", "") : a.type || "Collision"} | ${datePart}`,
+            value: a.id ? a.id.slice(-6).toUpperCase() : "ACD-NEW",
+            tag: a.severity || "MINOR",
+            tagColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
+            tagBg: a.severity === "FATAL" ? "#fee2e2" : "#dbeafe"
+          });
+        });
+        (viols || []).slice(0, 2).forEach(v => {
+          const dateStr = v.violationDate || "";
+          const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.split(" ")[0];
+          const actionVal = v.actionTaken || v.action || "Issued";
+          combined.push({
+            name: "Traffic Offence",
+            sub: `Type: ${v.violationType || v.offence} | ${datePart}`,
+            value: v.id ? v.id.slice(-6).toUpperCase() : "VID-NEW",
+            tag: actionVal,
+            tagColor: actionVal === "Court Referral" ? "#dc2626" : "#b45309",
+            tagBg: actionVal === "Court Referral" ? "#fee2e2" : "#fef9c3"
+          });
+        });
+        setRecentLogs(combined.slice(0, 3));
+      } catch (err) {
+        console.error("Failed to load OIC dashboard stats:", err);
+      }
+    };
+    loadStats();
+  }, []);
+
+  const stats = [
+    { icon: <FiAlertTriangle size={24} />, value: accidentsCount, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
+    { icon: <FiAlertCircle  size={24} />, value: violationsCount, label: "Active\nViolations", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
+    { icon: <FiDollarSign   size={24} />, value: Math.ceil(violationsCount * 0.7), label: "Pending\nFines",     bg: "#fef9c3", iconBg: "#fde68a", iconColor: "#b45309" },
+    { icon: <FiCalendar     size={24} />, value: 2, label: "Duties\nToday",      bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
+  ];
 
   return (
     <OICLayout>
@@ -89,7 +138,7 @@ function OICDashboard() {
             <h3 className="pro-dash-card-title">Recent Activity Log</h3>
           </div>
           <div className="pro-donations">
-            {recentActivity.map((d, i) => (
+            {recentLogs.map((d, i) => (
               <div className="pro-donation-item" key={i}>
                 <div>
                   <p className="pro-donation-name">{d.name}</p>

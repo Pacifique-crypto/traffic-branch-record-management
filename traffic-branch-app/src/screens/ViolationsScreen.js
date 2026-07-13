@@ -17,9 +17,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { LanguageContext } from "../context/LanguageContext";
-
-const BASE_URL =
-  "https://traffic-branch-backend.onrender.com/api";
+import { BASE_URL } from "../config";
 
 export default function ViolationsScreen({ navigation }) {
 
