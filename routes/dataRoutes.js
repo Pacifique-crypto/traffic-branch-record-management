@@ -4,6 +4,11 @@ const router = express.Router();
 const Accident = require("../models/Accident");
 const Violation = require("../models/Violation");
 
+const parseSafeInt = (val) => {
+  const parsed = parseInt(val, 10);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
 
 // ==============================
 // ✅ GET ALL ACCIDENTS
@@ -131,16 +136,16 @@ router.post("/accidents", async (req, res) => {
 
       vehicleNumber: finalVehicleNumber,
       vehicleClass: finalVehicleClass,
-      vehicleAge: vehicleAge || 0,
+      vehicleAge: parseSafeInt(vehicleAge),
 
       driverName: finalDriverName,
       driverAddress: driverAddress || "",
-      driverAge: driverAge || 0,
+      driverAge: parseSafeInt(driverAge),
       drivingLicence: drivingLicence || "",
 
       casualtyName: finalCasualtyName,
       casualtyAddress: finalCasualtyAddress,
-      casualtyAge: finalCasualtyAge,
+      casualtyAge: parseSafeInt(finalCasualtyAge),
       casualtyGender: finalCasualtyGender,
       casualtyStatus: finalCasualtyStatus,
 
@@ -220,11 +225,51 @@ router.get("/violations/:id", async (req, res) => {
 // ==============================
 router.post("/violations", async (req, res) => {
   try {
-    const newViolation = new Violation(req.body);
+    const payload = { ...req.body };
+
+    // Fallback calculation for fineAmount if missing or empty string
+    if (!payload.fineAmount || payload.fineAmount === "") {
+      const type = payload.violationType || payload.offence || "";
+      switch (type) {
+        case "Speeding":
+          payload.fineAmount = 3000;
+          break;
+        case "No Helmet":
+          payload.fineAmount = 2000;
+          break;
+        case "Seat Belt":
+        case "Seat Belt Violation":
+          payload.fineAmount = 2500;
+          break;
+        case "Signal Violation":
+          payload.fineAmount = 5000;
+          break;
+        case "Using Mobile Phone":
+          payload.fineAmount = 3000;
+          break;
+        case "Dangerous Driving":
+        case "Drunk Driving":
+          payload.fineAmount = 25000;
+          break;
+        case "No Driving License":
+          payload.fineAmount = 5000;
+          break;
+        case "Parking Offence":
+          payload.fineAmount = 1500;
+          break;
+        default:
+          payload.fineAmount = 2000; // default fallback
+      }
+    }
+
+    payload.fineAmount = parseSafeInt(payload.fineAmount);
+
+    const newViolation = new Violation(payload);
     await newViolation.save();
 
     res.status(201).json({
-      message: "Violation added successfully"
+      message: "Violation added successfully",
+      violation: newViolation,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
