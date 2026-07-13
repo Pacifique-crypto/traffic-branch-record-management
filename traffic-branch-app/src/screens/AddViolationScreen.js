@@ -531,7 +531,7 @@ Name of Offence
 
 <Picker
 selectedValue={violationType}
-onValueChange={setViolationType}
+onValueChange={calculateFine}
 >
 
 <Picker.Item
@@ -974,7 +974,7 @@ color:"#1e3a8a",
 
 </View>
 
-)}2
+)}
 
 <View
 style={{
