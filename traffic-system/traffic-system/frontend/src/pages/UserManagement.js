@@ -288,10 +288,7 @@ function UserManagement() {
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
               />
             </div>
-            <button className="um-filter-btn"><FiFilter size={14} style={{ marginRight: 6 }} />Filters</button>
-          </div>
-
-          {/* Table */}
+               {/* Table */}
           <table className="um-table">
             <thead>
               <tr>
@@ -299,7 +296,7 @@ function UserManagement() {
                 <th>RANK & ID</th>
                 {userRole === "OIC" && <th>ROLE</th>}
                 <th>STATUS</th>
-                 
+                <th>ACTION</th>
               </tr>
             </thead>
             <tbody>
@@ -309,7 +306,7 @@ function UserManagement() {
                   <tr key={o.id} className="um-tr">
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div className="um-avatar">{o.fullName.charAt(0)}</div>
+                        <div className="um-avatar">{o.fullName ? o.fullName.charAt(0) : "O"}</div>
                         <div>
                           <p className="um-officer-name">{o.fullName}</p>
                            
@@ -332,12 +329,28 @@ function UserManagement() {
     {o.status}
   </span>
 </td>
-                     
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        {userRole === "IT Officer" && (
+                          <span 
+                            onClick={() => setResetTarget(o)} 
+                            style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+                          >
+                            Reset PW
+                          </span>
+                        )}
+                        <FiMoreVertical 
+                          size={16} 
+                          onClick={() => setDetailsOfficer(o)} 
+                          style={{ cursor: "pointer", color: "#64748b" }} 
+                        />
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {paginated.length === 0 && (
-                <tr><td colSpan={userRole === "OIC" ? 4 : 3} className="no-data">No officers found.</td></tr>
+                <tr><td colSpan={userRole === "OIC" ? 5 : 4} className="no-data">No officers found.</td></tr>
               )}
             </tbody>
           </table>
@@ -702,12 +715,22 @@ function ResetPwModal({ officer, onClose }) {
   const [error, setError]   = useState("");
   const [done, setDone]     = useState(false);
 
-  const handleSet = () => {
+  const handleSet = async () => {
     if (!newPw) { setError("Please enter a temporary password."); return; }
     if (newPw.length < 6) { setError("Password must be at least 6 characters."); return; }
-    setError("");
-    setDone(true);
-    setTimeout(() => { onClose(); }, 1200);
+    try {
+      const res = await updateOfficer(officer.id || officer._id, { password: newPw });
+      if (res && !res.error) {
+        setError("");
+        setDone(true);
+        setTimeout(() => { onClose(); }, 1200);
+      } else {
+        setError(res.error || "Failed to reset password.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Error connecting to server.");
+    }
   };
 
   return (
