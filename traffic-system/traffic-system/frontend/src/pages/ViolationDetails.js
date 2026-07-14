@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiPrinter, FiPlus, FiUpload } from "react-icons/fi";
-import { getViolationById } from "../api";
+import { getViolationById, updateViolation } from "../api";
 
 const vData = {
   "TR-2023-8842": {
@@ -59,7 +59,17 @@ function ViolationDetails() {
       try {
         const result = await getViolationById(id);
         setData(result);
-        setRemarks(result.remarks || []);
+        if (result.remarks) {
+          if (Array.isArray(result.remarks)) {
+            setRemarks(result.remarks);
+          } else if (typeof result.remarks === "string") {
+            setRemarks([{ text: result.remarks, author: "Reporting Officer" }]);
+          } else {
+            setRemarks([]);
+          }
+        } else {
+          setRemarks([]);
+        }
       } catch (err) {
         console.error("Failed to load violation details:", err);
       } finally {
@@ -69,11 +79,24 @@ function ViolationDetails() {
     fetchDetails();
   }, [id]);
 
-  const addNote = () => {
+  const addNote = async () => {
     if (!newNote.trim()) return;
     const officer = JSON.parse(localStorage.getItem("officer") || "{}");
-    setRemarks([...remarks, { text: newNote, author: officer.name || "OIC" }]);
-    setNewNote(""); setShowNote(false);
+    const updatedRemarks = [...remarks, { text: newNote, author: officer.name || "OIC" }];
+    
+    try {
+      const res = await updateViolation(id, { remarks: updatedRemarks });
+      if (res && !res.error) {
+        setRemarks(updatedRemarks);
+        setNewNote("");
+        setShowNote(false);
+      } else {
+        alert(res.error || "Failed to save operational note.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving operational note to server.");
+    }
   };
 
   if (loading) {

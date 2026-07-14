@@ -58,7 +58,17 @@ function AccidentDetails() {
       try {
         const result = await getAccidentById(id);
         setData(result);
-        setRemarks(result.remarks || []);
+        if (result.remarks) {
+          if (Array.isArray(result.remarks)) {
+            setRemarks(result.remarks);
+          } else if (typeof result.remarks === "string") {
+            setRemarks([{ text: result.remarks, author: "Reporting Officer" }]);
+          } else {
+            setRemarks([]);
+          }
+        } else {
+          setRemarks([]);
+        }
       } catch (err) {
         console.error("Failed to load accident details:", err);
       } finally {
