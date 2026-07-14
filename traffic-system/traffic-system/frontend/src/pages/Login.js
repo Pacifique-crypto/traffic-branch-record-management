@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FiUser, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
+import { loginAdmin } from "../api";
 
 // Sample credentials
 // OIC:        username = oic2024      password = OIC@Negombo1
@@ -19,24 +20,47 @@ function Login() {
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     if (!username || !password) { setError("Please enter username and password."); return; }
 
-    const user = USERS[username];
-    if (!user || user.password !== password) {
-      setError("Invalid username or password.");
-      return;
-    }
-
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await loginAdmin(username, password);
+      if (res && res.admin) {
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("userRole", res.admin.role);
+        localStorage.setItem("officer", JSON.stringify({ name: res.admin.fullName, role: res.admin.role }));
+        navigate("/dashboard");
+        return;
+      } else {
+        // Fallback to sample credentials
+        const user = USERS[username];
+        if (user && user.password === password) {
+          localStorage.setItem("isLoggedIn", "true");
+          localStorage.setItem("userRole", user.role);
+          localStorage.setItem("officer", JSON.stringify({ name: user.name, role: user.role }));
+          navigate("/dashboard");
+          return;
+        }
+        setError(res.message || "Invalid username or password.");
+      }
+    } catch (err) {
+      console.warn("DB login failed, falling back to local credentials:", err);
+      const user = USERS[username];
+      if (!user || user.password !== password) {
+        setError("Invalid username or password.");
+        setLoading(false);
+        return;
+      }
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userRole", user.role);
       localStorage.setItem("officer", JSON.stringify({ name: user.name, role: user.role }));
       navigate("/dashboard");
-    }, 600);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

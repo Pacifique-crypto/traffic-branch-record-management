@@ -86,6 +86,15 @@ export const loginUser = async (username, password) => {
   return res.json();
 };
 
+export const loginAdmin = async (username, password) => {
+  const res = await fetch(`${BASE_URL}/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  return res.json();
+};
+
 export const registerOfficer = async (data) => {
   const res = await fetch(`${BASE_URL}/officers/register`, {
     method: "POST",
