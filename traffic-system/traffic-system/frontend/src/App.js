@@ -47,11 +47,11 @@ function App() {
         {/* IT Officer routes */}
         <Route path="/it-dashboard" element={<PrivateRoute allowedRoles={["IT Officer"]}><ITDashboard /></PrivateRoute>} />
 
-        {/* OIC routes */}
-        <Route path="/accidents"          element={<PrivateRoute allowedRoles={["OIC"]}><Accidents /></PrivateRoute>} />
-        <Route path="/accidents/:id"      element={<PrivateRoute allowedRoles={["OIC"]}><AccidentDetails /></PrivateRoute>} />
-        <Route path="/tor"                element={<PrivateRoute allowedRoles={["OIC"]}><Violations /></PrivateRoute>} />
-        <Route path="/tor/:id"            element={<PrivateRoute allowedRoles={["OIC"]}><ViolationDetails /></PrivateRoute>} />
+        {/* Shared / OIC & IT Officer routes */}
+        <Route path="/accidents"          element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><Accidents /></PrivateRoute>} />
+        <Route path="/accidents/:id"      element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><AccidentDetails /></PrivateRoute>} />
+        <Route path="/tor"                element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><Violations /></PrivateRoute>} />
+        <Route path="/tor/:id"            element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><ViolationDetails /></PrivateRoute>} />
         <Route path="/sfr"                element={<PrivateRoute allowedRoles={["OIC"]}><SFR /></PrivateRoute>} />
         <Route path="/dlr"                element={<PrivateRoute allowedRoles={["OIC"]}><DLR /></PrivateRoute>} />
         <Route path="/duty-roster"        element={<PrivateRoute allowedRoles={["OIC"]}><DutyRoster /></PrivateRoute>} />

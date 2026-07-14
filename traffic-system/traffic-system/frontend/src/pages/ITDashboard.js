@@ -13,12 +13,6 @@ const getGreeting = () => {
 
 // Stats list is moved inside the component to read from state.
 
-const recentUsers = [
-  { name: "PS Perera",     role: "OIC",            date: "2026-07-01", status: "Active" },
-  { name: "KP Jayasinghe", role: "Traffic Officer", date: "2026-06-20", status: "Active" },
-  { name: "AR Fernando",   role: "Traffic Officer", date: "2026-06-15", status: "Active" },
-];
-
 function ITDashboard() {
   const navigate = useNavigate();
   const officer  = JSON.parse(localStorage.getItem("officer") || "{}");
@@ -26,6 +20,7 @@ function ITDashboard() {
 
   const [reportsCount, setReportsCount] = useState(0);
   const [usersCount, setUsersCount]     = useState(0);
+  const [recentUsers, setRecentUsers]   = useState([]);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -35,6 +30,15 @@ function ITDashboard() {
         const offs = await getOfficers();
         setReportsCount((accs.length || 0) + (viols.length || 0));
         setUsersCount(offs.length || 0);
+
+        if (Array.isArray(offs)) {
+          setRecentUsers(offs.slice(0, 3).map(o => ({
+            name: o.name || "Unknown",
+            role: o.role || "Traffic Officer",
+            date: o.createdAt ? o.createdAt.split("T")[0] : "2026-07-01",
+            status: o.status || "Active"
+          })));
+        }
       } catch (err) {
         console.error("Failed to load IT dashboard stats:", err);
       }
