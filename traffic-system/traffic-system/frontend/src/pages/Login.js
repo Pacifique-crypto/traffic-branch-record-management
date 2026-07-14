@@ -3,15 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { FiUser, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { loginAdmin } from "../api";
 
-// Sample credentials
-// OIC:        username = oic2024      password = OIC@Negombo1
-// IT Officer: username = itoffice2024 password = IT@Traffic99
-
-const USERS = {
-  oic2024:        { password: "OIC@Negombo1",  role: "OIC",        name: "PS Perera" },
-  itoffice2024:   { password: "IT@Traffic99",  role: "IT Officer", name: "IT Admin" },
-};
-
 function Login() {
   const navigate = useNavigate();
   const [username, setUsername]   = useState("");
@@ -29,35 +20,24 @@ function Login() {
     try {
       const res = await loginAdmin(username, password);
       if (res && res.admin) {
+        let mappedRole = res.admin.role;
+        if (mappedRole === "admin") {
+          mappedRole = "IT Officer";
+        } else if (mappedRole === "oic") {
+          mappedRole = "OIC";
+        }
+
         localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("userRole", res.admin.role);
-        localStorage.setItem("officer", JSON.stringify({ name: res.admin.fullName, role: res.admin.role }));
+        localStorage.setItem("userRole", mappedRole);
+        localStorage.setItem("officer", JSON.stringify({ name: res.admin.fullName, role: mappedRole }));
         navigate("/dashboard");
         return;
       } else {
-        // Fallback to sample credentials
-        const user = USERS[username];
-        if (user && user.password === password) {
-          localStorage.setItem("isLoggedIn", "true");
-          localStorage.setItem("userRole", user.role);
-          localStorage.setItem("officer", JSON.stringify({ name: user.name, role: user.role }));
-          navigate("/dashboard");
-          return;
-        }
         setError(res.message || "Invalid username or password.");
       }
     } catch (err) {
-      console.warn("DB login failed, falling back to local credentials:", err);
-      const user = USERS[username];
-      if (!user || user.password !== password) {
-        setError("Invalid username or password.");
-        setLoading(false);
-        return;
-      }
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userRole", user.role);
-      localStorage.setItem("officer", JSON.stringify({ name: user.name, role: user.role }));
-      navigate("/dashboard");
+      console.error("Login failed:", err);
+      setError("An error occurred. Please check your connection.");
     } finally {
       setLoading(false);
     }
