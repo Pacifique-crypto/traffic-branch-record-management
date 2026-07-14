@@ -2,6 +2,34 @@ const dns = require("dns");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 dns.setDefaultResultOrder("ipv4first");
 
+const originalLookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+  let isAll = false;
+  let lookupOpts = options;
+  if (typeof options === "function") {
+    callback = options;
+    lookupOpts = {};
+  } else if (options && options.all) {
+    isAll = true;
+  }
+
+  if (hostname && hostname.endsWith("mongodb.net")) {
+    dns.resolve4(hostname, (err, addresses) => {
+      if (err || !addresses || addresses.length === 0) {
+        return originalLookup(hostname, lookupOpts, callback);
+      }
+      if (isAll) {
+        const addrList = addresses.map(addr => ({ address: addr, family: 4 }));
+        callback(null, addrList);
+      } else {
+        callback(null, addresses[0], 4);
+      }
+    });
+  } else {
+    originalLookup(hostname, lookupOpts, callback);
+  }
+};
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
