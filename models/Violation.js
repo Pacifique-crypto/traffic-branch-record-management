@@ -67,6 +67,31 @@ const violationSchema = new mongoose.Schema({
     default: "Pending",
   },
 
+  assistantOfficer: {
+    type: String,
+    default: "",
+  },
+
+  lawSection: {
+    type: String,
+    default: "",
+  },
+
+  actionTaken: {
+    type: String,
+    default: "",
+  },
+
+  driverAddress: {
+    type: String,
+    default: "",
+  },
+
+  drivingLicence: {
+    type: String,
+    default: "",
+  },
+
 }, {
   timestamps: true,
 });

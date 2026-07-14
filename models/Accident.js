@@ -176,16 +176,11 @@ const accidentSchema = new mongoose.Schema(
 
 );
 
-accidentSchema.pre("save", async function(next) {
+accidentSchema.pre("save", async function() {
   if (!this.referenceNumber) {
-    try {
-      const count = await mongoose.model("Accident").countDocuments();
-      this.referenceNumber = `ACD-${1020 + count + 1}`;
-    } catch (err) {
-      return next(err);
-    }
+    const count = await mongoose.model("Accident").countDocuments();
+    this.referenceNumber = `ACD-${1020 + count + 1}`;
   }
-  next();
 });
 
 module.exports = mongoose.model(
