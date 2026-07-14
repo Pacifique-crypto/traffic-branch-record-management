@@ -43,7 +43,7 @@ const violationSchema = new mongoose.Schema({
   },
 
   remarks: {
-    type: String,
+    type: mongoose.Schema.Types.Mixed,
     default: "",
   },
 
