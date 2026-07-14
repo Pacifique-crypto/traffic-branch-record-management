@@ -94,10 +94,15 @@ router.get("/", async (req, res) => {
 // UPDATE OFFICER
 router.put("/:id", async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    if (updateData.password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
+    }
 
     const updatedOfficer = await Officer.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true }
     ).select("-password");
 
