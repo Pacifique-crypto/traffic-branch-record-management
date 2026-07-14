@@ -28,12 +28,14 @@ import { BASE_URL } from "../config";
 const convertToBase64 = async (uri, mimeType) => {
   if (!uri) return "";
   try {
-    const base64Data = await FileSystem.readAsStringAsync(uri, {
+    const decodedUri = decodeURIComponent(uri);
+    const base64Data = await FileSystem.readAsStringAsync(decodedUri, {
       encoding: FileSystem.EncodingType.Base64,
     });
     return `data:${mimeType};base64,${base64Data}`;
   } catch (err) {
     console.log("Error converting file to Base64:", err);
+    Alert.alert("Upload Error", `Failed to read file: ${err.message}`);
     return "";
   }
 };
