@@ -288,7 +288,10 @@ function UserManagement() {
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
               />
             </div>
-               {/* Table */}
+            <button className="um-filter-btn"><FiFilter size={14} style={{ marginRight: 6 }} />Filters</button>
+          </div>
+
+          {/* Table */}
           <table className="um-table">
             <thead>
               <tr>
