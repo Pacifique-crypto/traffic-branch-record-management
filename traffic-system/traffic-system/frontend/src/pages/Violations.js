@@ -131,7 +131,10 @@ function Violations() {
                 </tr>
               ) : (
                 paginated.map(v => {
-                  const actionVal = v.actionTaken || v.action || "Issued";
+                  let actionVal = v.actionTaken || v.action || "Issued";
+                  if (actionVal === "Warning") actionVal = "Warning Issued";
+                  else if (actionVal === "Fine") actionVal = "Spot Fine Issued";
+                  else if (actionVal === "Court") actionVal = "Court Referral";
                   const ac = actionColors[actionVal] || { bg: "#f1f5f9", color: "#374151" };
                   const dateStr = v.violationDate || "";
                   const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");

@@ -21,7 +21,7 @@ import { Audio } from "expo-av";
 
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { LanguageContext } from "../context/LanguageContext";
 import { BASE_URL } from "../config";
 
