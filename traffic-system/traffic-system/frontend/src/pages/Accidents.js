@@ -10,13 +10,6 @@ const severityColors = {
   PROPERTY: { bg: "#f3e8ff", color: "#7c3aed" },
 };
 
-const initialAccidents = [
-  { id: "ACD-1020", date: "2023-11-24", time: "14:20", station: "Negombo HQ",  location: "Colombo Road",    officer: "IP Wijesekara", severity: "FATAL",    type: "Head-on Collision",  verified: false },
-  { id: "ACD-1021", date: "2023-11-24", time: "09:15", station: "Katunayake",   location: "Main Street",     officer: "PC Perera",     severity: "SERIOUS",  type: "Side Swipe",         verified: false },
-  { id: "ACD-1022", date: "2023-11-23", time: "18:45", station: "Negombo HQ",  location: "Beach Road",      officer: "WPC Kumari",    severity: "MINOR",    type: "Rear-end",           verified: true  },
-  { id: "ACD-1023", date: "2023-11-23", time: "07:30", station: "Kochchikade", location: "Junction Park",   officer: "SI Ratnayake",  severity: "PROPERTY", type: "Fender Bender",     verified: false },
-  { id: "ACD-1024", date: "2023-11-22", time: "23:10", station: "Katunayake",   location: "Airport Link",    officer: "IP Wijesekara", severity: "FATAL",    type: "Roll-over",          verified: false },
-];
 
 const PAGE_SIZE = 5;
 
@@ -33,7 +26,7 @@ function Accidents() {
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState("");
   const [severity, setSeverity]   = useState("All");
-  const [dateRange, setDateRange] = useState("Last 7 Days");
+  const [dateRange] = useState("Last 7 Days");
   const [station, setStation]     = useState("All Stations");
   const [page, setPage]           = useState(1);
   const [showNew, setShowNew]     = useState(false);

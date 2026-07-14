@@ -37,8 +37,6 @@ const accidentData = {
   },
 };
 
-const defaultData = (id) => ({ ...accidentData["ACD-1020"], id });
-
 function AccidentDetails() {
   const { id }   = useParams();
   const navigate = useNavigate();

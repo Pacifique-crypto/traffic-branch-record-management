@@ -10,13 +10,6 @@ const actionColors = {
   "Warning Issued":       { bg: "#dcfce7", color: "#16a34a" },
 };
 
-const initialViolations = [
-  { id: "TR-2023-8842", date: "24 Oct", time: "09:15 AM", offence: "Driving Under Influence",  lawSection: "RTA Sec 151(1)", action: "Court Referral",    place: "Galle Road, Colombo 03",    officer: "Sgt. Perera (4429)",      verified: false },
-  { id: "TR-2023-8841", date: "24 Oct", time: "08:40 AM", offence: "Exceeding Speed Limit",    lawSection: "RTA Sec 148",    action: "Spot Fine Issued",  place: "Marine Drive, Wellawatte",  officer: "Cpl. Silva (8831)",        verified: false },
-  { id: "TR-2023-8840", date: "23 Oct", time: "11:55 PM", offence: "No Valid License",          lawSection: "RTA Sec 123",    action: "Vehicle Impounded", place: "Town Hall, Colombo 07",     officer: "Insp. Fernando (1022)",    verified: true  },
-  { id: "TR-2023-8839", date: "23 Oct", time: "18:20 PM", offence: "Dangerous Overtaking",     lawSection: "RTA Sec 148",    action: "Spot Fine Issued",  place: "Baseline Road, Dematagoda", officer: "Sgt. Jayasinghe (5512)",   verified: false },
-  { id: "TR-2023-8838", date: "23 Oct", time: "14:10 PM", offence: "Obstructing Traffic",      lawSection: "RTA Sec 155",    action: "Warning Issued",    place: "Liberty Plaza Junct.",      officer: "Cpl. Wickramasuriya (9902)", verified: false },
-];
 
 const PAGE_SIZE = 5;
 
