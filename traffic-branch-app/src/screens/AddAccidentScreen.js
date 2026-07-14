@@ -61,6 +61,7 @@ export default function AddAccidentScreen({ navigation }) {
   const [location, setLocation] = useState("");
 
   const [assistantOfficer, setAssistantOfficer] = useState("");
+  const [severity, setSeverity] = useState("MINOR");
 
   // ============================
   // STEP 2
@@ -316,6 +317,7 @@ export default function AddAccidentScreen({ navigation }) {
            voiceNote: base64Voice,
 
            status: "Pending",
+           severity,
 
          }),
        }
@@ -480,6 +482,41 @@ placeholder="Enter Location"
 value={location}
 onChangeText={setLocation}
 />
+
+<Text style={styles.label}>
+Accident Severity
+</Text>
+
+<View style={styles.pickerBox}>
+
+<Picker
+selectedValue={severity}
+onValueChange={setSeverity}
+>
+
+<Picker.Item
+label="Minor"
+value="MINOR"
+/>
+
+<Picker.Item
+label="Serious"
+value="SERIOUS"
+/>
+
+<Picker.Item
+label="Fatal"
+value="FATAL"
+/>
+
+<Picker.Item
+label="Property Damage Only"
+value="PROPERTY"
+/>
+
+</Picker>
+
+</View>
 
 <Text style={styles.label}>
 Assistant Officer
