@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 // REGISTER OFFICER
 router.post("/register", async (req, res) => {
   try {
+    console.log("Register payload received on backend:", req.body);
     const { fullName, dob, policeId, gender, contactNo, username, nic, password, email, rank, role, address, status } = req.body;
 
     const existing = await Officer.findOne({ $or: [{ policeId }, { username: username || policeId }, { nic }] });
@@ -23,7 +24,7 @@ router.post("/register", async (req, res) => {
       policeId,
       gender,
       contactNo,
-      username: username || policeId,
+      username: (username && username.trim()) ? username : policeId,
       nic,
       password: hashedPassword,
       email,
