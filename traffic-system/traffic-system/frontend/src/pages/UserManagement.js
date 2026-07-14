@@ -1,23 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiUsers, FiCheckCircle, FiXCircle, FiMoreVertical,
   FiUserPlus, FiEye, FiEyeOff, FiCheck, FiX, FiSearch,
   FiDownload, FiPrinter, FiFilter
 } from "react-icons/fi";
+import { getOfficers, registerOfficer, updateOfficer, deleteOfficer } from "../api";
 
-// ─── Sample data ────────────────────────────────────────────────
-const initialOfficers = [
-  { id: 1, fullName: "K R Perera",   email: "perera.kr@police.lk",   policeId: "PC 107272", rank: "Constable",     role: "City Patrol",    gender: "Male",   dob: "1995-05-15", nic: "199512345678", contactNo: "077 123 4567", address: "123, Police Quarters, Negombo, Sri Lanka", status: "Active",   password: "Pass@1234" },
-  { id: 2, fullName: "D Silva",      email: "silva.d@police.lk",     policeId: "PS 52312",  rank: "Sergeant",      role: "Traffic Admin",  gender: "Male",   dob: "1990-03-22", nic: "199034567890", contactNo: "077 234 5678", address: "45, Main Street, Negombo, Sri Lanka",        status: "Deactive", password: "Pass@5678" },
-  { id: 3, fullName: "A Mendis",     email: "mendis.a@police.lk",    policeId: "PC 99283",  rank: "Constable",     role: "Field Patrol",   gender: "Female", dob: "1998-07-10", nic: "199867890123", contactNo: "077 345 6789", address: "67, Beach Road, Negombo, Sri Lanka",         status: "Active",   password: "Pass@9012" },
-  { id: 4, fullName: "R Wickramasinghe", email: "r.wick@police.lk", policeId: "PC 44521",  rank: "Constable",     role: "Evidence Support",gender:"Male",   dob: "1993-11-05", nic: "199345678901", contactNo: "077 456 7890", address: "12, Temple Lane, Negombo, Sri Lanka",        status: "Active",   password: "Pass@3456" },
-  { id: 5, fullName: "D Silva (Insp)", email: "d.silva@police.lk",  policeId: "INS 99201", rank: "Inspector",     role: "Logistics",      gender: "Male",   dob: "1985-06-18", nic: "198567123456", contactNo: "077 567 8901", address: "89, Harbour View, Negombo, Sri Lanka",       status: "Active",   password: "Pass@7890" },
-];
 
-const pendingApprovals = [
-  { id: 101, fullName: "Kamal Gunaratne", email: "k.guna@slp.gov.lk", policeId: "PC-10293",  rank: "Constable",      requestedRole: "City Patrol",   avatar: "KG" },
-  { id: 102, fullName: "Sunimali Devi",   email: "s.devi@slp.gov.lk",  policeId: "SI-88214",  rank: "Sub-Inspector",  requestedRole: "Traffic Admin", avatar: "SD" },
-];
 
 const PAGE_SIZE = 5;
 
@@ -38,16 +27,51 @@ function UserManagement() {
     LayoutComponent = require("../layouts/ITLayout").default;
   }
 
-  const [officers, setOfficers]           = useState(initialOfficers);
-  const [approvals, setApprovals]         = useState(pendingApprovals);
+  const [officers, setOfficers]           = useState([]);
+  const [approvals, setApprovals]         = useState([]);
   const [search, setSearch]               = useState("");
   const [page, setPage]                   = useState(1);
+  const [loading, setLoading]             = useState(true);
 
   // Modals
   const [showRegister, setShowRegister]   = useState(false);
   const [detailsOfficer, setDetailsOfficer] = useState(null);
   const [resetTarget, setResetTarget]     = useState(null);
   const [editTarget, setEditTarget]       = useState(null);
+
+  const fetchOfficers = async () => {
+    try {
+      const data = await getOfficers();
+      if (Array.isArray(data)) {
+        const activeOrDeactive = data
+          .filter(o => o.status === "Active" || o.status === "Deactive")
+          .map(o => ({ ...o, id: o._id }));
+        const pending = data
+          .filter(o => o.status === "Pending")
+          .map(o => ({
+            ...o,
+            id: o._id,
+            requestedRole: o.role || "Traffic Officer",
+            avatar: o.fullName
+              ? o.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+              : "OF"
+          }));
+        setOfficers(activeOrDeactive);
+        setApprovals(pending);
+      } else {
+        setOfficers([]);
+        setApprovals([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch officers:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOfficers();
+  }, []);
 
   // Stats
   const total    = officers.length;
@@ -56,28 +80,57 @@ function UserManagement() {
 
   // Filter + paginate
   const filtered = officers.filter(o =>
-    o.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    o.policeId.toLowerCase().includes(search.toLowerCase()) ||
-    o.rank.toLowerCase().includes(search.toLowerCase())
+    (o.fullName || "").toLowerCase().includes(search.toLowerCase()) ||
+    (o.policeId || "").toLowerCase().includes(search.toLowerCase()) ||
+    (o.rank || "").toLowerCase().includes(search.toLowerCase())
   );
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleApprove = (id) => setApprovals(approvals.filter(a => a.id !== id));
-  const handleReject  = (id) => setApprovals(approvals.filter(a => a.id !== id));
+  const handleApprove = async (id) => {
+    try {
+      const res = await updateOfficer(id, { status: "Active" });
+      if (res && !res.error) {
+        fetchOfficers();
+      } else {
+        alert(res.error || "Failed to approve officer.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  };
 
-  
- const handleToggleStatus = (officerId) => {
-  // Your logic to toggle status
-  // Example:
-  setOfficers(prev => 
-    prev.map(o => 
-      o.id === officerId 
-        ? { ...o, status: o.status === "Active" ? "Deactive" : "Active" }
-        : o
-    )
-  );
-};
+  const handleReject = async (id) => {
+    try {
+      const res = await deleteOfficer(id);
+      if (res && !res.error) {
+        fetchOfficers();
+      } else {
+        alert(res.error || "Failed to reject officer.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  };
+
+  const handleToggleStatus = async (officerId) => {
+    const officer = officers.find(o => o.id === officerId);
+    if (!officer) return;
+    const newStatus = officer.status === "Active" ? "Deactive" : "Active";
+    try {
+      const res = await updateOfficer(officerId, { status: newStatus });
+      if (res && !res.error) {
+        fetchOfficers();
+      } else {
+        alert(res.error || "Failed to update status.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  };
 
   return (
     <LayoutComponent>
@@ -315,9 +368,19 @@ function UserManagement() {
       {showRegister && (
         <RegisterModal
           onClose={() => setShowRegister(false)}
-          onSave={(officer) => {
-            setOfficers([...officers, { id: Date.now(), ...officer, status: "Active" }]);
-            setShowRegister(false);
+          onSave={async (officer) => {
+            try {
+              const res = await registerOfficer(officer);
+              if (res && !res.error) {
+                fetchOfficers();
+                setShowRegister(false);
+              } else {
+                alert(res.message || res.error || "Failed to register officer.");
+              }
+            } catch (err) {
+              console.error(err);
+              alert("Error connecting to server.");
+            }
           }}
         />
       )}
@@ -336,9 +399,19 @@ function UserManagement() {
         <EditModal
           officer={editTarget}
           onClose={() => setEditTarget(null)}
-          onSave={(updated) => {
-            setOfficers(officers.map(o => o.id === updated.id ? updated : o));
-            setEditTarget(null);
+          onSave={async (updated) => {
+            try {
+              const res = await updateOfficer(updated.id, updated);
+              if (res && !res.error) {
+                fetchOfficers();
+                setEditTarget(null);
+              } else {
+                alert(res.error || "Failed to update officer.");
+              }
+            } catch (err) {
+              console.error(err);
+              alert("Error connecting to server.");
+            }
           }}
         />
       )}

@@ -86,8 +86,8 @@ export const loginUser = async (username, password) => {
   return res.json();
 };
 
-export const registerUser = async (data) => {
-  const res = await fetch(`${BASE_URL}/users/register`, {
+export const registerOfficer = async (data) => {
+  const res = await fetch(`${BASE_URL}/officers/register`, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(data),
@@ -95,13 +95,22 @@ export const registerUser = async (data) => {
   return res.json();
 };
 
-export const getUsers = async () => {
-  const res = await fetch(`${BASE_URL}/users`, { headers: getHeaders() });
+export const getOfficers = async () => {
+  const res = await fetch(`${BASE_URL}/officers`, { headers: getHeaders() });
   return res.json();
 };
 
-export const deleteUser = async (id) => {
-  const res = await fetch(`${BASE_URL}/users/${id}`, {
+export const updateOfficer = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/officers/${id}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const deleteOfficer = async (id) => {
+  const res = await fetch(`${BASE_URL}/officers/${id}`, {
     method: "DELETE",
     headers: getHeaders(),
   });
