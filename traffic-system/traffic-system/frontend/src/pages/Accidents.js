@@ -91,11 +91,6 @@ function Accidents() {
             <p className="ar-sub">Real-time log of traffic incidents across the Negombo Division.</p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            {!isOIC && (
-              <button className="ar-new-btn" onClick={() => setShowNew(true)}>
-                <FiPlus size={15} style={{ marginRight: 6 }} /> New Entry
-              </button>
-            )}
             <button className="ar-filter-btn">
               <FiFilter size={14} style={{ marginRight: 6 }} /> Filter
             </button>
