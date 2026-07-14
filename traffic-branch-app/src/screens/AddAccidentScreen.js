@@ -21,8 +21,22 @@ import { Audio } from "expo-av";
 
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
+import * as FileSystem from "expo-file-system";
 import { LanguageContext } from "../context/LanguageContext";
 import { BASE_URL } from "../config";
+
+const convertToBase64 = async (uri, mimeType) => {
+  if (!uri) return "";
+  try {
+    const base64Data = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return `data:${mimeType};base64,${base64Data}`;
+  } catch (err) {
+    console.log("Error converting file to Base64:", err);
+    return "";
+  }
+};
 
 export default function AddAccidentScreen({ navigation }) {
 
@@ -82,7 +96,7 @@ export default function AddAccidentScreen({ navigation }) {
 
   const [description, setDescription] = useState("");
 
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]);
 
   const [attachment, setAttachment] = useState(null);
 
@@ -111,49 +125,43 @@ export default function AddAccidentScreen({ navigation }) {
   // ============================
 
   const openCamera = async () => {
-
-    const permission =
-      await ImagePicker.requestCameraPermissionsAsync();
-
+    if (images.length >= 5) {
+      Alert.alert("Limit Reached", "You can upload up to 5 images.");
+      return;
+    }
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Camera permission required");
       return;
     }
-
-    const result =
-      await ImagePicker.launchCameraAsync({
-        quality: 1,
-      });
-
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 1,
+    });
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
-  // ============================
-  // GALLERY
-  // ============================
-
   const pickImage = async () => {
-
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
+    if (images.length >= 5) {
+      Alert.alert("Limit Reached", "You can upload up to 5 images.");
+      return;
+    }
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Permission required");
       return;
     }
-
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
-      });
-
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsMultipleSelection: true,
+      selectionLimit: 5 - images.length,
+    });
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      const selectedUris = result.assets.map(asset => asset.uri);
+      setImages(prev => [...prev, ...selectedUris].slice(0, 5));
     }
-
   };
 
     // ============================
@@ -233,111 +241,116 @@ export default function AddAccidentScreen({ navigation }) {
   // SUBMIT
   // ============================
 
- const handleSubmit = async () => {
+  const handleSubmit = async () => {
 
-  // Required field validation
-  if (
-    !dateTime ||
-    !station ||
-    !location ||
-    !assistantOfficer ||
-    !vehicleNumber ||
-    !vehicleClass ||
-    !vehicleAge ||
-    !driverName ||
-    !driverAddress ||
-    !driverAge ||
-    !drivingLicence ||
-    !victimName ||
-    !victimAddress ||
-    !victimAge ||
-    !gender ||
-    !description
-  ) {
+   // Required field validation
+   if (
+     !dateTime ||
+     !station ||
+     !location ||
+     !assistantOfficer ||
+     !vehicleNumber ||
+     !vehicleClass ||
+     !vehicleAge ||
+     !driverName ||
+     !driverAddress ||
+     !driverAge ||
+     !drivingLicence ||
+     !victimName ||
+     !victimAddress ||
+     !victimAge ||
+     !gender ||
+     !description
+   ) {
 
-    Alert.alert(
-      "Missing Information",
-      "Please complete all required fields."
-    );
+     Alert.alert(
+       "Missing Information",
+       "Please complete all required fields."
+     );
 
-    return;
-  }
+     return;
+   }
 
-  try {
+   try {
+     const base64Images = await Promise.all(
+       images.map(img => convertToBase64(img, "image/jpeg"))
+     );
+     const base64Voice = voiceNote ? await convertToBase64(voiceNote, "audio/m4a") : "";
+     const base64Attachment = attachment ? await convertToBase64(attachment.uri, attachment.mimeType || "application/octet-stream") : "";
 
-    const response = await fetch(
-      `${BASE_URL}/accidents`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+     const response = await fetch(
+       `${BASE_URL}/accidents`,
+       {
+         method: "POST",
+         headers: {
+           "Content-Type": "application/json",
+         },
 
-        body: JSON.stringify({
+         body: JSON.stringify({
 
-          dateTime,
-          station,
-          location,
-          assistantOfficer,
+           dateTime,
+           station,
+           location,
+           assistantOfficer,
 
-          vehicleNumber,
-          vehicleClass,
-          vehicleAge,
+           vehicleNumber,
+           vehicleClass,
+           vehicleAge,
 
-          driverName,
-          driverAddress,
-          driverAge,
-          drivingLicence,
+           driverName,
+           driverAddress,
+           driverAge,
+           drivingLicence,
 
-          victimName,
-          victimAddress,
-          victimAge,
-          gender,
+           victimName,
+           victimAddress,
+           victimAge,
+           gender,
 
-          description,
+           description,
 
-          evidencePhoto: image,
-          attachment,
-          voiceNote,
+           evidencePhoto: base64Images,
+           attachment: base64Attachment,
+           voiceNote: base64Voice,
 
-          status: "Pending",
+           status: "Pending",
 
-        }),
-      }
-    );
+         }),
+       }
+     );
 
-    const data = await response.json();
+     const data = await response.json();
 
-    if (response.ok) {
+     if (response.ok) {
 
-      Alert.alert(
-        "Success",
-        "Accident submitted successfully."
-      );
+       Alert.alert(
+         "Success",
+         "Accident submitted successfully."
+       );
 
-      navigation.goBack();
+       navigation.goBack();
 
-    } else {
+     } else {
 
-      Alert.alert(
-        "Error",
-        data.error || "Submission failed"
-      );
+       Alert.alert(
+         "Error",
+         data.error || "Submission failed"
+       );
 
-    }
+     }
 
-  } catch (error) {
+   } catch (error) {
 
-    console.log(error);
+     console.log(error);
 
-    Alert.alert(
-      "Server Error",
-      "Unable to connect to server."
-    );
+     Alert.alert(
+       "Server Error",
+       "Unable to connect to server."
+     );
 
-  }
+   }
 
-};
+ };
 
     return (
 
@@ -839,13 +852,35 @@ Attach File
 
 {/* Image Preview */}
 
-{image && (
-
-<Image
-source={{uri:image}}
-style={styles.preview}
-/>
-
+{images.length > 0 && (
+  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 15, marginBottom: 15 }}>
+    {images.map((imgUri, index) => (
+      <View key={index} style={{ position: "relative", marginRight: 8, marginBottom: 8 }}>
+        <Image source={{ uri: imgUri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+        <TouchableOpacity
+          onPress={() => setImages(prev => prev.filter((_, i) => i !== index))}
+          style={{
+            position: "absolute",
+            top: -5,
+            right: -5,
+            backgroundColor: "#dc2626",
+            borderRadius: 10,
+            width: 20,
+            height: 20,
+            justifyContent: "center",
+            alignItems: "center",
+            elevation: 2,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.2,
+            shadowRadius: 1.41,
+          }}
+        >
+          <Ionicons name="close" size={14} color="white" />
+        </TouchableOpacity>
+      </View>
+    ))}
+  </View>
 )}
 
 {/* Attachment Preview */}

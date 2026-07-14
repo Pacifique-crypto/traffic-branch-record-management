@@ -139,7 +139,14 @@ function ViolationDetails() {
     { name: data.assistantOfficer || "Unknown", station: "Negombo HQ" }
   ];
 
-  const evidence = data.evidence || (data.evidencePhoto ? [{ url: data.evidencePhoto, name: "Evidence Photo" }] : []);
+  const evidence = data.evidence || (
+    data.evidencePhoto
+      ? (Array.isArray(data.evidencePhoto)
+          ? data.evidencePhoto.map((url, i) => ({ url, name: `Evidence Photo ${i + 1}` }))
+          : [{ url: data.evidencePhoto, name: "Evidence Photo" }]
+        )
+      : []
+  );
 
   return (
     <Layout>
@@ -235,6 +242,21 @@ function ViolationDetails() {
                   </div>
                 ))}
               </div>
+              {data.attachment && (
+                <div className="acd-attachment-row" style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="acd-attachment-name" style={{ color: "#64748b" }}>📎 Attachment:</span>
+                  <a href={data.attachment} download="Attachment.pdf" style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600, fontSize: 13 }}>
+                    Download Attachment
+                  </a>
+                </div>
+              )}
+              {/* Voice Note Player */}
+              {data.voiceNote && (
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
+                  <p className="acd-label" style={{ marginBottom: 6, fontWeight: 600, fontSize: 12, color: "#64748b" }}>🎤 VOICE NOTE EVIDENCE</p>
+                  <audio controls src={data.voiceNote} style={{ width: "100%" }} />
+                </div>
+              )}
             </div>
           </div>
 

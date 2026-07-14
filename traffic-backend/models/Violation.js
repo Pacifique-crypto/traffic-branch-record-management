@@ -48,6 +48,16 @@ const violationSchema = new mongoose.Schema({
   },
 
   evidencePhoto: {
+    type: mongoose.Schema.Types.Mixed,
+    default: [],
+  },
+
+  voiceNote: {
+    type: String,
+    default: "",
+  },
+
+  attachment: {
     type: String,
     default: "",
   },

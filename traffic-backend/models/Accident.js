@@ -115,8 +115,8 @@ const accidentSchema = new mongoose.Schema(
   // ===========================
 
   evidencePhoto: {
-    type: String,
-    default: "",
+    type: mongoose.Schema.Types.Mixed,
+    default: [],
   },
 
   attachment: {

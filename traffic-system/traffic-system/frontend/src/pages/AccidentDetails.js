@@ -133,7 +133,14 @@ function AccidentDetails() {
 
   const killed = data.killed || (data.casualtyStatus === "Killed" ? [{ name: data.casualtyName, gender: data.casualtyGender, age: data.casualtyAge, address: data.casualtyAddress }] : []);
   const injured = data.injured || (data.casualtyStatus === "Injured" ? [{ name: data.casualtyName, gender: data.casualtyGender, age: data.casualtyAge, address: data.casualtyAddress }] : []);
-  const evidence = data.evidence || (data.evidencePhoto ? [{ type: "image", url: data.evidencePhoto, name: "Evidence Photo" }] : []);
+  const evidence = data.evidence || (
+    data.evidencePhoto
+      ? (Array.isArray(data.evidencePhoto)
+          ? data.evidencePhoto.map((url, i) => ({ type: "image", url, name: `Evidence Photo ${i + 1}` }))
+          : [{ type: "image", url: data.evidencePhoto, name: "Evidence Photo" }]
+        )
+      : []
+  );
 
   const severityColors = { FATAL: "#dc2626", SERIOUS: "#b45309", MINOR: "#2563eb", PROPERTY: "#7c3aed" };
   const sc = severityColors[data.severity] || "#374151";
@@ -353,6 +360,21 @@ function AccidentDetails() {
                   <span className="acd-attachment-name">{a}</span>
                 </div>
               ))}
+              {data.attachment && (
+                <div className="acd-attachment-row" style={{ marginTop: 10 }}>
+                  <FiPaperclip size={14} color="#64748b" />
+                  <a href={data.attachment} download="Attachment.pdf" className="acd-attachment-name" style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600 }}>
+                    Download Attachment
+                  </a>
+                </div>
+              )}
+              {/* Voice Note Player */}
+              {data.voiceNote && (
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
+                  <p className="acd-label" style={{ marginBottom: 6, fontWeight: 600, fontSize: 12, color: "#64748b" }}>🎤 VOICE NOTE EVIDENCE</p>
+                  <audio controls src={data.voiceNote} style={{ width: "100%" }} />
+                </div>
+              )}
               {!isOIC && (
                 <button className="acd-upload-btn">
                   <FiUpload size={13} style={{ marginRight: 6 }} /> Upload More

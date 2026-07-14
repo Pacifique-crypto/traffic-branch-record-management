@@ -20,12 +20,24 @@ import * as DocumentPicker from "expo-document-picker";
 
 import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
-
+import * as FileSystem from "expo-file-system";
 import axios from "axios";
 
 import { LanguageContext } from "../context/LanguageContext"; 
 import { BASE_URL } from "../config";
 
+const convertToBase64 = async (uri, mimeType) => {
+  if (!uri) return "";
+  try {
+    const base64Data = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return `data:${mimeType};base64,${base64Data}`;
+  } catch (err) {
+    console.log("Error converting file to Base64:", err);
+    return "";
+  }
+};
 
 export default function AddViolationScreen({ navigation }) {
 
@@ -87,7 +99,7 @@ const [description, setDescription] = useState("");
 // EVIDENCE
 // ================================
 
-const [image, setImage] = useState(null);
+const [images, setImages] = useState([]);
 
 const [attachment, setAttachment] = useState(null);
 
@@ -294,66 +306,66 @@ const recordVoice = async () => {
   // Gallery
 
   const pickImage = async () => {
-
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
+    if (images.length >= 5) {
+      Alert.alert("Limit Reached", "You can upload up to 5 images.");
+      return;
+    }
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Permission required");
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
+      allowsMultipleSelection: true,
+      selectionLimit: 5 - images.length,
     });
-
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      const selectedUris = result.assets.map(asset => asset.uri);
+      setImages(prev => [...prev, ...selectedUris].slice(0, 5));
     }
-
   };
 
-  // Camera
-
   const openCamera = async () => {
-
-    const permission =
-      await ImagePicker.requestCameraPermissionsAsync();
-
+    if (images.length >= 5) {
+      Alert.alert("Limit Reached", "You can upload up to 5 images.");
+      return;
+    }
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Camera permission required");
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
       quality: 1,
     });
-
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImages(prev => [...prev, result.assets[0].uri]);
     }
-
   };
 
   const handleSubmit = async () => {
 
     if (
-  !violationType ||
-  !driverName ||
-  !driverNIC ||
-  !vehicleNumber ||
-  !vehicleType ||
-  !location ||
-  !dateTime
-)
-
-{
+      !violationType ||
+      !driverName ||
+      !driverNIC ||
+      !vehicleNumber ||
+      !vehicleType ||
+      !location ||
+      !dateTime
+    ) {
       Alert.alert("Please fill all fields");
       return;
     }
 
     try {
+      const base64Images = await Promise.all(
+        images.map(img => convertToBase64(img, "image/jpeg"))
+      );
+      const base64Voice = voiceNote ? await convertToBase64(voiceNote, "audio/m4a") : "";
+      const base64Attachment = attachment ? await convertToBase64(attachment.uri, attachment.mimeType || "application/octet-stream") : "";
 
       const response = await fetch(
         `${BASE_URL}/violations`,
@@ -375,9 +387,9 @@ const recordVoice = async () => {
             actionTaken,
             driverAddress,
             drivingLicence,
-            attachment,
-            voiceNote,
-            evidencePhoto: image,
+            attachment: base64Attachment,
+            voiceNote: base64Voice,
+            evidencePhoto: base64Images,
             status: "Pending",
             violationType,
             location,
@@ -394,6 +406,7 @@ const recordVoice = async () => {
           "Success",
           "Violation submitted successfully"
         );
+        navigation.goBack();
 
       } else {
 
@@ -885,13 +898,35 @@ Attach File
 
 </TouchableOpacity>
 
-{image && (
-
-<Image
-source={{ uri: image }}
-style={styles.preview}
-/>
-
+{images.length > 0 && (
+  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 15, marginBottom: 15 }}>
+    {images.map((imgUri, index) => (
+      <View key={index} style={{ position: "relative", marginRight: 8, marginBottom: 8 }}>
+        <Image source={{ uri: imgUri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+        <TouchableOpacity
+          onPress={() => setImages(prev => prev.filter((_, i) => i !== index))}
+          style={{
+            position: "absolute",
+            top: -5,
+            right: -5,
+            backgroundColor: "#dc2626",
+            borderRadius: 10,
+            width: 20,
+            height: 20,
+            justifyContent: "center",
+            alignItems: "center",
+            elevation: 2,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.2,
+            shadowRadius: 1.41,
+          }}
+        >
+          <Ionicons name="close" size={14} color="white" />
+        </TouchableOpacity>
+      </View>
+    ))}
+  </View>
 )}
 
 {attachment && (
