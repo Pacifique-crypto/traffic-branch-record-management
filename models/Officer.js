@@ -47,6 +47,26 @@ const officerSchema = new mongoose.Schema({
   role: {
     type: String,
     default: "officer"
+  },
+
+  email: {
+    type: String,
+    default: ""
+  },
+
+  rank: {
+    type: String,
+    default: "Constable"
+  },
+
+  address: {
+    type: String,
+    default: ""
+  },
+
+  status: {
+    type: String,
+    default: "Pending"
   }
 
 }, { timestamps: true });

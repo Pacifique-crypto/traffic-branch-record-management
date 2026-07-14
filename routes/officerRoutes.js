@@ -6,7 +6,12 @@ const bcrypt = require("bcryptjs");
 // REGISTER OFFICER
 router.post("/register", async (req, res) => {
   try {
-    const { fullName, dob, policeId, gender, contactNo, username, nic, password } = req.body;
+    const { fullName, dob, policeId, gender, contactNo, username, nic, password, email, rank, role, address, status } = req.body;
+
+    const existing = await Officer.findOne({ $or: [{ policeId }, { username: username || policeId }, { nic }] });
+    if (existing) {
+      return res.status(400).json({ message: "Officer already registered with this Police ID, NIC, or Username" });
+    }
 
     // 🔐 hash password
     const salt = await bcrypt.genSalt(10);
@@ -18,13 +23,17 @@ router.post("/register", async (req, res) => {
       policeId,
       gender,
       contactNo,
-      username,
+      username: username || policeId,
       nic,
-      password: hashedPassword // ✅ store hashed password
+      password: hashedPassword,
+      email,
+      rank,
+      role,
+      address,
+      status: status || "Pending"
     });
 
     await newOfficer.save();
-
     res.status(201).json({ message: "Officer registered successfully" });
 
   } catch (error) {
@@ -37,10 +46,18 @@ router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const officer = await Officer.findOne({ username });
+    const officer = await Officer.findOne({ $or: [{ username }, { policeId: username }] });
 
     if (!officer) {
       return res.status(400).json({ message: "User not found" });
+    }
+
+    if (officer.status === "Pending") {
+      return res.status(400).json({ message: "Your account is pending OIC approval." });
+    }
+
+    if (officer.status === "Deactive") {
+      return res.status(400).json({ message: "Your account has been deactivated." });
     }
 
     // 🔐 compare password
