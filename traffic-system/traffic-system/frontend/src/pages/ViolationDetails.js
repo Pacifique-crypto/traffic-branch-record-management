@@ -53,6 +53,7 @@ function ViolationDetails() {
   const [remarks, setRemarks]     = useState([]);
   const [showNote, setShowNote]   = useState(false);
   const [newNote, setNewNote]     = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -236,7 +237,7 @@ function ViolationDetails() {
               </div>
               <div className="acd-evidence-grid">
                 {evidence.map((e, i) => (
-                  <div key={i} className="acd-evidence-item">
+                  <div key={i} className="acd-evidence-item" onClick={() => setSelectedImage(e.url)}>
                     <img src={e.url} alt={e.name} className="acd-evidence-img" />
                     <p className="acd-evidence-name">{e.name}</p>
                   </div>
@@ -309,6 +310,55 @@ function ViolationDetails() {
           </div>
         </div>
       </div>
+      {/* Lightbox Modal */}
+      {selectedImage && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999,
+            cursor: "zoom-out"
+          }}
+          onClick={() => setSelectedImage(null)}
+        >
+          <img 
+            src={selectedImage} 
+            alt="Evidence Detail" 
+            style={{
+              maxWidth: "90%",
+              maxHeight: "80%",
+              borderRadius: "8px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              border: "3px solid #ffffff",
+              objectFit: "contain"
+            }} 
+          />
+          <button 
+            style={{
+              marginTop: 20,
+              backgroundColor: "#ef4444",
+              color: "#ffffff",
+              border: "none",
+              padding: "10px 24px",
+              borderRadius: "6px",
+              fontWeight: "600",
+              cursor: "pointer",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+            }}
+            onClick={() => setSelectedImage(null)}
+          >
+            Close Preview
+          </button>
+        </div>
+      )}
     </Layout>
   );
 }
