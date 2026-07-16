@@ -30,6 +30,7 @@ function UserManagement() {
   const [officers, setOfficers]           = useState([]);
   const [approvals, setApprovals]         = useState([]);
   const [search, setSearch]               = useState("");
+  const [statusFilter, setStatusFilter]   = useState("All");
   const [page, setPage]                   = useState(1);
   const [loading, setLoading]             = useState(true);
 
@@ -79,11 +80,14 @@ function UserManagement() {
   const deactive = officers.filter(o => o.status === "Deactive").length;
 
   // Filter + paginate
-  const filtered = officers.filter(o =>
-    (o.fullName || "").toLowerCase().includes(search.toLowerCase()) ||
-    (o.policeId || "").toLowerCase().includes(search.toLowerCase()) ||
-    (o.rank || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = officers.filter(o => {
+    const matchesSearch =
+      (o.fullName || "").toLowerCase().includes(search.toLowerCase()) ||
+      (o.policeId || "").toLowerCase().includes(search.toLowerCase()) ||
+      (o.rank || "").toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "All" || o.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -265,7 +269,7 @@ function UserManagement() {
         <div className="um-section-card">
           <div className="um-section-header">
             <h3 className="um-section-title">
-              {userRole === "OIC" ? "Officer Registry" : "Officer Directory"}
+              Officer Registry
             </h3>
             <div style={{ display: "flex", gap: 8 }}>
               {userRole === "OIC" && (
@@ -288,7 +292,27 @@ function UserManagement() {
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
               />
             </div>
-            <button className="um-filter-btn"><FiFilter size={14} style={{ marginRight: 6 }} />Filters</button>
+            <select
+              className="um-filter-select"
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+              style={{
+                padding: "10px 14px",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                backgroundColor: "#ffffff",
+                color: "#1e293b",
+                fontWeight: "600",
+                fontSize: "13px",
+                outline: "none",
+                cursor: "pointer",
+                boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+              }}
+            >
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Deactive">Deactive</option>
+            </select>
           </div>
 
           {/* Table */}
@@ -453,10 +477,16 @@ function RegisterModal({ onClose, onSave }) {
   const [showPw, setShowPw] = useState(false);
   const [error, setError]   = useState("");
 
-  const roles = ["OIC","Traffic Officer","IT Officer","Inspector","Constable","Sergeant","Sub-Inspector"];
-  const ranks = ["OIC","Inspector","Sub-Inspector","Sergeant","Constable"];
+  const roles = ["OIC", "IT Officer", "Traffic Officer"];
+  const ranks = ["Inspector", "Sub-Inspector", "Sergeant", "Constable"];
 
-  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = e => {
+    let val = e.target.value;
+    if (e.target.name === "contactNo") {
+      val = val.replace(/\D/g, "").slice(0, 10);
+    }
+    setForm({ ...form, [e.target.name]: val });
+  };
 
   const handleSubmit = () => {
     if (!form.fullName || !form.policeId || !form.role || !form.nic || !form.contactNo || !form.gender || !form.dob || !form.password || !form.email) {
