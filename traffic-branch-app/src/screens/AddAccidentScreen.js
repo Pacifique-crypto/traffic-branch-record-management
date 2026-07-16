@@ -318,6 +318,7 @@ export default function AddAccidentScreen({ navigation }) {
 
            status: "Pending",
            severity,
+           submittingOfficer: global.loggedOfficerName || "",
 
          }),
        }

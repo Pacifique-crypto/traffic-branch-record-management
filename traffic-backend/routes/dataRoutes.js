@@ -209,6 +209,7 @@ router.post("/accidents", async (req, res) => {
       station: finalStation,
       location,
       assistantOfficer: assistantOfficer || "",
+      submittingOfficer: req.body.submittingOfficer || "",
 
       vehicleNumber: finalVehicleNumber,
       vehicleClass: finalVehicleClass,

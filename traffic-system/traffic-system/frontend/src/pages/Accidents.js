@@ -3,6 +3,22 @@ import { useNavigate } from "react-router-dom";
 import { FiSearch, FiFilter, FiPlus, FiMoreVertical, FiCheckCircle } from "react-icons/fi";
 import { getAccidents, createAccident, updateAccident } from "../api";
 
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  if (dateStr.includes("T")) {
+    return new Date(dateStr);
+  }
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts[0].length === 4) {
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    } else {
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+  }
+  return new Date(dateStr);
+};
+
 const severityColors = {
   FATAL:    { bg: "#fee2e2", color: "#dc2626" },
   SERIOUS:  { bg: "#fef3c7", color: "#b45309" },
@@ -26,8 +42,7 @@ function Accidents() {
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState("");
   const [severity, setSeverity]   = useState("All");
-  const [dateRange] = useState("Last 7 Days");
-  const [station, setStation]     = useState("All Stations");
+  const [dateFilter, setDateFilter] = useState("All");
   const [page, setPage]           = useState(1);
   const [showNew, setShowNew]     = useState(false);
 
@@ -55,9 +70,30 @@ function Accidents() {
   const filtered = Array.isArray(accidents) ? accidents.filter(a => {
     const matchSearch = (a.id || "").toLowerCase().includes(search.toLowerCase()) ||
       (a.location || "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.officer || "").toLowerCase().includes(search.toLowerCase());
+      ((a.submittingOfficer || "") + " & " + (a.assistantOfficer || "") + " " + (a.officer || "")).toLowerCase().includes(search.toLowerCase());
     const matchSev = severity === "All" || a.severity === severity;
-    return matchSearch && matchSev;
+
+    let matchDate = true;
+    if (dateFilter !== "All" && a.accidentDate) {
+      const itemDate = parseDate(a.accidentDate);
+      if (itemDate) {
+        const now = new Date();
+        if (dateFilter === "Today") {
+          matchDate = itemDate.toDateString() === now.toDateString();
+        } else if (dateFilter === "ThisWeek") {
+          const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+          startOfWeek.setHours(0, 0, 0, 0);
+          matchDate = itemDate >= startOfWeek;
+        } else if (dateFilter === "Last2Weeks") {
+          const twoWeeksAgo = new Date(now.setDate(now.getDate() - 14));
+          twoWeeksAgo.setHours(0, 0, 0, 0);
+          matchDate = itemDate >= twoWeeksAgo;
+        }
+      } else {
+        matchDate = false;
+      }
+    }
+    return matchSearch && matchSev && matchDate;
   }) : [];
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -90,11 +126,6 @@ function Accidents() {
             <h1 className="ar-title">Accident Register</h1>
             <p className="ar-sub">Real-time log of traffic incidents across the Negombo Division.</p>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="ar-filter-btn">
-              <FiFilter size={14} style={{ marginRight: 6 }} /> Filter
-            </button>
-          </div>
         </div>
 
         {/* Filters row */}
@@ -108,12 +139,6 @@ function Accidents() {
               onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <select className="ar-select" value={station} onChange={e => setStation(e.target.value)}>
-            <option>All Stations</option>
-            <option>Negombo HQ</option>
-            <option>Katunayake</option>
-            <option>Kochchikade</option>
-          </select>
           <select className="ar-select" value={severity} onChange={e => { setSeverity(e.target.value); setPage(1); }}>
             <option value="All">All Severity</option>
             <option>FATAL</option>
@@ -121,7 +146,12 @@ function Accidents() {
             <option>MINOR</option>
             <option>PROPERTY</option>
           </select>
-          <button className="ar-date-btn">📅 Date Range: {dateRange}</button>
+          <select className="ar-select" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setPage(1); }}>
+            <option value="All">All Time</option>
+            <option value="Today">Today</option>
+            <option value="ThisWeek">This Week</option>
+            <option value="Last2Weeks">Last 2 Weeks</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -167,14 +197,18 @@ function Accidents() {
                       </td>
                       <td>{a.station}</td>
                       <td>{a.location}</td>
-                      <td>{a.assistantOfficer || a.officer || "Unknown"}</td>
+                      <td>
+                        {a.submittingOfficer && a.assistantOfficer
+                          ? `${a.submittingOfficer} & ${a.assistantOfficer}`
+                          : a.submittingOfficer || a.assistantOfficer || a.officer || "Unknown"}
+                      </td>
                       <td>
                         <span className="ar-severity-badge" style={{ background: sc.bg, color: sc.color }}>
                           {a.severity}
                         </span>
                       </td>
                       <td>{a.description ? a.description.replace("Type: ", "") : a.type || "Collision"}</td>
-                      <td onClick={e => e.stopPropagation()}>
+                      <td onClick={(e) => { e.stopPropagation(); navigate(`/accidents/${a.id}`); }}>
                         <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
                       </td>
                       {isOIC && (

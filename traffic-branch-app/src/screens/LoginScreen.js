@@ -70,7 +70,9 @@ export default function LoginScreen({ navigation }) {
 
     if (response.ok) {
       console.log("LOGIN SUCCESS");
-
+      if (data.officer && data.officer.fullName) {
+        global.loggedOfficerName = data.officer.fullName;
+      }
       navigation.replace("Main");
     } else {
       Alert.alert("Error", data.message);

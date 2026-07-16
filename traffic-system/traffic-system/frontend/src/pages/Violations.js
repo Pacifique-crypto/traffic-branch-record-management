@@ -3,6 +3,22 @@ import { useNavigate } from "react-router-dom";
 import { FiSearch, FiMoreVertical, FiCheckCircle, FiFilter } from "react-icons/fi";
 import { getViolations } from "../api";
 
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  if (dateStr.includes("T")) {
+    return new Date(dateStr);
+  }
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts[0].length === 4) {
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    } else {
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+  }
+  return new Date(dateStr);
+};
+
 const actionColors = {
   "Court Referral":       { bg: "#fee2e2", color: "#dc2626" },
   "Spot Fine Issued":     { bg: "#fef3c7", color: "#b45309" },
@@ -26,6 +42,7 @@ function Violations() {
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [action, setAction]         = useState("All Type");
+  const [dateFilter, setDateFilter] = useState("All");
   const [page, setPage]             = useState(1);
 
   useEffect(() => {
@@ -52,13 +69,40 @@ function Violations() {
   const filtered = Array.isArray(violations) ? violations.filter(v => {
     const idVal = v.id || v._id || "";
     const offenceVal = v.violationType || v.offence || "";
-    const officerVal = v.assistantOfficer || v.officer || "";
-    return idVal.toLowerCase().includes(search.toLowerCase()) ||
+    const officerVal = (v.submittingOfficer || "") + " & " + (v.assistantOfficer || "") + " " + (v.officer || "");
+    const matchSearch = idVal.toLowerCase().includes(search.toLowerCase()) ||
       offenceVal.toLowerCase().includes(search.toLowerCase()) ||
       officerVal.toLowerCase().includes(search.toLowerCase());
-  }).filter(v => {
+
     const actionVal = v.actionTaken || v.action || "";
-    return action === "All Type" || actionVal === action;
+    let mappedAction = actionVal;
+    if (actionVal === "Warning") mappedAction = "Warning Issued";
+    else if (actionVal === "Fine") mappedAction = "Spot Fine Issued";
+    else if (actionVal === "Court") mappedAction = "Court Referral";
+
+    const matchAction = action === "All Type" || mappedAction === action || actionVal === action;
+
+    let matchDate = true;
+    if (dateFilter !== "All" && v.violationDate) {
+      const itemDate = parseDate(v.violationDate);
+      if (itemDate) {
+        const now = new Date();
+        if (dateFilter === "Today") {
+          matchDate = itemDate.toDateString() === now.toDateString();
+        } else if (dateFilter === "ThisWeek") {
+          const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+          startOfWeek.setHours(0, 0, 0, 0);
+          matchDate = itemDate >= startOfWeek;
+        } else if (dateFilter === "Last2Weeks") {
+          const twoWeeksAgo = new Date(now.setDate(now.getDate() - 14));
+          twoWeeksAgo.setHours(0, 0, 0, 0);
+          matchDate = itemDate >= twoWeeksAgo;
+        }
+      } else {
+        matchDate = false;
+      }
+    }
+    return matchSearch && matchAction && matchDate;
   }) : [];
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -96,8 +140,12 @@ function Violations() {
             <option>Vehicle Impounded</option>
             <option>Warning Issued</option>
           </select>
-          <button className="ar-date-btn">📅 Oct 01, 2023 – Oct 24, 2023</button>
-          <button className="ar-filter-icon-btn"><FiFilter size={15} /></button>
+          <select className="ar-select" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setPage(1); }}>
+            <option value="All">All Time</option>
+            <option value="Today">Today</option>
+            <option value="ThisWeek">This Week</option>
+            <option value="Last2Weeks">Last 2 Weeks</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -153,8 +201,12 @@ function Violations() {
                         </span>
                       </td>
                       <td>{v.location || v.place}</td>
-                      <td>{v.assistantOfficer || v.officer || "Unknown"}</td>
-                      <td onClick={e => e.stopPropagation()}>
+                      <td>
+                        {v.submittingOfficer && v.assistantOfficer
+                          ? `${v.submittingOfficer} & ${v.assistantOfficer}`
+                          : v.submittingOfficer || v.assistantOfficer || v.officer || "Unknown"}
+                      </td>
+                      <td onClick={(e) => { e.stopPropagation(); navigate(`/tor/${v.id}`); }}>
                         <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
                       </td>
                       {isOIC && (

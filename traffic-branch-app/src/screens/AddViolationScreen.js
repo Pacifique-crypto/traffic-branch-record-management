@@ -396,6 +396,7 @@ const recordVoice = async () => {
             violationType,
             location,
             fineAmount,
+            submittingOfficer: global.loggedOfficerName || "",
           }),
         }
       );
