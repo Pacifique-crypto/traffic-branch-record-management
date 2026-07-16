@@ -27,6 +27,11 @@ const accidentSchema = new mongoose.Schema(
     default: "",
   },
 
+  submittingOfficer: {
+    type: String,
+    default: "",
+  },
+
   // ===========================
   // VEHICLE DETAILS
   // ===========================

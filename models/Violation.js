@@ -72,6 +72,11 @@ const violationSchema = new mongoose.Schema({
     default: "",
   },
 
+  submittingOfficer: {
+    type: String,
+    default: "",
+  },
+
   lawSection: {
     type: String,
     default: "",
