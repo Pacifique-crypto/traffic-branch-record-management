@@ -52,9 +52,33 @@ app.use("/api/officers", officerRoutes);
 const adminRoutes = require("./routes/adminRoutes");
 app.use("/api/admin", adminRoutes);
 
-// ✅ ADD HERE
+const vehicleRoutes = require("./routes/vehicleRoutes");
+app.use("/api/vehicles", vehicleRoutes);
+
 const dataRoutes = require("./routes/dataRoutes");
 app.use("/api", dataRoutes);
+
+// Auto-seed initial vehicle fleet
+const Vehicle = require("./models/Vehicle");
+const seedVehicles = async () => {
+  try {
+    const count = await Vehicle.countDocuments();
+    if (count === 0) {
+      console.log("Seeding initial fleet registry...");
+      await Vehicle.insertMany([
+        { registrationNo: "WP KA-3421", deptNo: "SLP-TRF-08", vehicleType: "Patrol Car", assignedOfficer: "PC Perera", status: "AVAILABLE" },
+        { registrationNo: "WP CP-5520", deptNo: "SLP-TRF-15", vehicleType: "Motorcycle", assignedOfficer: "SI Jayawardena", status: "MAINTENANCE" },
+        { registrationNo: "WP LG-1092", deptNo: "SLP-TRF-02", vehicleType: "Recovery Truck", assignedOfficer: "Unassigned", status: "OUT OF SERVICE" },
+        { registrationNo: "WP KA-9823", deptNo: "SLP-TRF-21", vehicleType: "Patrol Car", assignedOfficer: "PC Fernando", status: "AVAILABLE" },
+        { registrationNo: "WP CA-4401", deptNo: "SLP-TRF-09", vehicleType: "Motorcycle", assignedOfficer: "WPC Silva", status: "AVAILABLE" }
+      ]);
+      console.log("Seeding complete! ✅");
+    }
+  } catch (err) {
+    console.error("Failed to seed initial fleet:", err);
+  }
+};
+seedVehicles();
 
 // test route
 app.get("/", (req, res) => {
