@@ -183,7 +183,7 @@ const recordVoice = async () => {
 
       const { recording } =
         await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
+          Audio.RecordingOptionsPresets.LOW_QUALITY
         );
 
       setRecording(recording);
@@ -319,7 +319,7 @@ const recordVoice = async () => {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+      quality: 0.3,
       allowsMultipleSelection: true,
       selectionLimit: 5 - images.length,
     });
@@ -340,7 +340,7 @@ const recordVoice = async () => {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      quality: 1,
+      quality: 0.3,
     });
     if (!result.canceled) {
       setImages(prev => [...prev, result.assets[0].uri]);

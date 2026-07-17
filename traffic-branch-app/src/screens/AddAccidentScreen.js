@@ -138,7 +138,7 @@ export default function AddAccidentScreen({ navigation }) {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      quality: 1,
+      quality: 0.3,
     });
     if (!result.canceled) {
       setImages(prev => [...prev, result.assets[0].uri]);
@@ -157,7 +157,7 @@ export default function AddAccidentScreen({ navigation }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+      quality: 0.3,
       allowsMultipleSelection: true,
       selectionLimit: 5 - images.length,
     });
@@ -201,7 +201,7 @@ export default function AddAccidentScreen({ navigation }) {
 
       const { recording } =
         await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
+          Audio.RecordingOptionsPresets.LOW_QUALITY
         );
 
       setRecording(recording);
