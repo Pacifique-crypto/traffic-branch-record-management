@@ -139,3 +139,34 @@ export const createDutyRoster = async (data) => {
   });
   return res.json();
 };
+
+export const getVehicles = async () => {
+  const res = await fetch(`${BASE_URL}/vehicles`, { headers: getHeaders() });
+  return res.json();
+};
+
+export const registerVehicle = async (data) => {
+  const res = await fetch(`${BASE_URL}/vehicles`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const updateVehicle = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/vehicles/${id}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const deleteVehicle = async (id) => {
+  const res = await fetch(`${BASE_URL}/vehicles/${id}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  return res.json();
+};

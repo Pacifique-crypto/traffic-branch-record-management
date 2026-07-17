@@ -23,6 +23,7 @@ import Notifications    from "./pages/Notifications";
 import ITDashboard      from "./pages/ITDashboard";
 
 // Shared pages
+import VehicleManagement from "./pages/VehicleManagement";
 import UserManagement   from "./pages/UserManagement";
 import Settings         from "./pages/Settings";
 
@@ -61,6 +62,7 @@ function App() {
         <Route path="/notifications"      element={<PrivateRoute><Notifications /></PrivateRoute>} />
 
         {/* Shared */}
+        <Route path="/vehicle-management" element={<PrivateRoute><VehicleManagement /></PrivateRoute>} />
         <Route path="/user-management"    element={<PrivateRoute><UserManagement /></PrivateRoute>} />
         <Route path="/settings"           element={<PrivateRoute><Settings /></PrivateRoute>} />
 
