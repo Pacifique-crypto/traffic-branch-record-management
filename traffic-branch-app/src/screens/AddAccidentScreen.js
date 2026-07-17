@@ -324,36 +324,41 @@ export default function AddAccidentScreen({ navigation }) {
        }
      );
 
-     const data = await response.json();
+      const responseText = await response.text();
+      console.log("Server Response Status:", response.status);
+      console.log("Server Response Body:", responseText);
 
-     if (response.ok) {
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        console.log("Failed to parse JSON response:", jsonErr);
+        Alert.alert(
+          "Server Error",
+          `Invalid response format: ${responseText.substring(0, 200)}`
+        );
+        return;
+      }
 
-       Alert.alert(
-         "Success",
-         "Accident submitted successfully."
-       );
-
-       navigation.goBack();
-
-     } else {
-
-       Alert.alert(
-         "Error",
-         data.error || "Submission failed"
-       );
-
-     }
-
-   } catch (error) {
-
-     console.log(error);
-
-     Alert.alert(
-       "Server Error",
-       "Unable to connect to server."
-     );
-
-   }
+      if (response.ok) {
+        Alert.alert(
+          "Success",
+          "Accident submitted successfully."
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          "Error",
+          data.error || data.message || "Submission failed"
+        );
+      }
+    } catch (error) {
+      console.log(error);
+      Alert.alert(
+        "Server Error",
+        "Unable to connect to server."
+      );
+    }
 
  };
 

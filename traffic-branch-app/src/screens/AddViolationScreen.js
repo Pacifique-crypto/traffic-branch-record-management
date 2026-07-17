@@ -401,30 +401,37 @@ const recordVoice = async () => {
         }
       );
 
-      const data = await response.json();
+      const responseText = await response.text();
+      console.log("Server Response Status:", response.status);
+      console.log("Server Response Body:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        console.log("Failed to parse JSON response:", jsonErr);
+        Alert.alert(
+          "Server Error",
+          `Invalid response format: ${responseText.substring(0, 200)}`
+        );
+        return;
+      }
 
       if (response.ok) {
-
         Alert.alert(
           "Success",
           "Violation submitted successfully"
         );
         navigation.goBack();
-
       } else {
-
         Alert.alert(
           "Error",
-          data.error || "Submission failed"
+          data.error || data.message || "Submission failed"
         );
-
       }
-
     } catch (err) {
-
       console.log(err);
-      Alert.alert("Server Error");
-
+      Alert.alert("Server Error", "Unable to connect to server.");
     }
 
   };
