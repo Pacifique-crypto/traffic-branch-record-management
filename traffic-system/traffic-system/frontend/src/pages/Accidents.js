@@ -103,11 +103,11 @@ function Accidents() {
     try {
       const accident = accidents.find(a => a.id === id);
       if (!accident) return;
-      const newVerified = !accident.verified;
+      if (accident.verified || accident.status === "Completed") return;
       
-      const res = await updateAccident(id, { status: newVerified ? "Completed" : "Pending" });
+      const res = await updateAccident(id, { status: "Completed" });
       if (res && !res.error) {
-        setAccidents(accidents.map(a => a.id === id ? { ...a, verified: newVerified, status: newVerified ? "Completed" : "Pending" } : a));
+        setAccidents(accidents.map(a => a.id === id ? { ...a, verified: true, status: "Completed" } : a));
       } else {
         alert(res.error || "Failed to update verification status.");
       }

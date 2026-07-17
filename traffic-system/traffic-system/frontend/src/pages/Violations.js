@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiMoreVertical, FiCheckCircle, FiFilter } from "react-icons/fi";
-import { getViolations } from "../api";
+import { getViolations, updateViolation } from "../api";
 
 const parseDate = (dateStr) => {
   if (!dateStr) return null;
@@ -108,8 +108,22 @@ function Violations() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
-  const handleVerify = (id) => {
-    setViolations(violations.map(v => v.id === id ? { ...v, verified: !v.verified } : v));
+  const handleVerify = async (id) => {
+    try {
+      const violation = violations.find(v => v.id === id);
+      if (!violation) return;
+      if (violation.verified || violation.status === "Paid") return;
+
+      const res = await updateViolation(id, { status: "Paid" });
+      if (res && !res.error) {
+        setViolations(violations.map(v => v.id === id ? { ...v, verified: true, status: "Paid" } : v));
+      } else {
+        alert(res.error || "Failed to update verification status.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
   };
 
   return (

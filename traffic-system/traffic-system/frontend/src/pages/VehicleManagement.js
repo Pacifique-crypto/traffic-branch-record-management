@@ -169,27 +169,29 @@ function VehicleManagement() {
             <h1 className="um-title">Vehicle Management</h1>
             <p className="um-subtitle">Official Fleet Registry & Deployment</p>
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
-            <button
-              className="um-register-btn"
-              style={{ backgroundColor: "#475569" }}
-              onClick={() => {
-                setError("");
-                setShowAssign(true);
-              }}
-            >
-              <FiUserCheck size={15} style={{ marginRight: 6 }} /> Assign Officer
-            </button>
-            <button
-              className="um-register-btn"
-              onClick={() => {
-                setError("");
-                setShowRegister(true);
-              }}
-            >
-              <FiPlus size={15} style={{ marginRight: 6 }} /> Register Vehicle
-            </button>
-          </div>
+          {userRole === "IT Officer" && (
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                className="um-register-btn"
+                style={{ backgroundColor: "#475569" }}
+                onClick={() => {
+                  setError("");
+                  setShowAssign(true);
+                }}
+              >
+                <FiUserCheck size={15} style={{ marginRight: 6 }} /> Assign Officer
+              </button>
+              <button
+                className="um-register-btn"
+                onClick={() => {
+                  setError("");
+                  setShowRegister(true);
+                }}
+              >
+                <FiPlus size={15} style={{ marginRight: 6 }} /> Register Vehicle
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stats Grid */}
@@ -319,19 +321,19 @@ function VehicleManagement() {
                 <th>VEHICLE TYPE</th>
                 <th>ASSIGNED OFFICER</th>
                 <th>STATUS</th>
-                <th style={{ textAlign: "right" }}>ACTION</th>
+                {userRole === "IT Officer" && <th style={{ textAlign: "right" }}>ACTION</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "20px", fontWeight: "bold" }}>
+                  <td colSpan={userRole === "IT Officer" ? 6 : 5} style={{ textAlign: "center", padding: "20px", fontWeight: "bold" }}>
                     Loading vehicle registry...
                   </td>
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "20px" }}>
+                  <td colSpan={userRole === "IT Officer" ? 6 : 5} style={{ textAlign: "center", padding: "20px" }}>
                     No vehicle records found.
                   </td>
                 </tr>
@@ -366,68 +368,70 @@ function VehicleManagement() {
                           {v.status}
                         </span>
                       </td>
-                      <td style={{ textAlign: "right", position: "relative" }}>
-                        <button
-                          className="ar-dots-btn"
-                          onClick={() => setActiveMenuId(activeMenuId === v._id ? null : v._id)}
-                        >
-                          <FiMoreVertical size={16} />
-                        </button>
-                        
-                        {activeMenuId === v._id && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              right: 10,
-                              top: 35,
-                              backgroundColor: "#ffffff",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                              zIndex: 10,
-                              padding: "4px 0",
-                              width: "160px",
-                              textAlign: "left"
-                            }}
+                      {userRole === "IT Officer" && (
+                        <td style={{ textAlign: "right", position: "relative" }}>
+                          <button
+                            className="ar-dots-btn"
+                            onClick={() => setActiveMenuId(activeMenuId === v._id ? null : v._id)}
                           >
-                            <button
-                              onClick={() => handleUpdateStatus(v._id, "AVAILABLE")}
-                              style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#16a34a" }}
-                            >
-                              Set AVAILABLE
-                            </button>
-                            <button
-                              onClick={() => handleUpdateStatus(v._id, "MAINTENANCE")}
-                              style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#d97706" }}
-                            >
-                              Set MAINTENANCE
-                            </button>
-                            <button
-                              onClick={() => handleUpdateStatus(v._id, "OUT OF SERVICE")}
-                              style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#dc2626" }}
-                            >
-                              Set OUT OF SERVICE
-                            </button>
-                            <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "4px 0" }} />
-                            <button
-                              onClick={() => {
-                                setAssignForm({ vehicleId: v._id, officerName: v.assignedOfficer === "Unassigned" ? "" : v.assignedOfficer });
-                                setShowAssign(true);
-                                setActiveMenuId(null);
+                            <FiMoreVertical size={16} />
+                          </button>
+                          
+                          {activeMenuId === v._id && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                right: 10,
+                                top: 35,
+                                backgroundColor: "#ffffff",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px",
+                                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                                zIndex: 10,
+                                padding: "4px 0",
+                                width: "160px",
+                                textAlign: "left"
                               }}
-                              style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
                             >
-                              Assign Officer
-                            </button>
-                            <button
-                              onClick={() => handleDelete(v._id)}
-                              style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#ef4444", display: "flex", alignItems: "center", gap: "6px" }}
-                            >
-                              <FiTrash2 size={12} /> Unregister
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                              <button
+                                onClick={() => handleUpdateStatus(v._id, "AVAILABLE")}
+                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#16a34a" }}
+                              >
+                                Set AVAILABLE
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(v._id, "MAINTENANCE")}
+                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#d97706" }}
+                              >
+                                Set MAINTENANCE
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(v._id, "OUT OF SERVICE")}
+                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#dc2626" }}
+                              >
+                                Set OUT OF SERVICE
+                              </button>
+                              <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "4px 0" }} />
+                              <button
+                                onClick={() => {
+                                  setAssignForm({ vehicleId: v._id, officerName: v.assignedOfficer === "Unassigned" ? "" : v.assignedOfficer });
+                                  setShowAssign(true);
+                                  setActiveMenuId(null);
+                                }}
+                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+                              >
+                                Assign Officer
+                              </button>
+                              <button
+                                onClick={() => handleDelete(v._id)}
+                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#ef4444", display: "flex", alignItems: "center", gap: "6px" }}
+                              >
+                                <FiTrash2 size={12} /> Unregister
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })
