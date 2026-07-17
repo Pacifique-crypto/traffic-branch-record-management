@@ -170,3 +170,30 @@ export const deleteVehicle = async (id) => {
   });
   return res.json();
 };
+
+export const forgotPassword = async (email) => {
+  const res = await fetch(`${BASE_URL}/admin/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
+};
+
+export const verifyOtp = async (email, otp) => {
+  const res = await fetch(`${BASE_URL}/admin/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+  return res.json();
+};
+
+export const resetPassword = async (email, otp, newPassword) => {
+  const res = await fetch(`${BASE_URL}/admin/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp, newPassword }),
+  });
+  return res.json();
+};

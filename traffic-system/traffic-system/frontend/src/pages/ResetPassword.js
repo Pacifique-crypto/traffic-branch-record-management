@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMail, FiKey, FiLock, FiArrowLeft, FiEye, FiEyeOff } from "react-icons/fi";
+import { forgotPassword, verifyOtp, resetPassword } from "../api";
 
 // step 1 = enter email, step 2 = enter OTP, step 3 = new password
 function ResetPassword() {
@@ -16,42 +17,65 @@ function ResetPassword() {
   const [loading, setLoading]     = useState(false);
   const [sentOtp, setSentOtp]     = useState("");
 
-  const handleSendOtp = (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     setError("");
     if (!email) { setError("Please enter your email address."); return; }
     if (!email.includes("@")) { setError("Please enter a valid email address."); return; }
     setLoading(true);
-    // Simulate OTP send — in production, call your API
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setSentOtp(generatedOtp);
-    console.log("OTP (dev only):", generatedOtp); // remove in production
-    setTimeout(() => {
+    try {
+      const res = await forgotPassword(email);
+      if (res && !res.error && !res.message?.includes("No registered")) {
+        setStep(2);
+      } else {
+        setError(res.message || res.error || "Failed to send OTP.");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server.");
+    } finally {
       setLoading(false);
-      setStep(2);
-    }, 900);
+    }
   };
 
-  const handleVerifyOtp = (e) => {
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError("");
     if (!otp) { setError("Please enter the OTP."); return; }
-    if (otp !== sentOtp) { setError("Invalid OTP. Please try again."); return; }
-    setStep(3);
+    setLoading(true);
+    try {
+      const res = await verifyOtp(email, otp);
+      if (res && !res.error && !res.message?.includes("Invalid")) {
+        setStep(3);
+      } else {
+        setError(res.message || res.error || "Invalid OTP. Please try again.");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReset = (e) => {
+  const handleReset = async (e) => {
     e.preventDefault();
     setError("");
     if (!newPw) { setError("Please enter a new password."); return; }
     if (newPw.length < 8) { setError("Password must be at least 8 characters."); return; }
     if (newPw !== confirmPw) { setError("Passwords do not match."); return; }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await resetPassword(email, otp, newPw);
+      if (res && !res.error && !res.message?.includes("Invalid")) {
+        alert("Password reset successfully! Please login with your new password.");
+        navigate("/login");
+      } else {
+        setError(res.message || res.error || "Failed to reset password.");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server.");
+    } finally {
       setLoading(false);
-      alert("Password reset successfully! Please login with your new password.");
-      navigate("/login");
-    }, 900);
+    }
   };
 
   return (
@@ -126,7 +150,18 @@ function ResetPassword() {
             {error && <p className="login-error-pro">{error}</p>}
             <p className="rp-resend-pro">
               Didn't receive it?{" "}
-              <button type="button" className="rp-resend-btn" onClick={() => { setSentOtp(Math.floor(100000 + Math.random() * 900000).toString()); alert("New OTP sent!"); }}>
+              <button
+                type="button"
+                className="rp-resend-btn"
+                onClick={async () => {
+                  try {
+                    await forgotPassword(email);
+                    alert("New OTP sent!");
+                  } catch (err) {
+                    alert("Failed to resend OTP.");
+                  }
+                }}
+              >
                 Resend OTP
               </button>
             </p>

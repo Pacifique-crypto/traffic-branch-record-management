@@ -23,6 +23,19 @@ const adminSchema = new mongoose.Schema(
       enum: ["admin", "oic"],
       required: true,
     },
+
+    email: {
+      type: String,
+      default: "",
+    },
+
+    resetOtp: {
+      type: String,
+    },
+
+    resetOtpExpires: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
