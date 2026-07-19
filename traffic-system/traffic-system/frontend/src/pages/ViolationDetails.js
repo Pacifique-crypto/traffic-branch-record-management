@@ -189,10 +189,6 @@ function ViolationDetails() {
                 <div><p className="acd-label">DATE AND TIME</p><p className="acd-value">{data.violationDate || data.dateTime}</p></div>
                 <div><p className="acd-label">PLACE</p><p className="acd-value">{data.location || data.place}</p></div>
               </div>
-              <div style={{ marginTop: 10 }}>
-                <p className="acd-label">GEOGRAPHIC COORDINATES</p>
-                <p className="acd-value">{data.geoCoords || "Not Available"}</p>
-              </div>
             </div>
 
             {/* Vehicle Details */}
@@ -201,9 +197,6 @@ function ViolationDetails() {
               <div className="acd-vehicle-number-big">{vehicle.no}</div>
               <div className="acd-grid-2" style={{ marginTop: 12 }}>
                 <div><p className="acd-label">TYPE</p><p className="acd-value">{vehicle.type}</p></div>
-                <div><p className="acd-label">MAKE / MODEL</p><p className="acd-value">{vehicle.make}</p></div>
-                <div><p className="acd-label">COLOR</p><p className="acd-value">{vehicle.color}</p></div>
-                <div><p className="acd-label">FUEL TYPE</p><p className="acd-value">{vehicle.fuelType}</p></div>
               </div>
             </div>
 
@@ -225,7 +218,6 @@ function ViolationDetails() {
               </div>
               <div style={{ marginTop: 12, display: "flex", gap: 20 }}>
                 <div><p className="acd-label">ACTION TAKEN</p><p className="acd-value" style={{ color: "#dc2626" }}>{data.actionTaken || "Pending"}</p></div>
-                <div><p className="acd-label">NEXT APPEARANCE</p><p className="acd-value">{data.nextAppearance || "N/A"}</p></div>
               </div>
             </div>
 
@@ -233,7 +225,6 @@ function ViolationDetails() {
             <div className="acd-section">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <div className="acd-section-title" style={{ marginBottom: 0 }}><span>📎</span> EVIDENCE</div>
-                <button className="acd-upload-btn"><FiUpload size={13} style={{ marginRight: 6 }} /> Upload More</button>
               </div>
               <div className="acd-evidence-grid">
                 {evidence.map((e, i) => (
@@ -249,13 +240,6 @@ function ViolationDetails() {
                   <a href={data.attachment} download="Attachment.pdf" style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600, fontSize: 13 }}>
                     Download Attachment
                   </a>
-                </div>
-              )}
-              {/* Voice Note Player */}
-              {data.voiceNote && (
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
-                  <p className="acd-label" style={{ marginBottom: 6, fontWeight: 600, fontSize: 12, color: "#64748b" }}>🎤 VOICE NOTE EVIDENCE</p>
-                  <audio controls src={data.voiceNote} style={{ width: "100%" }} />
                 </div>
               )}
             </div>
@@ -275,10 +259,6 @@ function ViolationDetails() {
               <div style={{ marginTop: 10 }}>
                 <p className="acd-label">REGISTERED ADDRESS</p>
                 <p className="acd-value">{driver.address}</p>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <p className="acd-label">LICENSE VALIDITY</p>
-                <p className="acd-value" style={{ color: "#16a34a" }}>{driver.licenseValidity}</p>
               </div>
             </div>
 

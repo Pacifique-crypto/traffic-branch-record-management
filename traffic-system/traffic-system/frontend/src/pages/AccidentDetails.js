@@ -369,18 +369,6 @@ function AccidentDetails() {
                   </a>
                 </div>
               )}
-              {/* Voice Note Player */}
-              {data.voiceNote && (
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
-                  <p className="acd-label" style={{ marginBottom: 6, fontWeight: 600, fontSize: 12, color: "#64748b" }}>🎤 VOICE NOTE EVIDENCE</p>
-                  <audio controls src={data.voiceNote} style={{ width: "100%" }} />
-                </div>
-              )}
-              {!isOIC && (
-                <button className="acd-upload-btn">
-                  <FiUpload size={13} style={{ marginRight: 6 }} /> Upload More
-                </button>
-              )}
             </div>
 
           </div>

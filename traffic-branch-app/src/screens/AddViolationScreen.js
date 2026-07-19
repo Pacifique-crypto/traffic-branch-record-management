@@ -965,61 +965,6 @@ fontWeight:"600",
 
 )}
 
-<View style={{marginTop:15}}>
-
-<TouchableOpacity
-style={[
-styles.voiceButton,
-isRecording && {
-backgroundColor:"#dc2626"
-}
-]}
-
-onPress={recordVoice}
->
-
-<Ionicons
-name={isRecording ? "stop-circle" : "mic"}
-size={28}
-color="white"
-/>
-
-<Text style={styles.voiceText}>
-
-{isRecording
-? "Stop Recording"
-: "Record Voice Note"}
-
-</Text>
-
-</TouchableOpacity>
-
-</View>
-{voiceNote && (
-
-<View
-style={{
-marginTop:15,
-padding:12,
-backgroundColor:"#eef2ff",
-borderRadius:10,
-}}
->
-
-<Text
-style={{
-fontWeight:"600",
-color:"#1e3a8a",
-}}
->
-
-🎤 Voice note attached
-
-</Text>
-
-</View>
-
-)}
 
 <View
 style={{
