@@ -173,13 +173,13 @@ const accidentSchema = new mongoose.Schema(
     }
   ],
 
-},
-
-{
-  timestamps: true,
-}
-
+  },
+  {
+    timestamps: true,
+  }
 );
+
+accidentSchema.index({ createdAt: -1 });
 
 accidentSchema.pre("save", async function() {
   if (!this.referenceNumber) {

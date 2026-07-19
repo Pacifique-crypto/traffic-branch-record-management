@@ -15,7 +15,7 @@ const parseSafeInt = (val) => {
 // ==============================
 router.get("/accidents", async (req, res) => {
   try {
-    const accidents = await Accident.find().sort({ createdAt: -1 });
+    const accidents = await Accident.find({}, { evidencePhoto: 0, voiceNote: 0, attachment: 0 }).sort({ createdAt: -1 });
     const mapped = accidents.map(a => {
       const obj = a.toObject();
       obj.driver = obj.driver || obj.driverName;
@@ -260,7 +260,7 @@ router.post("/accidents", async (req, res) => {
 // ==============================
 router.get("/violations", async (req, res) => {
   try {
-    const violations = await Violation.find().sort({ createdAt: -1 });
+    const violations = await Violation.find({}, { evidencePhoto: 0, voiceNote: 0, attachment: 0 }).sort({ createdAt: -1 });
     const mapped = violations.map(v => {
       const obj = v.toObject();
       obj.id = obj.id || obj._id;

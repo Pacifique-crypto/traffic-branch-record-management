@@ -101,4 +101,6 @@ const violationSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+violationSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Violation", violationSchema);
