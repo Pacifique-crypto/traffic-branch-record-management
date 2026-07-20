@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { LanguageContext } from '../context/LanguageContext';
 import { BASE_URL } from '../config';
@@ -16,6 +17,7 @@ export default function LoginScreen({ navigation }) {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { language, setLanguage } = useContext(LanguageContext);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -111,13 +113,25 @@ export default function LoginScreen({ navigation }) {
 
         {/* PASSWORD */}
         <Text style={styles.label}>{t.password}</Text>
-        <TextInput
-          placeholder={t.password}
-          secureTextEntry
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            placeholder={t.password}
+            secureTextEntry={!showPassword}
+            style={styles.passwordInput}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={20}
+              color="#555"
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* REMEMBER */}
         <View style={styles.rememberContainer}>
@@ -214,6 +228,24 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     marginBottom: 10,
+  },
+
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
+    marginBottom: 10,
+    paddingRight: 10,
+  },
+
+  passwordInput: {
+    flex: 1,
+    padding: 10,
+  },
+
+  eyeIcon: {
+    padding: 4,
   },
 
   rememberContainer: {

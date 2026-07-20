@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
-import { FiAlertTriangle, FiAlertCircle, FiDollarSign, FiCalendar, FiBell } from "react-icons/fi";
+import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck } from "react-icons/fi";
 import { getAccidents, getViolations } from "../api";
 
 const getGreeting = () => {
@@ -10,19 +10,63 @@ const getGreeting = () => {
   return "Good Evening";
 };
 
-// Stats list is moved inside the component to read from state.
-
-const pendingNotifications = [
-  { id: 1, type: "Accident",  title: "New accident reported on Colombo Road",    time: "5 mins ago",  color: "#ef4444", bg: "#fee2e2" },
-  { id: 2, type: "Violation", title: "Speed violation detected – Chilaw Road",   time: "12 mins ago", color: "#f59e0b", bg: "#fef3c7" },
-  { id: 3, type: "Fine",      title: "Unpaid fine overdue – VID-1021",           time: "1 hour ago",  color: "#3b82f6", bg: "#dbeafe" },
-  { id: 4, type: "Accident",  title: "Hit & Run reported near Negombo Junction", time: "2 hours ago", color: "#ef4444", bg: "#fee2e2" },
-];
-
-const recentActivity = [
-  { name: "Recent Accident", sub: "Type: Collision | 2/7/2026",  value: "ACD-1024", tag: "High",    tagColor: "#ef4444", tagBg: "#fee2e2" },
-  { name: "Speed Violation", sub: "Type: Speeding | 15/6/2026",  value: "VID-1021", tag: "Pending", tagColor: "#f59e0b", tagBg: "#fef3c7" },
-  { name: "Spot Fine",       sub: "Type: Fine | 1/6/2026",       value: "LKR 2,500",tag: "Paid",    tagColor: "#16a34a", tagBg: "#dcfce7" },
+const pendingVerifications = [
+  {
+    id: 1,
+    icon: <FiAlertTriangle size={18} color="#dc2626" />,
+    iconBg: "#fee2e2",
+    badge: "Accident Reported (2)",
+    badgeColor: "#dc2626",
+    badgeBg: "#fee2e2",
+    code: "#ACD-2024-0089",
+    title: "Major Collision - Negombo Junction Circle",
+    sub: "Log submitted by Sgt. Karunaratne",
+    time: "12 mins ago",
+    status: "High Priority",
+    statusColor: "#dc2626",
+  },
+  {
+    id: 2,
+    icon: <FiFileText size={18} color="#2563eb" />,
+    iconBg: "#dbeafe",
+    badge: "Violation Reported (5)",
+    badgeColor: "#2563eb",
+    badgeBg: "#dbeafe",
+    code: "#TOR-5582",
+    title: "Overspeeding - Colombo Road (Zone 4)",
+    sub: "Detected by Automated Speed Cam #04",
+    time: "45 mins ago",
+    status: "Standard Review",
+    statusColor: "#64748b",
+  },
+  {
+    id: 3,
+    icon: <FiUserCheck size={18} color="#4f46e5" />,
+    iconBg: "#e0e7ff",
+    badge: "Officer Approval Pending",
+    badgeColor: "#4f46e5",
+    badgeBg: "#e0e7ff",
+    code: "#OFF-9902",
+    title: "Leave Request: Cst. Kumara (Medical)",
+    sub: "Shift: Afternoon | Date: Tomorrow",
+    time: "1 hour ago",
+    status: "HR Action Required",
+    statusColor: "#64748b",
+  },
+  {
+    id: 4,
+    icon: <FiTruck size={18} color="#475569" />,
+    iconBg: "#f1f5f9",
+    badge: "Vehicle Approval Pending",
+    badgeColor: "#475569",
+    badgeBg: "#e2e8f0",
+    code: "#LOG-3321",
+    title: "Heavy Vehicle Entry - Coastal Belt (Z-1)",
+    sub: "Carrier: Lanka Logistics Ltd. | T-Permit Req.",
+    time: "2 hours ago",
+    status: "Transit Review",
+    statusColor: "#64748b",
+  },
 ];
 
 function OICDashboard() {
@@ -78,7 +122,6 @@ function OICDashboard() {
   const stats = [
     { icon: <FiAlertTriangle size={24} />, value: accidentsCount, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
     { icon: <FiAlertCircle  size={24} />, value: violationsCount, label: "Active\nViolations", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
-    { icon: <FiDollarSign   size={24} />, value: Math.ceil(violationsCount * 0.7), label: "Pending\nFines",     bg: "#fef9c3", iconBg: "#fde68a", iconColor: "#b45309" },
     { icon: <FiCalendar     size={24} />, value: 2, label: "Duties\nToday",      bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
   ];
 
@@ -93,7 +136,7 @@ function OICDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="pro-stat-grid">
+      <div className="pro-stat-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         {stats.map((s, i) => (
           <div className="pro-stat-card" key={i} style={{ background: s.bg }}>
             <div className="pro-stat-icon-wrap" style={{ background: s.iconBg, color: s.iconColor }}>
@@ -110,22 +153,37 @@ function OICDashboard() {
       {/* Bottom two columns */}
       <div className="pro-dash-bottom">
 
-        {/* Pending Notifications */}
+        {/* Pending Verifications */}
         <div className="pro-dash-card">
-          <div className="pro-dash-card-header">
-            <FiBell size={18} color="#f59e0b" />
-            <h3 className="pro-dash-card-title">Pending Notifications</h3>
-            <span className="pending-count-badge">{pendingNotifications.length}</span>
+          <div className="pending-verif-header">
+            <div className="pending-verif-title-wrap">
+              <FiCheckSquare size={18} color="#1e3a5f" />
+              <h3 className="pending-verif-title">Pending Verifications</h3>
+            </div>
+            <a href="#/tasks" onClick={(e) => e.preventDefault()} className="pending-verif-view-all">View All Tasks</a>
           </div>
-          <div className="pending-notif-list">
-            {pendingNotifications.map((n) => (
-              <div className="pending-notif-item" key={n.id}>
-                <div className="pending-notif-dot" style={{ background: n.color }} />
-                <div className="pending-notif-body">
-                  <span className="pending-notif-type" style={{ color: n.color, background: n.bg }}>{n.type}</span>
-                  <p className="pending-notif-title">{n.title}</p>
+          <div className="pending-verif-list">
+            {pendingVerifications.map((item) => (
+              <div className="pending-verif-item" key={item.id}>
+                <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
+                  {item.icon}
                 </div>
-                <span className="pending-notif-time">{n.time}</span>
+                <div className="pending-verif-body">
+                  <div className="pending-verif-meta-row">
+                    <span className="pending-verif-badge" style={{ color: item.badgeColor, background: item.badgeBg }}>
+                      {item.badge}
+                    </span>
+                    <span className="pending-verif-code">{item.code}</span>
+                  </div>
+                  <h4 className="pending-verif-item-title">{item.title}</h4>
+                  <p className="pending-verif-item-sub">{item.sub}</p>
+                </div>
+                <div className="pending-verif-right">
+                  <span className="pending-verif-time">{item.time}</span>
+                  <span className="pending-verif-status" style={{ color: item.statusColor }}>
+                    {item.status}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -158,4 +216,4 @@ function OICDashboard() {
   );
 }
 
-export default OICDashboard;
+export default OICDashboard;

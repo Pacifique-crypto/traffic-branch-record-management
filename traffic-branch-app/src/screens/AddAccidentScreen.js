@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -43,6 +44,7 @@ const convertToBase64 = async (uri, mimeType) => {
 export default function AddAccidentScreen({ navigation }) {
 
   const { language } = useContext(LanguageContext);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ============================
   // STEP NAVIGATION
@@ -138,7 +140,7 @@ export default function AddAccidentScreen({ navigation }) {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.3,
+      quality: 0.2,
     });
     if (!result.canceled) {
       setImages(prev => [...prev, result.assets[0].uri]);
@@ -157,7 +159,7 @@ export default function AddAccidentScreen({ navigation }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.3,
+      quality: 0.2,
       allowsMultipleSelection: true,
       selectionLimit: 5 - images.length,
     });
@@ -245,6 +247,7 @@ export default function AddAccidentScreen({ navigation }) {
   // ============================
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
 
    // Required field validation
    if (
@@ -273,6 +276,8 @@ export default function AddAccidentScreen({ navigation }) {
 
      return;
    }
+
+   setIsSubmitting(true);
 
    try {
      const base64Images = await Promise.all(
@@ -353,11 +358,13 @@ export default function AddAccidentScreen({ navigation }) {
         );
       }
     } catch (error) {
-      console.log(error);
+      console.log("Accident submission error:", error);
       Alert.alert(
-        "Server Error",
-        "Unable to connect to server."
+        "Connection Error",
+        `Unable to connect to server (${error.message || "Network request failed"}). Please verify backend server status and network connection.`
       );
+    } finally {
+      setIsSubmitting(false);
     }
 
  };
@@ -987,14 +994,20 @@ style={[
 styles.nextButton,
 {
 flex:0.47,
+opacity: isSubmitting ? 0.7 : 1,
 }
 ]}
 onPress={handleSubmit}
+disabled={isSubmitting}
 >
 
-<Text style={styles.buttonText}>
-Submit
-</Text>
+{isSubmitting ? (
+  <ActivityIndicator color="#ffffff" size="small" />
+) : (
+  <Text style={styles.buttonText}>
+    Submit
+  </Text>
+)}
 
 </TouchableOpacity>
 

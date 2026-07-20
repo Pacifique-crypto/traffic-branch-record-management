@@ -430,8 +430,8 @@ const recordVoice = async () => {
         );
       }
     } catch (err) {
-      console.log(err);
-      Alert.alert("Server Error", "Unable to connect to server.");
+      console.log("Violation submission error:", err);
+      Alert.alert("Connection Error", `Unable to connect to server (${err.message || "Network request failed"}). Please verify backend server status and network connection.`);
     }
 
   };
