@@ -88,13 +88,13 @@ router.post("/login", async (req, res) => {
 const seedAdminEmails = async () => {
   try {
     const admin = await Admin.findOne({ username: "admin" });
-    if (admin && (!admin.email || admin.email === "")) {
-      admin.email = "itofficer@negombo.police.lk";
+    if (admin) {
+      admin.email = "apacifique2500@gmail.com";
       await admin.save();
     }
     const oic = await Admin.findOne({ username: "oic" });
-    if (oic && (!oic.email || oic.email === "")) {
-      oic.email = "oic@negombo.police.lk";
+    if (oic) {
+      oic.email = "adebapacifique@gmail.com";
       await oic.save();
     }
   } catch (err) {
