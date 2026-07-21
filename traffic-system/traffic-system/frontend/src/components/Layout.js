@@ -3,12 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 
 const navItems = [
-  { label: "Dashboard",  path: "/dashboard" },
-  { label: "AIR",        path: "/accidents" },
-  { label: "TOR",        path: "/tor" },
-  { label: "Reports",    path: "/reports"  },
-  { label: "Duty Roster",path: "/duty-roster"  },
-  { label: "Analytics",  path: "/analytics"  },
+  { label: "Dashboard",          path: "/dashboard" },
+  { label: "AIR",                path: "/accidents" },
+  { label: "TOR",                path: "/tor" },
+  { label: "Reports & Analytics",path: "/reports" },
+  { label: "Duty Roster",        path: "/duty-roster" },
 ];
 
 function Layout({ children }) {

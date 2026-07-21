@@ -8,10 +8,9 @@ const navItems = [
   { label: "Dashboard",          path: "/dashboard",          icon: <FiGrid /> },
   { label: "AR",                 path: "/accidents",          icon: <FiAlertTriangle /> },
   { label: "TOR",                path: "/tor",                icon: <FiAlertCircle /> },
-  { label: "Reports",            path: "/reports",            icon: <FiFileText /> },
+  { label: "Reports & Analytics",path: "/reports",            icon: <FiFileText /> },
   { label: "Duty Roster",        path: "/duty-roster",        icon: <FiCalendar /> },
   { label: "Vehicle Management", path: "/vehicle-management", icon: <FiTruck /> },
-  { label: "Analytics",          path: "/analytics",          icon: <FiBarChart2 /> },
   { label: "Officer Management", path: "/user-management",    icon: <FiUsers /> },
 ];
 

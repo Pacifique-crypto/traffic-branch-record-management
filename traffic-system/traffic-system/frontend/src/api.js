@@ -171,11 +171,11 @@ export const deleteVehicle = async (id) => {
   return res.json();
 };
 
-export const forgotPassword = async (email) => {
+export const forgotPassword = async (email, role) => {
   const res = await fetch(`${BASE_URL}/admin/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, role }),
   });
   return res.json();
 };
