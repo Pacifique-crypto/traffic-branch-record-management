@@ -180,20 +180,20 @@ export const forgotPassword = async (email, role) => {
   return res.json();
 };
 
-export const verifyOtp = async (email, otp) => {
+export const verifyOtp = async (email, otp, role) => {
   const res = await fetch(`${BASE_URL}/admin/verify-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
+    body: JSON.stringify({ email, otp, role }),
   });
   return res.json();
 };
 
-export const resetPassword = async (email, otp, newPassword) => {
+export const resetPassword = async (email, otp, newPassword, role) => {
   const res = await fetch(`${BASE_URL}/admin/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp, newPassword }),
+    body: JSON.stringify({ email, otp, newPassword, role }),
   });
   return res.json();
 };

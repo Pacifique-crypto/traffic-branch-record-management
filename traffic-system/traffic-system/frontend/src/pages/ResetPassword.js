@@ -61,7 +61,7 @@ function ResetPassword() {
 
     setLoading(true);
     try {
-      const res = await verifyOtp(email, otp);
+      const res = await verifyOtp(email, otp, role);
       if (res && !res.error && !res.message?.includes("Invalid")) {
         setStep(3);
       } else {
@@ -92,9 +92,9 @@ function ResetPassword() {
 
     setLoading(true);
     try {
-      const res = await resetPassword(email, otp, newPw);
+      const res = await resetPassword(email, otp, newPw, role);
       if (res && !res.error && !res.message?.includes("Invalid")) {
-        alert("Password reset successfully! Please login with your new password.");
+        alert(res.message || "Password reset successfully! Please login with your new password.");
         navigate("/login");
       } else {
         setError(res.message || res.error || "Failed to reset password.");
