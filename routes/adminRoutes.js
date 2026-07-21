@@ -109,8 +109,8 @@ seedAdminEmails();
 const sendOtpEmail = async (email, otp) => {
   console.log(`[OTP VERIFICATION] OTP for ${email} is: ${otp}`);
   
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+  const user = process.env.EMAIL_USER || "apacifique2500@gmail.com";
+  const pass = (process.env.EMAIL_PASS || "brsfctnvllncupev").replace(/\s+/g, "");
 
   if (!user || !pass) {
     console.log("[SMTP] EMAIL_USER / EMAIL_PASS not set in environment variables. OTP printed to logs:", otp);
