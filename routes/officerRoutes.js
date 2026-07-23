@@ -145,17 +145,4 @@ router.delete("/:id", verifyToken, authorizeRoles("admin"), async (req, res) => 
     res.status(500).json({ error: error.message });
   }
 });
-// GET ALL OFFICERS
-router.get("/", async (req, res) => {
-  try {
-    const officers = await Officer.find().select("-password");
-
-    res.json(officers);
-
-  } catch (error) {
-    res.status(500).json({
-      error: error.message,
-    });
-  }
-});
 module.exports = router;
