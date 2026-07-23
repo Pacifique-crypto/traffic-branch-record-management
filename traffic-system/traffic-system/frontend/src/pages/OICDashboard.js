@@ -31,8 +31,13 @@ function OICDashboard() {
   const [accidentsCount, setAccidentsCount] = useState(0);
   const [violationsCount, setViolationsCount] = useState(0);
   const [recentLogs, setRecentLogs]           = useState([]);
-  const [verifications, setVerifications]     = useState([]);
   const [loading, setLoading]                 = useState(true);
+
+  // Live counts for pending approvals
+  const [pendingAccCount, setPendingAccCount]   = useState(0);
+  const [pendingViolCount, setPendingViolCount] = useState(0);
+  const [pendingOffCount, setPendingOffCount]   = useState(0);
+  const [pendingVehCount, setPendingVehCount]   = useState(0);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -49,129 +54,84 @@ function OICDashboard() {
         setAccidentsCount(accs.length || 0);
         setViolationsCount(viols.length || 0);
 
-        // Compile Combined Recent Log
-        const combined = [];
-        (accs || []).slice(0, 2).forEach(a => {
-          const dateStr = a.accidentDate || "";
-          const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.split(" ")[0];
-          combined.push({
-            name: "Accident Entry",
-            sub: `Type: ${a.description ? a.description.replace("Type: ", "") : a.type || "Collision"} | ${datePart}`,
-            value: a.id ? a.id.slice(-6).toUpperCase() : "ACD-NEW",
-            tag: a.severity || "MINOR",
-            tagColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
-            tagBg: a.severity === "FATAL" ? "#fee2e2" : "#dbeafe",
-            date: new Date(a.createdAt || a.accidentDate || 0)
-          });
-        });
+        // Calculate pending verification counts
+        const pendingAcc = (accs || []).filter(a => a.status && a.status.toLowerCase() === "pending").length;
+        const pendingViol = (viols || []).filter(v => v.status && v.status.toLowerCase() === "pending").length;
+        const pendingOff = (officers || []).filter(o => o.status && o.status.toLowerCase() === "pending").length;
+        const pendingVeh = (vehicles || []).filter(vh => vh.status && vh.status.toLowerCase() === "pending").length;
 
-        (viols || []).slice(0, 2).forEach(v => {
-          const dateStr = v.violationDate || "";
-          const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.split(" ")[0];
-          const actionVal = v.actionTaken || v.action || "Issued";
-          combined.push({
-            name: "Traffic Offence",
-            sub: `Type: ${v.violationType || v.offence} | ${datePart}`,
-            value: v.id ? v.id.slice(-6).toUpperCase() : "VID-NEW",
-            tag: actionVal,
-            tagColor: actionVal === "Court Referral" ? "#dc2626" : "#b45309",
-            tagBg: actionVal === "Court Referral" ? "#fee2e2" : "#fef9c3",
-            date: new Date(v.createdAt || v.violationDate || 0)
-          });
-        });
+        setPendingAccCount(pendingAcc);
+        setPendingViolCount(pendingViol);
+        setPendingOffCount(pendingOff);
+        setPendingVehCount(pendingVeh);
 
-        combined.sort((a, b) => b.date - a.date);
-        setRecentLogs(combined.slice(0, 3));
+        // Compile Individual Recent Activities for the Activity Log
+        const activities = [];
 
-        // Compile Live Pending Verifications
-        const list = [];
-
-        // 1. Pending Accidents
+        // 1. Accidents
         (accs || []).forEach(a => {
-          if (a.status && a.status.toLowerCase() === "pending") {
-            list.push({
-              id: `acc-${a.id || a._id}`,
-              icon: <FiAlertTriangle size={18} color="#dc2626" />,
-              iconBg: "#fee2e2",
-              badge: "Accident Reported",
-              badgeColor: "#dc2626",
-              badgeBg: "#fee2e2",
-              code: a.referenceNumber || `#ACD-${(a.id || a._id || "").slice(-4).toUpperCase()}`,
-              title: a.location || "Collision Reported",
-              sub: `Log submitted by ${a.submittingOfficer || a.assistantOfficer || "Traffic Officer"}`,
-              time: timeAgo(a.createdAt || a.accidentDate),
-              date: new Date(a.createdAt || a.accidentDate || 0),
-              status: a.severity || "High Priority",
-              statusColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
-            });
-          }
+          const date = new Date(a.createdAt || a.accidentDate || 0);
+          activities.push({
+            id: `acc-${a.id || a._id}`,
+            icon: <FiAlertTriangle size={18} color="#dc2626" />,
+            iconBg: "#fee2e2",
+            badge: "Accident Reported",
+            badgeColor: "#dc2626",
+            badgeBg: "#fee2e2",
+            code: a.referenceNumber || `#ACD-${(a.id || a._id || "").slice(-4).toUpperCase()}`,
+            title: a.location || "Collision",
+            sub: `Log submitted by ${a.submittingOfficer || a.assistantOfficer || "Traffic Officer"}`,
+            time: timeAgo(a.createdAt || a.accidentDate),
+            date: date,
+            status: a.severity || "MINOR",
+            statusColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
+          });
         });
 
-        // 2. Pending Violations
+        // 2. Violations
         (viols || []).forEach(v => {
-          if (v.status && v.status.toLowerCase() === "pending") {
-            list.push({
-              id: `viol-${v.id || v._id}`,
-              icon: <FiFileText size={18} color="#2563eb" />,
-              iconBg: "#dbeafe",
-              badge: "Violation Reported",
-              badgeColor: "#2563eb",
-              badgeBg: "#dbeafe",
-              code: v.id ? `#TOR-${v.id.slice(-4).toUpperCase()}` : "#TOR-NEW",
-              title: v.violationType || v.offence || "Traffic Offence",
-              sub: `Submitted by ${v.submittingOfficer || "Traffic Officer"}`,
-              time: timeAgo(v.createdAt || v.violationDate),
-              date: new Date(v.createdAt || v.violationDate || 0),
-              status: "Standard Review",
-              statusColor: "#64748b",
-            });
-          }
+          const date = new Date(v.createdAt || v.violationDate || 0);
+          activities.push({
+            id: `viol-${v.id || v._id}`,
+            icon: <FiFileText size={18} color="#2563eb" />,
+            iconBg: "#dbeafe",
+            badge: "Violation Reported",
+            badgeColor: "#2563eb",
+            badgeBg: "#dbeafe",
+            code: v.id ? `#TOR-${v.id.slice(-4).toUpperCase()}` : "#TOR-NEW",
+            title: v.violationType || v.offence || "Traffic Offence",
+            sub: `Submitted by ${v.submittingOfficer || "Traffic Officer"}`,
+            time: timeAgo(v.createdAt || v.violationDate),
+            date: date,
+            status: "Standard Review",
+            statusColor: "#64748b",
+          });
         });
 
-        // 3. Pending Officers
+        // 3. Officers
         (officers || []).forEach(o => {
-          if (o.status && o.status.toLowerCase() === "pending") {
-            list.push({
-              id: `off-${o.id || o._id}`,
-              icon: <FiUserCheck size={18} color="#4f46e5" />,
-              iconBg: "#e0e7ff",
-              badge: "Officer Approval Pending",
-              badgeColor: "#4f46e5",
-              badgeBg: "#e0e7ff",
-              code: `#OFF-${o.policeId || "NEW"}`,
-              title: `Register Request: ${o.fullName}`,
-              sub: `NIC: ${o.nic} | Rank: ${o.rank || "Constable"}`,
-              time: timeAgo(o.createdAt),
-              date: new Date(o.createdAt || 0),
-              status: "HR Action Required",
-              statusColor: "#64748b",
-            });
-          }
+          const date = new Date(o.createdAt || 0);
+          activities.push({
+            id: `off-${o.id || o._id}`,
+            icon: <FiUserCheck size={18} color="#4f46e5" />,
+            iconBg: "#e0e7ff",
+            badge: "Officer Approval Pending",
+            badgeColor: "#4f46e5",
+            badgeBg: "#e0e7ff",
+            code: `#OFF-${o.policeId || "NEW"}`,
+            title: `Register Request: ${o.fullName}`,
+            sub: `NIC: ${o.nic} | Rank: ${o.rank || "Constable"}`,
+            time: timeAgo(o.createdAt),
+            date: date,
+            status: "HR Action Required",
+            statusColor: "#64748b",
+          });
         });
 
-        // 4. Pending Vehicles
-        (vehicles || []).forEach(vh => {
-          if (vh.status && vh.status.toLowerCase() === "pending") {
-            list.push({
-              id: `veh-${vh.id || vh._id}`,
-              icon: <FiTruck size={18} color="#475569" />,
-              iconBg: "#f1f5f9",
-              badge: "Vehicle Approval Pending",
-              badgeColor: "#475569",
-              badgeBg: "#e2e8f0",
-              code: `#VEH-${vh.registrationNo || "NEW"}`,
-              title: `Registration: ${vh.vehicleType || "Vehicle"}`,
-              sub: `Dept No: ${vh.deptNo || "N/A"} | Assigned: ${vh.assignedOfficer || "Unassigned"}`,
-              time: timeAgo(vh.createdAt),
-              date: new Date(vh.createdAt || 0),
-              status: "Transit Review",
-              statusColor: "#64748b",
-            });
-          }
-        });
+        // Sort all individual activities by date desc
+        activities.sort((a, b) => b.date - a.date);
+        setRecentLogs(activities.slice(0, 5)); // Show latest 5 activities!
 
-        list.sort((a, b) => b.date - a.date);
-        setVerifications(list);
       } catch (err) {
         console.error("Failed to load OIC dashboard stats:", err);
       } finally {
@@ -181,10 +141,72 @@ function OICDashboard() {
     loadStats();
   }, []);
 
+  // Summarized Pending verifications layout
+  const pendingVerifications = [
+    {
+      id: 1,
+      icon: <FiAlertTriangle size={18} color="#dc2626" />,
+      iconBg: "#fee2e2",
+      badge: "Accidents Pending",
+      badgeColor: "#dc2626",
+      badgeBg: "#fee2e2",
+      title: "Accidents Awaiting OIC Review",
+      sub: "Verify and sign off on recent collisions",
+      count: pendingAccCount,
+      circleBg: "#dc2626",
+      status: "High Priority",
+      statusColor: "#dc2626",
+    },
+    {
+      id: 2,
+      icon: <FiFileText size={18} color="#2563eb" />,
+      iconBg: "#dbeafe",
+      badge: "Violations Pending",
+      badgeColor: "#2563eb",
+      badgeBg: "#dbeafe",
+      title: "Traffic Fines Awaiting Verification",
+      sub: "Review submitted offences and authorize fines",
+      count: pendingViolCount,
+      circleBg: "#2563eb",
+      status: "Standard Review",
+      statusColor: "#64748b",
+    },
+    {
+      id: 3,
+      icon: <FiUserCheck size={18} color="#4f46e5" />,
+      iconBg: "#e0e7ff",
+      badge: "Officers Pending",
+      badgeColor: "#4f46e5",
+      badgeBg: "#e0e7ff",
+      title: "Officer Registration Requests",
+      sub: "Approve new traffic officers to access system",
+      count: pendingOffCount,
+      circleBg: "#4f46e5",
+      status: "HR Action Required",
+      statusColor: "#64748b",
+    },
+    {
+      id: 4,
+      icon: <FiTruck size={18} color="#475569" />,
+      iconBg: "#f1f5f9",
+      badge: "Vehicles Pending",
+      badgeColor: "#475569",
+      badgeBg: "#e2e8f0",
+      title: "Police Vehicle Registrations",
+      sub: "Verify department vehicle status and assignments",
+      count: pendingVehCount,
+      circleBg: "#475569",
+      status: "Transit Review",
+      statusColor: "#64748b",
+    }
+  ];
+
+  const totalPendingCount = pendingAccCount + pendingViolCount + pendingOffCount + pendingVehCount;
+
   const stats = [
     { icon: <FiAlertTriangle size={24} />, value: accidentsCount, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
     { icon: <FiAlertCircle  size={24} />, value: violationsCount, label: "Active\nViolations", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
-    { icon: <FiCalendar     size={24} />, value: verifications.length, label: "Pending\nApprovals", bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
+    { icon: <FiCalendar     size={24} />, value: totalPendingCount, label: "Pending\nApprovals", bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
   ];
 
   return (
@@ -215,26 +237,75 @@ function OICDashboard() {
       {/* Bottom two columns */}
       <div className="pro-dash-bottom">
 
-        {/* Pending Verifications */}
+        {/* Summarized Pending Verifications on the Left */}
         <div className="pro-dash-card">
           <div className="pending-verif-header">
             <div className="pending-verif-title-wrap">
               <FiCheckSquare size={18} color="#1e3a5f" />
               <h3 className="pending-verif-title">Pending Verifications</h3>
             </div>
-            <a href="#/tasks" onClick={(e) => e.preventDefault()} className="pending-verif-view-all">View All Tasks</a>
+            <a href="#/tasks" onClick={(e) => e.preventDefault()} className="pending-verif-view-all">View Summary</a>
           </div>
           <div className="pending-verif-list">
             {loading ? (
               <p style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>Loading verifications...</p>
-            ) : verifications.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
-                <p style={{ fontSize: 32, marginBottom: 8 }}>✅</p>
-                <p style={{ fontWeight: 600, color: "#1e293b" }}>All verifications complete</p>
-                <p style={{ fontSize: 13, marginTop: 4 }}>No pending approvals from Negombo traffic branch at this time.</p>
-              </div>
             ) : (
-              verifications.map((item) => (
+              pendingVerifications.map((item) => (
+                <div className="pending-verif-item" key={item.id}>
+                  <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
+                    {item.icon}
+                  </div>
+                  <div className="pending-verif-body">
+                    <div className="pending-verif-meta-row">
+                      <span className="pending-verif-badge" style={{ color: item.badgeColor, background: item.badgeBg }}>
+                        {item.badge}
+                      </span>
+                    </div>
+                    <h4 className="pending-verif-item-title">{item.title}</h4>
+                    <p className="pending-verif-item-sub">{item.sub}</p>
+                  </div>
+                  <div className="pending-verif-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                    <div style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: "50%",
+                      background: item.circleBg,
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: "bold",
+                      marginBottom: 4
+                    }}>
+                      {item.count}
+                    </div>
+                    <span className="pending-verif-status" style={{ color: item.statusColor, fontSize: 10, margin: 0 }}>
+                      {item.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Detailed Live Recent Activity Log on the Right */}
+        <div className="pro-dash-card">
+          <div className="pending-verif-header">
+            <div className="pending-verif-title-wrap">
+              <span style={{ fontSize: 16 }}>📋</span>
+              <h3 className="pending-verif-title">Recent Activity Log</h3>
+            </div>
+            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Live Feed</span>
+          </div>
+          <div className="pending-verif-list">
+            {loading ? (
+              <p style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>Loading activity...</p>
+            ) : recentLogs.length === 0 ? (
+              <p style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>No recent activity logged.</p>
+            ) : (
+              recentLogs.map((item) => (
                 <div className="pending-verif-item" key={item.id}>
                   <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
                     {item.icon}
@@ -258,28 +329,6 @@ function OICDashboard() {
                 </div>
               ))
             )}
-          </div>
-        </div>
-
-        {/* Recent Activity Log */}
-        <div className="pro-dash-card">
-          <div className="pro-dash-card-header">
-            <span style={{ fontSize: 18 }}>📋</span>
-            <h3 className="pro-dash-card-title">Recent Activity Log</h3>
-          </div>
-          <div className="pro-donations">
-            {recentLogs.map((d, i) => (
-              <div className="pro-donation-item" key={i}>
-                <div>
-                  <p className="pro-donation-name">{d.name}</p>
-                  <p className="pro-donation-sub">{d.sub}</p>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <p className="pro-donation-value">{d.value}</p>
-                  <span className="pro-donation-tag" style={{ color: d.tagColor, background: d.tagBg }}>{d.tag}</span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
