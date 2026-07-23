@@ -19,8 +19,9 @@ function Login() {
     setLoading(true);
     try {
       const res = await loginAdmin(username, password);
-      if (res && res.admin) {
-        let mappedRole = res.admin.role;
+      const user = res.user || res.admin;
+      if (res && user) {
+        let mappedRole = user.role;
         if (mappedRole === "admin") {
           mappedRole = "IT Officer";
         } else if (mappedRole === "oic") {
@@ -28,8 +29,9 @@ function Login() {
         }
 
         localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("token", res.token);
         localStorage.setItem("userRole", mappedRole);
-        localStorage.setItem("officer", JSON.stringify({ name: res.admin.fullName, role: mappedRole }));
+        localStorage.setItem("officer", JSON.stringify({ name: user.fullName, role: mappedRole }));
         navigate("/dashboard");
         return;
       } else {

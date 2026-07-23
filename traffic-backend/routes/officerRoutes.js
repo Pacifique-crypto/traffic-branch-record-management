@@ -42,6 +42,8 @@ router.post("/register", async (req, res) => {
   }
 });
 
+const jwt = require("jsonwebtoken");
+
 // LOGIN OFFICER
 router.post("/login", async (req, res) => {
   try {
@@ -68,8 +70,23 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
     }
 
+    const token = jwt.sign(
+      { id: officer._id, role: officer.role || "officer", username: officer.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
     res.json({
       message: "Login successful",
+      token,
+      user: {
+        id: officer._id,
+        fullName: officer.fullName,
+        username: officer.username,
+        policeId: officer.policeId,
+        role: officer.role || "officer",
+      },
+      // Keep officer object for backward compatibility
       officer: {
         id: officer._id,
         fullName: officer.fullName,
