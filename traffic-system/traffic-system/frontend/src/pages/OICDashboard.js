@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
 import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck } from "react-icons/fi";
-import { getAccidents, getViolations } from "../api";
+import { getAccidents, getViolations, getOfficers, getVehicles } from "../api";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -10,64 +10,19 @@ const getGreeting = () => {
   return "Good Evening";
 };
 
-const pendingVerifications = [
-  {
-    id: 1,
-    icon: <FiAlertTriangle size={18} color="#dc2626" />,
-    iconBg: "#fee2e2",
-    badge: "Accident Reported (2)",
-    badgeColor: "#dc2626",
-    badgeBg: "#fee2e2",
-    code: "#ACD-2024-0089",
-    title: "Major Collision - Negombo Junction Circle",
-    sub: "Log submitted by Sgt. Karunaratne",
-    time: "12 mins ago",
-    status: "High Priority",
-    statusColor: "#dc2626",
-  },
-  {
-    id: 2,
-    icon: <FiFileText size={18} color="#2563eb" />,
-    iconBg: "#dbeafe",
-    badge: "Violation Reported (5)",
-    badgeColor: "#2563eb",
-    badgeBg: "#dbeafe",
-    code: "#TOR-5582",
-    title: "Overspeeding - Colombo Road (Zone 4)",
-    sub: "Detected by Automated Speed Cam #04",
-    time: "45 mins ago",
-    status: "Standard Review",
-    statusColor: "#64748b",
-  },
-  {
-    id: 3,
-    icon: <FiUserCheck size={18} color="#4f46e5" />,
-    iconBg: "#e0e7ff",
-    badge: "Officer Approval Pending",
-    badgeColor: "#4f46e5",
-    badgeBg: "#e0e7ff",
-    code: "#OFF-9902",
-    title: "Leave Request: Cst. Kumara (Medical)",
-    sub: "Shift: Afternoon | Date: Tomorrow",
-    time: "1 hour ago",
-    status: "HR Action Required",
-    statusColor: "#64748b",
-  },
-  {
-    id: 4,
-    icon: <FiTruck size={18} color="#475569" />,
-    iconBg: "#f1f5f9",
-    badge: "Vehicle Approval Pending",
-    badgeColor: "#475569",
-    badgeBg: "#e2e8f0",
-    code: "#LOG-3321",
-    title: "Heavy Vehicle Entry - Coastal Belt (Z-1)",
-    sub: "Carrier: Lanka Logistics Ltd. | T-Permit Req.",
-    time: "2 hours ago",
-    status: "Transit Review",
-    statusColor: "#64748b",
-  },
-];
+const timeAgo = (dateStr) => {
+  if (!dateStr) return "Just now";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "Just now";
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} mins ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+};
 
 function OICDashboard() {
   const officer = JSON.parse(localStorage.getItem("officer") || "{}");
@@ -76,15 +31,25 @@ function OICDashboard() {
   const [accidentsCount, setAccidentsCount] = useState(0);
   const [violationsCount, setViolationsCount] = useState(0);
   const [recentLogs, setRecentLogs]           = useState([]);
+  const [verifications, setVerifications]     = useState([]);
+  const [loading, setLoading]                 = useState(true);
 
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const accs = await getAccidents();
-        const viols = await getViolations();
+        setLoading(true);
+        // Fetch in parallel
+        const [accs, viols, officers, vehicles] = await Promise.all([
+          getAccidents().catch(() => []),
+          getViolations().catch(() => []),
+          getOfficers().catch(() => []),
+          getVehicles().catch(() => [])
+        ]);
+
         setAccidentsCount(accs.length || 0);
         setViolationsCount(viols.length || 0);
 
+        // Compile Combined Recent Log
         const combined = [];
         (accs || []).slice(0, 2).forEach(a => {
           const dateStr = a.accidentDate || "";
@@ -95,9 +60,11 @@ function OICDashboard() {
             value: a.id ? a.id.slice(-6).toUpperCase() : "ACD-NEW",
             tag: a.severity || "MINOR",
             tagColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
-            tagBg: a.severity === "FATAL" ? "#fee2e2" : "#dbeafe"
+            tagBg: a.severity === "FATAL" ? "#fee2e2" : "#dbeafe",
+            date: new Date(a.createdAt || a.accidentDate || 0)
           });
         });
+
         (viols || []).slice(0, 2).forEach(v => {
           const dateStr = v.violationDate || "";
           const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.split(" ")[0];
@@ -108,12 +75,107 @@ function OICDashboard() {
             value: v.id ? v.id.slice(-6).toUpperCase() : "VID-NEW",
             tag: actionVal,
             tagColor: actionVal === "Court Referral" ? "#dc2626" : "#b45309",
-            tagBg: actionVal === "Court Referral" ? "#fee2e2" : "#fef9c3"
+            tagBg: actionVal === "Court Referral" ? "#fee2e2" : "#fef9c3",
+            date: new Date(v.createdAt || v.violationDate || 0)
           });
         });
+
+        combined.sort((a, b) => b.date - a.date);
         setRecentLogs(combined.slice(0, 3));
+
+        // Compile Live Pending Verifications
+        const list = [];
+
+        // 1. Pending Accidents
+        (accs || []).forEach(a => {
+          if (a.status && a.status.toLowerCase() === "pending") {
+            list.push({
+              id: `acc-${a.id || a._id}`,
+              icon: <FiAlertTriangle size={18} color="#dc2626" />,
+              iconBg: "#fee2e2",
+              badge: "Accident Reported",
+              badgeColor: "#dc2626",
+              badgeBg: "#fee2e2",
+              code: a.referenceNumber || `#ACD-${(a.id || a._id || "").slice(-4).toUpperCase()}`,
+              title: a.location || "Collision Reported",
+              sub: `Log submitted by ${a.submittingOfficer || a.assistantOfficer || "Traffic Officer"}`,
+              time: timeAgo(a.createdAt || a.accidentDate),
+              date: new Date(a.createdAt || a.accidentDate || 0),
+              status: a.severity || "High Priority",
+              statusColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
+            });
+          }
+        });
+
+        // 2. Pending Violations
+        (viols || []).forEach(v => {
+          if (v.status && v.status.toLowerCase() === "pending") {
+            list.push({
+              id: `viol-${v.id || v._id}`,
+              icon: <FiFileText size={18} color="#2563eb" />,
+              iconBg: "#dbeafe",
+              badge: "Violation Reported",
+              badgeColor: "#2563eb",
+              badgeBg: "#dbeafe",
+              code: v.id ? `#TOR-${v.id.slice(-4).toUpperCase()}` : "#TOR-NEW",
+              title: v.violationType || v.offence || "Traffic Offence",
+              sub: `Submitted by ${v.submittingOfficer || "Traffic Officer"}`,
+              time: timeAgo(v.createdAt || v.violationDate),
+              date: new Date(v.createdAt || v.violationDate || 0),
+              status: "Standard Review",
+              statusColor: "#64748b",
+            });
+          }
+        });
+
+        // 3. Pending Officers
+        (officers || []).forEach(o => {
+          if (o.status && o.status.toLowerCase() === "pending") {
+            list.push({
+              id: `off-${o.id || o._id}`,
+              icon: <FiUserCheck size={18} color="#4f46e5" />,
+              iconBg: "#e0e7ff",
+              badge: "Officer Approval Pending",
+              badgeColor: "#4f46e5",
+              badgeBg: "#e0e7ff",
+              code: `#OFF-${o.policeId || "NEW"}`,
+              title: `Register Request: ${o.fullName}`,
+              sub: `NIC: ${o.nic} | Rank: ${o.rank || "Constable"}`,
+              time: timeAgo(o.createdAt),
+              date: new Date(o.createdAt || 0),
+              status: "HR Action Required",
+              statusColor: "#64748b",
+            });
+          }
+        });
+
+        // 4. Pending Vehicles
+        (vehicles || []).forEach(vh => {
+          if (vh.status && vh.status.toLowerCase() === "pending") {
+            list.push({
+              id: `veh-${vh.id || vh._id}`,
+              icon: <FiTruck size={18} color="#475569" />,
+              iconBg: "#f1f5f9",
+              badge: "Vehicle Approval Pending",
+              badgeColor: "#475569",
+              badgeBg: "#e2e8f0",
+              code: `#VEH-${vh.registrationNo || "NEW"}`,
+              title: `Registration: ${vh.vehicleType || "Vehicle"}`,
+              sub: `Dept No: ${vh.deptNo || "N/A"} | Assigned: ${vh.assignedOfficer || "Unassigned"}`,
+              time: timeAgo(vh.createdAt),
+              date: new Date(vh.createdAt || 0),
+              status: "Transit Review",
+              statusColor: "#64748b",
+            });
+          }
+        });
+
+        list.sort((a, b) => b.date - a.date);
+        setVerifications(list);
       } catch (err) {
         console.error("Failed to load OIC dashboard stats:", err);
+      } finally {
+        setLoading(false);
       }
     };
     loadStats();
@@ -122,7 +184,7 @@ function OICDashboard() {
   const stats = [
     { icon: <FiAlertTriangle size={24} />, value: accidentsCount, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
     { icon: <FiAlertCircle  size={24} />, value: violationsCount, label: "Active\nViolations", bg: "#dcfce7", iconBg: "#bbf7d0", iconColor: "#16a34a" },
-    { icon: <FiCalendar     size={24} />, value: 2, label: "Duties\nToday",      bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
+    { icon: <FiCalendar     size={24} />, value: verifications.length, label: "Pending\nApprovals", bg: "#f3e8ff", iconBg: "#e9d5ff", iconColor: "#7c3aed" },
   ];
 
   return (
@@ -163,29 +225,39 @@ function OICDashboard() {
             <a href="#/tasks" onClick={(e) => e.preventDefault()} className="pending-verif-view-all">View All Tasks</a>
           </div>
           <div className="pending-verif-list">
-            {pendingVerifications.map((item) => (
-              <div className="pending-verif-item" key={item.id}>
-                <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
-                  {item.icon}
-                </div>
-                <div className="pending-verif-body">
-                  <div className="pending-verif-meta-row">
-                    <span className="pending-verif-badge" style={{ color: item.badgeColor, background: item.badgeBg }}>
-                      {item.badge}
-                    </span>
-                    <span className="pending-verif-code">{item.code}</span>
-                  </div>
-                  <h4 className="pending-verif-item-title">{item.title}</h4>
-                  <p className="pending-verif-item-sub">{item.sub}</p>
-                </div>
-                <div className="pending-verif-right">
-                  <span className="pending-verif-time">{item.time}</span>
-                  <span className="pending-verif-status" style={{ color: item.statusColor }}>
-                    {item.status}
-                  </span>
-                </div>
+            {loading ? (
+              <p style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>Loading verifications...</p>
+            ) : verifications.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
+                <p style={{ fontSize: 32, marginBottom: 8 }}>✅</p>
+                <p style={{ fontWeight: 600, color: "#1e293b" }}>All verifications complete</p>
+                <p style={{ fontSize: 13, marginTop: 4 }}>No pending approvals from Negombo traffic branch at this time.</p>
               </div>
-            ))}
+            ) : (
+              verifications.map((item) => (
+                <div className="pending-verif-item" key={item.id}>
+                  <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
+                    {item.icon}
+                  </div>
+                  <div className="pending-verif-body">
+                    <div className="pending-verif-meta-row">
+                      <span className="pending-verif-badge" style={{ color: item.badgeColor, background: item.badgeBg }}>
+                        {item.badge}
+                      </span>
+                      <span className="pending-verif-code">{item.code}</span>
+                    </div>
+                    <h4 className="pending-verif-item-title">{item.title}</h4>
+                    <p className="pending-verif-item-sub">{item.sub}</p>
+                  </div>
+                  <div className="pending-verif-right">
+                    <span className="pending-verif-time">{item.time}</span>
+                    <span className="pending-verif-status" style={{ color: item.statusColor }}>
+                      {item.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -216,4 +288,4 @@ function OICDashboard() {
   );
 }
 
-export default OICDashboard;
+export default OICDashboard;
