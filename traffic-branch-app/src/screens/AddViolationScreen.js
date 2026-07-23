@@ -59,36 +59,27 @@ const [step, setStep] = useState(1);
 // ================================
 
 const [violationType, setViolationType] = useState("");
+const [customViolationType, setCustomViolationType] = useState("");
 const [fineAmount, setFineAmount] = useState("");
-
 const [lawSection, setLawSection] = useState("");
-
 const [actionTaken, setActionTaken] = useState("");
-
 const [location, setLocation] = useState("");
-
 const [dateTime, setDateTime] = useState("");
 
 // ================================
 // DRIVER DETAILS
 // ================================
-
 const [driverName, setDriverName] = useState("");
-
 const [driverAddress, setDriverAddress] = useState("");
-
 const [driverNIC, setDriverNIC] = useState("");
-
 const [drivingLicence, setDrivingLicence] = useState("");
 
 // ================================
 // VEHICLE DETAILS
 // ================================
-
 const [vehicleNumber, setVehicleNumber] = useState("");
-
 const [vehicleType, setVehicleType] = useState("");
-
+const [customVehicleType, setCustomVehicleType] = useState("");
 const [assistantOfficer, setAssistantOfficer] = useState("");
 
 // ================================
@@ -348,13 +339,15 @@ const recordVoice = async () => {
   };
 
   const handleSubmit = async () => {
+    const finalViolationType = violationType === "Others" ? customViolationType : violationType;
+    const finalVehicleType = vehicleType === "Others" ? customVehicleType : vehicleType;
 
     if (
-      !violationType ||
+      !finalViolationType ||
       !driverName ||
       !driverNIC ||
       !vehicleNumber ||
-      !vehicleType ||
+      !finalVehicleType ||
       !location ||
       !dateTime
     ) {
@@ -382,7 +375,7 @@ const recordVoice = async () => {
             driver: driverName,
             driverNIC,
             vehicle: vehicleNumber,
-            vehicleType,
+            vehicleType: finalVehicleType,
             violationDate: dateTime,
             remarks: description,
             assistantOfficer,
@@ -394,7 +387,7 @@ const recordVoice = async () => {
             voiceNote: base64Voice,
             evidencePhoto: base64Images,
             status: "Pending",
-            violationType,
+            violationType: finalViolationType,
             location,
             fineAmount,
             submittingOfficer: global.loggedOfficerName || "",
@@ -583,9 +576,35 @@ label="Dangerous Driving"
 value="Dangerous Driving"
 />
 
+<Picker.Item
+label="Others"
+value="Others"
+/>
+
 </Picker>
 
 </View>
+
+{violationType === "Others" && (
+  <View style={{ marginTop: 10 }}>
+    <Text style={styles.label}>Custom Offence Name</Text>
+    <TextInput
+      style={styles.input}
+      placeholder="Enter Custom Offence"
+      value={customViolationType}
+      onChangeText={setCustomViolationType}
+    />
+    
+    <Text style={styles.label}>Fine Amount (LKR)</Text>
+    <TextInput
+      style={styles.input}
+      placeholder="Enter Fine Amount"
+      keyboardType="numeric"
+      value={fineAmount}
+      onChangeText={setFineAmount}
+    />
+  </View>
+)}
 
 <Text style={styles.label}>
 Law Section
@@ -782,10 +801,23 @@ onValueChange={setVehicleType}
 <Picker.Item label="Bus" value="Bus" />
 <Picker.Item label="Van" value="Van" />
 <Picker.Item label="Lorry" value="Lorry" />
+<Picker.Item label="Others" value="Others" />
 
 </Picker>
 
 </View>
+
+{vehicleType === "Others" && (
+  <View style={{ marginTop: 10 }}>
+    <Text style={styles.label}>Custom Vehicle Type</Text>
+    <TextInput
+      style={styles.input}
+      placeholder="Enter Vehicle Type"
+      value={customVehicleType}
+      onChangeText={setCustomVehicleType}
+    />
+  </View>
+)}
 
 <Text style={styles.label}>
 Assistant Officer
