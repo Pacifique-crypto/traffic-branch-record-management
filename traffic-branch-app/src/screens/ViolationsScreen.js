@@ -142,10 +142,8 @@ export default function ViolationsScreen({ navigation }) {
         item.violationType || "";
 
       const matchFilter =
-
         selectedFilter === "All" ||
-
-        status === selectedFilter;
+        status.toLowerCase() === selectedFilter.toLowerCase();
 
       const matchSearch =
 

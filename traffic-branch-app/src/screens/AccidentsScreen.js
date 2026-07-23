@@ -143,10 +143,9 @@ export default function AccidentsScreen({ navigation }) {
         item.vehicle || "";
 
       const matchFilter =
-
         selectedFilter === "All" ||
-
-        severity === selectedFilter;
+        severity.toLowerCase() === selectedFilter.toLowerCase() ||
+        (selectedFilter === "Property" && severity.toLowerCase().includes("property"));
 
       const matchSearch =
 
