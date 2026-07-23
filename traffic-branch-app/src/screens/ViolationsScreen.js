@@ -364,9 +364,9 @@ export default function ViolationsScreen({ navigation }) {
                   fontWeight: "bold",
                 }}
               >
-
-                {item.status}
-
+                {item.status?.toLowerCase() === "paid" || item.status?.toLowerCase() === "verified"
+                  ? (t.verified || "Verified")
+                  : (item.status?.toLowerCase() === "pending" ? (t.pending || "Pending") : item.status)}
               </Text>
 
             </View>
