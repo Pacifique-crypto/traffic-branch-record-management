@@ -105,13 +105,13 @@ router.post("/login", async (req, res) => {
 const seedAdminEmails = async () => {
   try {
     const admin = await Admin.findOne({ username: "admin" });
-    if (admin) {
-      admin.email = "apacifique2500@gmail.com";
+    if (admin && (!admin.email || admin.email === "")) {
+      admin.email = "itofficer@negombo.police.lk";
       await admin.save();
     }
     const oic = await Admin.findOne({ username: "oic" });
-    if (oic) {
-      oic.email = "adebapacifique@gmail.com";
+    if (oic && (!oic.email || oic.email === "")) {
+      oic.email = "oic@negombo.police.lk";
       await oic.save();
     }
   } catch (err) {
@@ -126,12 +126,12 @@ seedAdminEmails();
 const sendOtpEmail = async (email, otp, roleName) => {
   console.log(`[OTP VERIFICATION] OTP for ${email} (${roleName}) is: ${otp}`);
   
-  const user = process.env.EMAIL_USER || "apacifique2500@gmail.com";
-  const pass = (process.env.EMAIL_PASS || "brsfctnvllncupev").replace(/\s+/g, "");
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s+/g, "") : "";
 
   if (!user || !pass) {
-    console.log("[SMTP] EMAIL_USER / EMAIL_PASS not set in environment variables. OTP printed to logs:", otp);
-    return { success: false, reason: "SMTP credentials not configured" };
+    console.log("[SMTP] EMAIL_USER / EMAIL_PASS not set in environment variables.");
+    return { success: false, reason: "SMTP credentials not configured in environment variables." };
   }
 
   try {
@@ -221,6 +221,10 @@ router.post("/forgot-password", async (req, res) => {
 
     // Send email to Gmail
     const mailRes = await sendOtpEmail(email.trim(), otp, roleTitle);
+
+    if (!mailRes.success && mailRes.reason) {
+      return res.status(500).json({ error: mailRes.reason });
+    }
 
     let msg = `OTP sent successfully to ${email} for ${roleTitle}. Please check your inbox.`;
     if (!mailRes.success) {
