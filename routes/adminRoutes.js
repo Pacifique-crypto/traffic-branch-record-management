@@ -3,13 +3,14 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 
 const jwt = require("jsonwebtoken");
+const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 
 const Admin = require("../models/Admin");
 
 // ===========================
 // REGISTER ADMIN / OIC
 // ===========================
-router.post("/register", async (req, res) => {
+router.post("/register", verifyToken, authorizeRoles("admin"), async (req, res) => {
   try {
     const { fullName, username, password, role } = req.body;
 

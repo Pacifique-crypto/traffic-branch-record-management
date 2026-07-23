@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 
 const Accident = require("../models/Accident");
 const Violation = require("../models/Violation");
@@ -13,7 +14,7 @@ const parseSafeInt = (val) => {
 // ==============================
 // ✅ GET ALL ACCIDENTS
 // ==============================
-router.get("/accidents", async (req, res) => {
+router.get("/accidents", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
     const accidents = await Accident.find({}, { evidencePhoto: 0, voiceNote: 0, attachment: 0 }).sort({ createdAt: -1 });
     const mapped = accidents.map(a => {
@@ -31,7 +32,7 @@ router.get("/accidents", async (req, res) => {
 // ==============================
 // ✅ GET SINGLE ACCIDENT
 // ==============================
-router.get("/accidents/:id", async (req, res) => {
+router.get("/accidents/:id", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
     const mongoose = require("mongoose");
     let query = {};
@@ -65,7 +66,7 @@ router.get("/accidents/:id", async (req, res) => {
 // ==============================
 // ✅ UPDATE ACCIDENT
 // ==============================
-router.put("/accidents/:id", async (req, res) => {
+router.put("/accidents/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const mongoose = require("mongoose");
     let query = {};
@@ -101,7 +102,7 @@ router.put("/accidents/:id", async (req, res) => {
 // ==============================
 // ✅ DELETE ACCIDENT
 // ==============================
-router.delete("/accidents/:id", async (req, res) => {
+router.delete("/accidents/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const mongoose = require("mongoose");
     let query = {};
@@ -134,7 +135,7 @@ router.delete("/accidents/:id", async (req, res) => {
 //// ==============================
 // ✅ ADD ACCIDENT
 // ==============================
-router.post("/accidents", async (req, res) => {
+router.post("/accidents", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
 
     const {
@@ -258,7 +259,7 @@ router.post("/accidents", async (req, res) => {
 // ==============================
 // ✅ GET ALL VIOLATIONS
 // ==============================
-router.get("/violations", async (req, res) => {
+router.get("/violations", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
     const violations = await Violation.find({}, { evidencePhoto: 0, voiceNote: 0, attachment: 0 }).sort({ createdAt: -1 });
     const mapped = violations.map(v => {
@@ -275,7 +276,7 @@ router.get("/violations", async (req, res) => {
 // ==============================
 // ✅ GET SINGLE VIOLATION
 // ==============================
-router.get("/violations/:id", async (req, res) => {
+router.get("/violations/:id", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
     const violation = await Violation.findById(req.params.id);
 
@@ -300,7 +301,7 @@ router.get("/violations/:id", async (req, res) => {
 // ==============================
 // ✅ ADD VIOLATION 🔥 (NEW)
 // ==============================
-router.post("/violations", async (req, res) => {
+router.post("/violations", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
     const payload = { ...req.body };
 
@@ -356,7 +357,7 @@ router.post("/violations", async (req, res) => {
 // ==============================
 // ✅ UPDATE VIOLATION
 // ==============================
-router.put("/violations/:id", async (req, res) => {
+router.put("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
 
     const violation = await Violation.findByIdAndUpdate(
@@ -379,7 +380,7 @@ router.put("/violations/:id", async (req, res) => {
 // ==============================
 // ✅ DELETE VIOLATION
 // ==============================
-router.delete("/violations/:id", async (req, res) => {
+router.delete("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
 
     await Violation.findByIdAndDelete(req.params.id);
