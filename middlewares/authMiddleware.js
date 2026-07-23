@@ -20,6 +20,7 @@ const verifyToken = (req, res, next) => {
 const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
+      console.log("[AUTH] No req.user found in authorizeRoles.");
       return res.status(401).json({ message: "Unauthorized. Please log in." });
     }
 
@@ -37,6 +38,8 @@ const authorizeRoles = (...allowedRoles) => {
     const hasRole = allowedRoles.some(role => 
       rolesToCheck.some(r => r.toLowerCase() === role.toLowerCase())
     );
+
+    console.log(`[AUTH DEBUG] User: ${req.user.username}, Role in token: ${userRole}, Mapped roles: ${JSON.stringify(rolesToCheck)}, Allowed roles for route: ${JSON.stringify(allowedRoles)}, Has Permission: ${hasRole}`);
 
     if (!hasRole) {
       return res.status(403).json({ message: "Forbidden. You do not have permission." });
