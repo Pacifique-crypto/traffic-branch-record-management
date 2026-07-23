@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
+const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const Vehicle = require("../models/Vehicle");
 
 // GET ALL VEHICLES
-router.get("/", async (req, res) => {
+router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const vehicles = await Vehicle.find().sort({ createdAt: -1 });
     res.json(vehicles);
@@ -13,7 +14,7 @@ router.get("/", async (req, res) => {
 });
 
 // REGISTER NEW VEHICLE
-router.post("/", async (req, res) => {
+router.post("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const { registrationNo, deptNo, vehicleType, assignedOfficer, status } = req.body;
     
@@ -38,7 +39,7 @@ router.post("/", async (req, res) => {
 });
 
 // UPDATE VEHICLE
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
       req.params.id,
@@ -52,7 +53,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE VEHICLE
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
   try {
     await Vehicle.findByIdAndDelete(req.params.id);
     res.json({ message: "Vehicle deleted successfully" });

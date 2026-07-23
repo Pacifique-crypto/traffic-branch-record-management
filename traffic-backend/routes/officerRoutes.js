@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const Officer = require("../models/Officer");
 const bcrypt = require("bcryptjs");
 
 // REGISTER OFFICER
-router.post("/register", async (req, res) => {
+router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     console.log("Register payload received on backend:", req.body);
     const { fullName, dob, policeId, gender, contactNo, username, nic, password, email, rank, role, address, status } = req.body;
@@ -100,7 +101,7 @@ router.post("/login", async (req, res) => {
 });
 
 // GET ALL OFFICERS
-router.get("/", async (req, res) => {
+router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const officers = await Officer.find().select("-password");
     res.json(officers);
@@ -109,7 +110,7 @@ router.get("/", async (req, res) => {
   }
 });
 // UPDATE OFFICER
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (updateData.password) {
@@ -131,7 +132,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE OFFICER
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
   try {
 
     await Officer.findByIdAndDelete(req.params.id);
