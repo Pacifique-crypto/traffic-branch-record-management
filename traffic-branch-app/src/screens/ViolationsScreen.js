@@ -25,47 +25,30 @@ export default function ViolationsScreen({ navigation }) {
     useContext(LanguageContext);
 
   const translations = {
-
     EN: {
-
       title: "Violations",
-
       search: "Search Violation",
-
       all: "All",
-
+      pending: "Pending",
+      verified: "Verified",
       fine: "Fine",
-
       warning: "Warning",
-
       court: "Court",
-
       records: "Records",
-
       loading: "Loading...",
-
     },
-
     SI: {
-
       title: "වරදි",
-
       search: "වරදි සොයන්න",
-
       all: "සියල්ල",
-
+      pending: "නොවිසඳුණු",
+      verified: "තහවුරු කරන ලදී",
       fine: "දඩ",
-
       warning: "අවවාද",
-
       court: "අධිකරණ",
-
       records: "වාර්තා",
-
       loading: "පූරණය වෙමින්...",
-
     },
-
   };
 
   const t = translations[language];
@@ -143,7 +126,8 @@ export default function ViolationsScreen({ navigation }) {
 
       const matchFilter =
         selectedFilter === "All" ||
-        status.toLowerCase() === selectedFilter.toLowerCase();
+        status.toLowerCase() === selectedFilter.toLowerCase() ||
+        (selectedFilter === "Verified" && status.toLowerCase() === "paid");
 
       const matchSearch =
 
@@ -274,7 +258,7 @@ export default function ViolationsScreen({ navigation }) {
         {[
           "All",
           "Pending",
-          "Paid",
+          "Verified",
         ].map((item) => (
 
           <TouchableOpacity
@@ -299,7 +283,7 @@ export default function ViolationsScreen({ navigation }) {
               }}
             >
 
-              {item}
+              {t[item.toLowerCase()] || item}
 
             </Text>
 
@@ -359,30 +343,17 @@ export default function ViolationsScreen({ navigation }) {
 
             </Text>
 
-            <Text style={styles.cardText}>
 
-              💰 Rs. {item.fineAmount}
-
-            </Text>
 
             <View
-
               style={[
-
                 styles.badge,
-
                 {
-
                   backgroundColor:
-
-                    item.status === "Paid"
-
+                    item.status?.toLowerCase() === "verified" || item.status?.toLowerCase() === "paid"
                       ? "#16a34a"
-
                       : "#f59e0b",
-
                 },
-
               ]}
 
             >
