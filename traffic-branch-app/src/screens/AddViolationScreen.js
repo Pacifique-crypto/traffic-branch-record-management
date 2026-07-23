@@ -375,6 +375,7 @@ const recordVoice = async () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
           },
 
           body: JSON.stringify({

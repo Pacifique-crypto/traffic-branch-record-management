@@ -97,12 +97,23 @@ export default function AccidentsScreen({ navigation }) {
     try {
 
       const response = await fetch(
-        `${BASE_URL}/accidents`
+        `${BASE_URL}/accidents`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
+          }
+        }
       );
 
       const data = await response.json();
 
-      setAccidents(data);
+      if (Array.isArray(data)) {
+        setAccidents(data);
+      } else {
+        console.log("Expected array from Accidents API, got:", data);
+        setAccidents([]);
+      }
 
     } catch (err) {
 

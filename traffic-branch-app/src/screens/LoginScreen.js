@@ -75,6 +75,9 @@ export default function LoginScreen({ navigation }) {
       if (data.officer && data.officer.fullName) {
         global.loggedOfficerName = data.officer.fullName;
       }
+      if (data.token) {
+        global.userToken = data.token;
+      }
       navigation.replace("Main");
     } else {
       Alert.alert("Error", data.message);

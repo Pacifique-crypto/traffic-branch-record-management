@@ -92,15 +92,24 @@ export default function ViolationsScreen({ navigation }) {
 
     try {
 
-      const response =
-        await fetch(
-          `${BASE_URL}/violations`
-        );
+      const response = await fetch(
+        `${BASE_URL}/violations`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
+          }
+        }
+      );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
-      setViolations(data);
+      if (Array.isArray(data)) {
+        setViolations(data);
+      } else {
+        console.log("Expected array from Violations API, got:", data);
+        setViolations([]);
+      }
 
     } catch (err) {
 
