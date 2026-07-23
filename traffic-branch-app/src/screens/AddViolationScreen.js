@@ -249,51 +249,7 @@ const recordVoice = async () => {
 
 
   const calculateFine = (value) => {
-
     setViolationType(value);
-
-    switch (value) {
-
-      case "Speeding":
-        setFineAmount("3000");
-        break;
-
-      case "No Helmet":
-        setFineAmount("2000");
-        break;
-
-      case "Seat Belt Violation":
-        setFineAmount("2500");
-        break;
-
-      case "Signal Violation":
-        setFineAmount("5000");
-        break;
-
-      case "Using Mobile Phone":
-        setFineAmount("3000");
-        break;
-
-      case "Dangerous Driving":
-        setFineAmount("25000");
-        break;
-
-      case "No Driving License":
-        setFineAmount("5000");
-        break;
-
-      case "Parking Offence":
-        setFineAmount("1500");
-        break;
-
-      case "Drunk Driving":
-        setFineAmount("25000");
-        break;
-
-      default:
-        setFineAmount("");
-    }
-
   };
 
   // Gallery
@@ -389,7 +345,6 @@ const recordVoice = async () => {
             status: "Pending",
             violationType: finalViolationType,
             location,
-            fineAmount,
             submittingOfficer: global.loggedOfficerName || "",
           }),
         }
@@ -593,15 +548,6 @@ value="Others"
       placeholder="Enter Custom Offence"
       value={customViolationType}
       onChangeText={setCustomViolationType}
-    />
-    
-    <Text style={styles.label}>Fine Amount (LKR)</Text>
-    <TextInput
-      style={styles.input}
-      placeholder="Enter Fine Amount"
-      keyboardType="numeric"
-      value={fineAmount}
-      onChangeText={setFineAmount}
     />
   </View>
 )}
