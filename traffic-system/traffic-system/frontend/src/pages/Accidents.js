@@ -43,7 +43,9 @@ function Accidents() {
   const [search, setSearch]       = useState("");
   const [severity, setSeverity]   = useState("All");
   const [dateFilter, setDateFilter] = useState("All");
-  const [page, setPage]           = useState(1);
+  const [startDate, setStartDate]   = useState("");
+  const [endDate, setEndDate]       = useState("");
+  const [page, setPage]             = useState(1);
   const [showNew, setShowNew]     = useState(false);
 
   useEffect(() => {
@@ -84,10 +86,19 @@ function Accidents() {
           const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
           startOfWeek.setHours(0, 0, 0, 0);
           matchDate = itemDate >= startOfWeek;
-        } else if (dateFilter === "Last2Weeks") {
-          const twoWeeksAgo = new Date(now.setDate(now.getDate() - 14));
-          twoWeeksAgo.setHours(0, 0, 0, 0);
-          matchDate = itemDate >= twoWeeksAgo;
+        } else if (dateFilter === "Custom") {
+          const start = startDate ? new Date(startDate) : null;
+          const end = endDate ? new Date(endDate) : null;
+          if (start) start.setHours(0, 0, 0, 0);
+          if (end) end.setHours(23, 59, 59, 999);
+          
+          if (start && end) {
+            matchDate = itemDate >= start && itemDate <= end;
+          } else if (start) {
+            matchDate = itemDate >= start;
+          } else if (end) {
+            matchDate = itemDate <= end;
+          }
         }
       } else {
         matchDate = false;
@@ -151,7 +162,26 @@ function Accidents() {
             <option value="Today">Today</option>
             <option value="ThisWeek">This Week</option>
             <option value="Last2Weeks">Last 2 Weeks</option>
+            <option value="Custom">Custom Range</option>
           </select>
+          {dateFilter === "Custom" && (
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>From:</span>
+              <input
+                type="date"
+                className="ar-select"
+                value={startDate}
+                onChange={e => { setStartDate(e.target.value); setPage(1); }}
+              />
+              <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>To:</span>
+              <input
+                type="date"
+                className="ar-select"
+                value={endDate}
+                onChange={e => { setEndDate(e.target.value); setPage(1); }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Table */}
