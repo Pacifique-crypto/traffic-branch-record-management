@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
 import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck } from "react-icons/fi";
 import { getAccidents, getViolations, getOfficers, getVehicles } from "../api";
+import { useNavigate } from "react-router-dom";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -25,6 +26,7 @@ const timeAgo = (dateStr) => {
 };
 
 function OICDashboard() {
+  const navigate = useNavigate();
   const officer = JSON.parse(localStorage.getItem("officer") || "{}");
   const name    = officer.name || "PS Perera";
 
@@ -65,9 +67,6 @@ function OICDashboard() {
         setPendingOffCount(pendingOff);
         setPendingVehCount(pendingVeh);
 
-        // Compile Individual Recent Activities for the Activity Log
-        const activities = [];
-
         // 1. Accidents
         (accs || []).forEach(a => {
           const date = new Date(a.createdAt || a.accidentDate || 0);
@@ -85,6 +84,7 @@ function OICDashboard() {
             date: date,
             status: a.severity || "MINOR",
             statusColor: a.severity === "FATAL" ? "#dc2626" : "#2563eb",
+            path: `/accidents/${a.id || a._id}`
           });
         });
 
@@ -105,6 +105,7 @@ function OICDashboard() {
             date: date,
             status: "Standard Review",
             statusColor: "#64748b",
+            path: `/tor/${v.id || v._id}`
           });
         });
 
@@ -125,6 +126,7 @@ function OICDashboard() {
             date: date,
             status: "HR Action Required",
             statusColor: "#64748b",
+            path: "/user-management"
           });
         });
 
@@ -156,6 +158,7 @@ function OICDashboard() {
       circleBg: "#dc2626",
       status: "High Priority",
       statusColor: "#dc2626",
+      path: "/accidents"
     },
     {
       id: 2,
@@ -170,6 +173,7 @@ function OICDashboard() {
       circleBg: "#2563eb",
       status: "Standard Review",
       statusColor: "#64748b",
+      path: "/tor"
     },
     {
       id: 3,
@@ -184,6 +188,7 @@ function OICDashboard() {
       circleBg: "#4f46e5",
       status: "HR Action Required",
       statusColor: "#64748b",
+      path: "/user-management"
     },
     {
       id: 4,
@@ -198,6 +203,7 @@ function OICDashboard() {
       circleBg: "#475569",
       status: "Transit Review",
       statusColor: "#64748b",
+      path: "/vehicle-management"
     }
   ];
 
@@ -251,7 +257,7 @@ function OICDashboard() {
               <p style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>Loading verifications...</p>
             ) : (
               pendingVerifications.map((item) => (
-                <div className="pending-verif-item" key={item.id}>
+                <div className="pending-verif-item" key={item.id} style={{ cursor: "pointer" }} onClick={() => navigate(item.path)}>
                   <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
                     {item.icon}
                   </div>
@@ -306,7 +312,7 @@ function OICDashboard() {
               <p style={{ textAlign: "center", padding: "20px", color: "#64748b" }}>No recent activity logged.</p>
             ) : (
               recentLogs.map((item) => (
-                <div className="pending-verif-item" key={item.id}>
+                <div className="pending-verif-item" key={item.id} style={{ cursor: item.path ? "pointer" : "default" }} onClick={() => item.path && navigate(item.path)}>
                   <div className="pending-verif-icon-box" style={{ background: item.iconBg }}>
                     {item.icon}
                   </div>
