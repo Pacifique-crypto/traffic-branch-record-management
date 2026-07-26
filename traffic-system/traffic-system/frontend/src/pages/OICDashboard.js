@@ -67,6 +67,8 @@ function OICDashboard() {
         setPendingOffCount(pendingOff);
         setPendingVehCount(pendingVeh);
 
+        const activities = [];
+
         // 1. Accidents
         (accs || []).forEach(a => {
           const date = new Date(a.createdAt || a.accidentDate || 0);
