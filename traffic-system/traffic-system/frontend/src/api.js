@@ -126,19 +126,6 @@ export const deleteOfficer = async (id) => {
   return res.json();
 };
 
-export const getDutyRoster = async () => {
-  const res = await fetch(`${BASE_URL}/duty-roster`, { headers: getHeaders() });
-  return res.json();
-};
-
-export const createDutyRoster = async (data) => {
-  const res = await fetch(`${BASE_URL}/duty-roster`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
 
 export const getVehicles = async () => {
   const res = await fetch(`${BASE_URL}/vehicles`, { headers: getHeaders() });
