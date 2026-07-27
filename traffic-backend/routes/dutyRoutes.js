@@ -4,8 +4,55 @@ const DutyRule = require("../models/DutyRule");
 const DutyRoster = require("../models/DutyRoster");
 const OfficerAvailability = require("../models/OfficerAvailability");
 const Officer = require("../models/Officer");
+const Shift = require("../models/Shift");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const { recommendOfficer } = require("../services/AIRecommendationService");
+
+// ==========================================
+// DUTY SHIFTS CRUD
+// ==========================================
+router.get("/shifts", verifyToken, async (req, res) => {
+  try {
+    const list = await Shift.find({ isActive: true });
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/shifts", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
+  try {
+    const { name, startTime, endTime, description, isActive } = req.body;
+    const shift = new Shift({ name, startTime, endTime, description, isActive });
+    await shift.save();
+    res.status(201).json(shift);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.put("/shifts/:id", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
+  try {
+    const { name, startTime, endTime, description, isActive } = req.body;
+    const shift = await Shift.findByIdAndUpdate(
+      req.params.id,
+      { name, startTime, endTime, description, isActive },
+      { new: true }
+    );
+    res.json(shift);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/shifts/:id", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
+  try {
+    await Shift.findByIdAndDelete(req.params.id);
+    res.json({ message: "Shift deleted successfully" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // ==========================================
 // DUTY RULES CRUD
@@ -127,6 +174,7 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
 
     const activeOfficers = await Officer.find({ status: { $ne: "Pending" } });
     const rules = await DutyRule.find({});
+    const activeShifts = await Shift.find({ isActive: true });
     
     if (rules.length === 0) {
       return res.status(400).json({ message: "No duty rules configured. Please set up duty rules first." });
@@ -200,7 +248,7 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
     // Generate assignments day by day
     for (const d of dateRange) {
       const dayStr = d.toDateString();
-      const shifts = rosterType === "Daily" ? [shift] : ["Morning", "Afternoon", "Night"];
+      const shifts = rosterType === "Daily" ? [shift] : activeShifts.map(s => s.name);
 
       for (const sh of shifts) {
         // Track which officers are already assigned to a duty on this date and shift

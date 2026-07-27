@@ -99,12 +99,13 @@ export default function DutyScreen({ navigation }) {
   };
 
   const getShiftColor = (shift) => {
-    switch (shift) {
-      case "Morning": return "#facc15";
-      case "Afternoon": return "#fb923c";
-      case "Night": return "#475569";
-      default: return "#94a3b8";
-    }
+    if (!shift) return "#94a3b8";
+    const s = shift.toLowerCase();
+    if (s.includes("full")) return "#3b82f6";
+    if (s.includes("early") || s.includes("morning")) return "#facc15";
+    if (s.includes("late") || s.includes("evening")) return "#fb923c";
+    if (s.includes("night")) return "#475569";
+    return "#1e3a8a";
   };
 
   return (
@@ -158,7 +159,7 @@ export default function DutyScreen({ navigation }) {
                   style={[styles.shiftCard, { borderTopColor: getShiftColor(item.shift) }]}
                   onPress={() => setSelectedDuty(item)}
                 >
-                  <Text style={styles.shiftTitle}>{item.shift} Shift</Text>
+                  <Text style={styles.shiftTitle}>{item.shift}</Text>
                   <Text style={styles.dutyType}>{item.dutyType}</Text>
                   <Text style={styles.location}>📍 {item.location}</Text>
                 </TouchableOpacity>

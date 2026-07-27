@@ -23,7 +23,6 @@ const dutyAssignmentSchema = new mongoose.Schema({
   },
   shift: {
     type: String,
-    enum: ["Morning", "Afternoon", "Night", "Weekly"],
     required: true
   },
   aiRecommendationReason: {

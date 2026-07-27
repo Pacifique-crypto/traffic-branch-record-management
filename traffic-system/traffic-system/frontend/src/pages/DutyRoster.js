@@ -17,7 +17,7 @@ import {
 import {
   getDutyRules, createDutyRule, updateDutyRule, deleteDutyRule,
   getDutyRosters, getDutyRosterById, generateAIDutyRoster,
-  createDutyRoster, updateDutyRosterStatus, getOfficers
+  createDutyRoster, updateDutyRosterStatus, getOfficers, getDutyShifts
 } from "../api";
 
 function DutyRoster() {
@@ -45,7 +45,8 @@ function DutyRoster() {
   // Roster Creation State
   const [rosterType, setRosterType] = useState("Daily");
   const [rosterDate, setRosterDate] = useState(new Date().toISOString().split("T")[0]);
-  const [rosterShift, setRosterShift] = useState("Morning");
+  const [rosterShift, setRosterShift] = useState("Full Day Duty");
+  const [shifts, setShifts] = useState([]);
   const [weekStart, setWeekStart] = useState(new Date().toISOString().split("T")[0]);
   const [weekEnd, setWeekEnd] = useState(() => {
     const d = new Date();
@@ -71,14 +72,16 @@ function DutyRoster() {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [allRules, allRosters, allOfficers] = await Promise.all([
+      const [allRules, allRosters, allOfficers, allShifts] = await Promise.all([
         getDutyRules().catch(() => []),
         getDutyRosters().catch(() => []),
-        getOfficers().catch(() => [])
+        getOfficers().catch(() => []),
+        getDutyShifts().catch(() => [])
       ]);
       setRules(allRules);
       setRosters(allRosters);
       setOfficers(allOfficers.filter(o => o.status !== "Pending"));
+      setShifts(allShifts);
     } catch (err) {
       showMsg("Failed to load records from database", "error");
     } finally {
@@ -340,11 +343,23 @@ function DutyRoster() {
                     <FormControl fullWidth>
                       <InputLabel>Shift</InputLabel>
                       <Select value={rosterShift} onChange={(e) => setRosterShift(e.target.value)} label="Shift">
-                        <MenuItem value="Morning">Morning Shift (06:00 - 14:00)</MenuItem>
-                        <MenuItem value="Afternoon">Afternoon Shift (14:00 - 22:00)</MenuItem>
-                        <MenuItem value="Night">Night Shift (22:00 - 06:00)</MenuItem>
+                        {shifts.map((s) => (
+                          <MenuItem key={s._id} value={s.name}>
+                            {s.name} ({s.startTime} - {s.endTime})
+                          </MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
+                    {rosterShift && (
+                      <Box sx={{ mt: 1, p: 2, background: "#f8fafc", borderRadius: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Start Time:</strong> {shifts.find(s => s.name === rosterShift)?.startTime || "06:00"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>End Time:</strong> {shifts.find(s => s.name === rosterShift)?.endTime || "18:00"}
+                        </Typography>
+                      </Box>
+                    )}
                   </>
                 ) : (
                   <>

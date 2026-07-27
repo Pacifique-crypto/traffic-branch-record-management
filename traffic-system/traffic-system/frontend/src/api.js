@@ -275,3 +275,34 @@ export const updateDutyRosterStatus = async (id, data) => {
   });
   return res.json();
 };
+
+export const getDutyShifts = async () => {
+  const res = await fetch(`${BASE_URL}/duties/shifts`, { headers: getHeaders() });
+  return res.json();
+};
+
+export const createDutyShift = async (data) => {
+  const res = await fetch(`${BASE_URL}/duties/shifts`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const updateDutyShift = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/duties/shifts/${id}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const deleteDutyShift = async (id) => {
+  const res = await fetch(`${BASE_URL}/duties/shifts/${id}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  return res.json();
+};
