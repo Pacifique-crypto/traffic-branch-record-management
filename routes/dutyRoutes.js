@@ -171,9 +171,11 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
 
     existingRosters.forEach(r => {
       r.assignments.forEach(asg => {
-        const offIdStr = asg.officer.toString();
-        if (weeklyWorkload[offIdStr] !== undefined) {
-          weeklyWorkload[offIdStr] += 1;
+        if (asg.officer) {
+          const offIdStr = asg.officer.toString();
+          if (weeklyWorkload[offIdStr] !== undefined) {
+            weeklyWorkload[offIdStr] += 1;
+          }
         }
       });
     });
@@ -183,7 +185,11 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
       status: "On Leave",
       date: { $gte: rangeStartDay, $lte: rangeEndDay }
     });
-    const leaveSet = new Set(leaves.map(l => `${l.officer.toString()}_${new Date(l.date).toDateString()}`));
+    const leaveSet = new Set(
+      leaves
+        .filter(l => l.officer)
+        .map(l => `${l.officer.toString()}_${new Date(l.date).toDateString()}`)
+    );
 
     // Sort rules by priority (High first) so we assign important slots first
     const sortedRules = [...rules].sort((a, b) => {

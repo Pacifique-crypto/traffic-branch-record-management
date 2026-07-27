@@ -6,16 +6,20 @@ const RANK_HIERARCHY = {
 };
 
 const getExperience = (officer) => {
-  if (officer.dob) {
+  if (officer && officer.dob) {
     const age = new Date().getFullYear() - new Date(officer.dob).getFullYear();
     const exp = Math.max(1, age - 22); // assumes joining force at age 22
     return exp;
   }
-  const numId = parseInt((officer.policeId || "").replace(/\D/g, ""), 10) || 5;
+  const numId = parseInt((officer && officer.policeId || "").replace(/\D/g, ""), 10) || 5;
   return (numId % 15) + 3;
 };
 
 const recommendOfficer = (officer, rule, date, shift, yesterdayAssignments, currentAssignments, leaves) => {
+  if (!officer || !officer._id) {
+    return { score: -9999, reason: "✗ Invalid Officer" };
+  }
+
   const offIdStr = officer._id.toString();
   const dayStr = date.toDateString();
   
@@ -23,7 +27,12 @@ const recommendOfficer = (officer, rule, date, shift, yesterdayAssignments, curr
   const reasons = [];
 
   // 1. Availability / Leave Check
-  const isOnLeave = leaves.some(l => l.officer.toString() === offIdStr && new Date(l.date).toDateString() === dayStr && l.status === "On Leave");
+  const isOnLeave = Array.isArray(leaves) && leaves.some(l => 
+    l && l.officer && l.officer.toString() === offIdStr && 
+    new Date(l.date).toDateString() === dayStr && 
+    l.status === "On Leave"
+  );
+
   if (isOnLeave) {
     score -= 100;
   } else {
@@ -51,8 +60,8 @@ const recommendOfficer = (officer, rule, date, shift, yesterdayAssignments, curr
   const yesterdayStr = yesterday.toDateString();
 
   // 4. Worked Same Location Yesterday Check
-  const workedSameLocationYesterday = yesterdayAssignments.some(asg => 
-    asg.officer.toString() === offIdStr && 
+  const workedSameLocationYesterday = Array.isArray(yesterdayAssignments) && yesterdayAssignments.some(asg => 
+    asg && asg.officer && asg.officer.toString() === offIdStr && 
     asg.location === rule.location &&
     new Date(asg.date).toDateString() === yesterdayStr
   );
@@ -61,8 +70,8 @@ const recommendOfficer = (officer, rule, date, shift, yesterdayAssignments, curr
   }
 
   // 5. Worked Night Shift Yesterday Check
-  const workedNightYesterday = yesterdayAssignments.some(asg => 
-    asg.officer.toString() === offIdStr && 
+  const workedNightYesterday = Array.isArray(yesterdayAssignments) && yesterdayAssignments.some(asg => 
+    asg && asg.officer && asg.officer.toString() === offIdStr && 
     asg.shift === "Night" &&
     new Date(asg.date).toDateString() === yesterdayStr
   );
@@ -73,15 +82,14 @@ const recommendOfficer = (officer, rule, date, shift, yesterdayAssignments, curr
   }
 
   // 6. Already Assigned Check
-  const isAlreadyAssigned = currentAssignments.some(asg => 
-    asg.officer.toString() === offIdStr && 
+  const isAlreadyAssigned = Array.isArray(currentAssignments) && currentAssignments.some(asg => 
+    asg && asg.officer && asg.officer.toString() === offIdStr && 
     new Date(asg.date).toDateString() === dayStr && 
     asg.shift === shift
   );
   if (isAlreadyAssigned) {
     score -= 100;
   } else {
-    // If not already assigned, it counts towards balanced workload
     reasons.push("✓ Balanced Workload");
   }
 
