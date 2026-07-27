@@ -1,138 +1,796 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import OICLayout from "../layouts/OICLayout";
- 
-
-const days = [
-  { day: "Mon", date: "23 Oct" },
-  { day: "Tue", date: "24 Oct" },
-  { day: "Wed", date: "25 Oct" },
-  { day: "Thu", date: "26 Oct" },
-  { day: "Fri", date: "27 Oct" },
-  { day: "Sat", date: "28 Oct" },
-  { day: "Sun", date: "29 Oct" },
-];
+import ITLayout from "../layouts/ITLayout";
+import {
+  Container, Typography, Box, Paper, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Button, Grid, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel,
+  FormControl, Radio, RadioGroup, FormControlLabel, Chip, CircularProgress,
+  IconButton, Alert, Snackbar, Tabs, Tab, Checkbox, ListItemText
+} from "@mui/material";
+import {
+  Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
+  Check as CheckIcon, Close as CloseIcon, Publish as PublishIcon,
+  Undo as UndoIcon, PlayArrow as PlayArrowIcon
+} from "@mui/icons-material";
+import {
+  getDutyRules, createDutyRule, updateDutyRule, deleteDutyRule,
+  getDutyRosters, getDutyRosterById, generateAIDutyRoster,
+  createDutyRoster, updateDutyRosterStatus, getOfficers
+} from "../api";
 
 function DutyRoster() {
   const navigate = useNavigate();
-  const [selectedDay, setSelectedDay] = useState(0);
-  const [form, setForm] = useState({
-    shift: "",
-    officerId: "",
-    location: "",
-    day: "26",
-    month: "Sep",
-    year: "2026",
+  const userRole = localStorage.getItem("userRole") || "IT Officer";
+  const isOIC = userRole === "OIC";
+
+  // Navigation Layout wrapper
+  const Layout = isOIC ? OICLayout : ITLayout;
+
+  // Tabs navigation
+  const [tabIndex, setTabIndex] = useState(0);
+
+  // States
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [rosters, setRosters] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [officers, setOfficers] = useState([]);
+
+  // Rules Dialog State
+  const [ruleDialog, setRuleDialog] = useState({ open: false, isEdit: false, id: null });
+  const [ruleForm, setRuleForm] = useState({ location: "", dutyType: "", requiredOfficers: 1, minRank: "Constable", priority: "Medium" });
+
+  // Roster Creation State
+  const [rosterType, setRosterType] = useState("Daily");
+  const [rosterDate, setRosterDate] = useState(new Date().toISOString().split("T")[0]);
+  const [rosterShift, setRosterShift] = useState("Morning");
+  const [weekStart, setWeekStart] = useState(new Date().toISOString().split("T")[0]);
+  const [weekEnd, setWeekEnd] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().split("T")[0];
   });
+  const [enableAI, setEnableAI] = useState(true);
+  const [generatedAssignments, setGeneratedAssignments] = useState(null);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  // Roster Edit Assignment state
+  const [editAsgIndex, setEditAsgIndex] = useState(null);
+  const [editAsgDialog, setEditAsgDialog] = useState(false);
 
-  const handleAssign = () => {
-    if (!form.shift || !form.officerId || !form.location) {
-      alert("Please fill in all fields.");
+  // View Roster details dialog state
+  const [viewRoster, setViewRoster] = useState(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  const showMsg = (msg, sev = "success") => {
+    setSnackbar({ open: true, message: msg, severity: sev });
+  };
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const [allRules, allRosters, allOfficers] = await Promise.all([
+        getDutyRules().catch(() => []),
+        getDutyRosters().catch(() => []),
+        getOfficers().catch(() => [])
+      ]);
+      setRules(allRules);
+      setRosters(allRosters);
+      setOfficers(allOfficers.filter(o => o.status !== "Pending"));
+    } catch (err) {
+      showMsg("Failed to load records from database", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Filter rosters based on tab
+  const getFilteredRosters = () => {
+    if (isOIC) {
+      const oicTabs = ["Pending Approval", "Approved", "Rejected", "Published"];
+      const activeStatus = oicTabs[tabIndex] || "Pending Approval";
+      return rosters.filter(r => r.status === activeStatus);
+    } else {
+      const itTabs = ["Create", "Draft", "Pending Approval", "Published", "History"];
+      const activeTab = itTabs[tabIndex] || "Create";
+      if (activeTab === "Create") return [];
+      if (activeTab === "History") return rosters;
+      return rosters.filter(r => r.status === activeTab);
+    }
+  };
+
+  // ==========================================
+  // RULES ACTIONS
+  // ==========================================
+  const handleOpenRuleDialog = (rule = null) => {
+    if (rule) {
+      setRuleForm({
+        location: rule.location,
+        dutyType: rule.dutyType,
+        requiredOfficers: rule.requiredOfficers,
+        minRank: rule.minRank,
+        priority: rule.priority
+      });
+      setRuleDialog({ open: true, isEdit: true, id: rule._id });
+    } else {
+      setRuleForm({ location: "", dutyType: "", requiredOfficers: 1, minRank: "Constable", priority: "Medium" });
+      setRuleDialog({ open: true, isEdit: false, id: null });
+    }
+  };
+
+  const handleSaveRule = async () => {
+    if (!ruleForm.location || !ruleForm.dutyType) {
+      showMsg("Please fill in location and duty type fields.", "warning");
       return;
     }
-    alert(`Shift assigned successfully!\nShift: ${form.shift}\nOfficer: ${form.officerId}\nLocation: ${form.location}`);
-    setForm({ shift: "", officerId: "", location: "", day: "26", month: "Sep", year: "2026" });
+    try {
+      if (ruleDialog.isEdit) {
+        await updateDutyRule(ruleDialog.id, ruleForm);
+        showMsg("Duty rule updated successfully");
+      } else {
+        await createDutyRule(ruleForm);
+        showMsg("Duty rule added successfully");
+      }
+      setRuleDialog({ open: false, isEdit: false, id: null });
+      loadInitialData();
+    } catch (err) {
+      showMsg("Error saving rule", "error");
+    }
+  };
+
+  const handleDeleteRule = async (id) => {
+    if (window.confirm("Are you sure you want to delete this rule?")) {
+      try {
+        await deleteDutyRule(id);
+        showMsg("Duty rule deleted successfully");
+        loadInitialData();
+      } catch (err) {
+        showMsg("Error deleting rule", "error");
+      }
+    }
+  };
+
+  // ==========================================
+  // AI GENERATOR ACTIONS
+  // ==========================================
+  const handleGenerateRoster = async () => {
+    try {
+      setLoading(true);
+      const payload = {
+        rosterType,
+        enableAI,
+        date: rosterType === "Daily" ? rosterDate : undefined,
+        shift: rosterType === "Daily" ? rosterShift : undefined,
+        weekStart: rosterType === "Weekly" ? weekStart : undefined,
+        weekEnd: rosterType === "Weekly" ? weekEnd : undefined,
+      };
+
+      const res = await generateAIDutyRoster(payload);
+      if (res.error) {
+        showMsg(res.error, "error");
+      } else {
+        setGeneratedAssignments(res);
+        showMsg("AI recommendation roster generated successfully!");
+      }
+    } catch (err) {
+      showMsg("Failed to connect to generator engine", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditAssignment = (index) => {
+    setEditAsgIndex(index);
+    setEditAsgDialog(true);
+  };
+
+  const handleSwapOfficer = (officerId) => {
+    const selectedOff = officers.find(o => o._id === officerId);
+    if (!selectedOff || !generatedAssignments) return;
+
+    const updatedAsg = [...generatedAssignments.assignments];
+    updatedAsg[editAsgIndex] = {
+      ...updatedAsg[editAsgIndex],
+      officer: selectedOff._id,
+      officerName: selectedOff.fullName,
+      officerRank: selectedOff.rank,
+      officerPoliceId: selectedOff.policeId,
+      aiRecommendationReason: "Manually overridden by IT Officer."
+    };
+
+    setGeneratedAssignments({ ...generatedAssignments, assignments: updatedAsg });
+    setEditAsgDialog(false);
+    setEditAsgIndex(null);
+  };
+
+  const handleSaveRoster = async (status) => {
+    if (!generatedAssignments || generatedAssignments.assignments.length === 0) {
+      showMsg("No assignments to save. Please generate first.", "warning");
+      return;
+    }
+    try {
+      setLoading(true);
+      const payload = {
+        ...generatedAssignments,
+        status: status // "Draft" or "Pending Approval"
+      };
+      await createDutyRoster(payload);
+      showMsg(status === "Draft" ? "Roster draft saved successfully!" : "Roster submitted to OIC successfully!");
+      setGeneratedAssignments(null);
+      loadInitialData();
+      if (status === "Draft") setTabIndex(1); // switch to drafts tab
+      else setTabIndex(2); // switch to pending tab
+    } catch (err) {
+      showMsg("Failed to save roster", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================
+  // OIC APPROVAL ACTIONS
+  // ==========================================
+  const handleOpenRosterDetails = async (rosterId) => {
+    try {
+      const r = await getDutyRosterById(rosterId);
+      setViewRoster(r);
+      setRejectionReason("");
+      setViewDialogOpen(true);
+    } catch (err) {
+      showMsg("Failed to load roster details", "error");
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus) => {
+    if (!viewRoster) return;
+    if (newStatus === "Rejected" && !rejectionReason.trim()) {
+      showMsg("Please specify a rejection reason", "warning");
+      return;
+    }
+    try {
+      setLoading(true);
+      const notes = newStatus === "Rejected" ? `Rejection Reason: ${rejectionReason}` : "";
+      const payload = {
+        status: newStatus,
+        assignments: viewRoster.assignments.map(a => ({
+          ...a,
+          aiRecommendationReason: notes ? `${a.aiRecommendationReason || ""}. ${notes}` : a.aiRecommendationReason
+        }))
+      };
+      await updateDutyRosterStatus(viewRoster._id, payload);
+      showMsg(`Roster status updated to ${newStatus}!`);
+      setViewDialogOpen(false);
+      setViewRoster(null);
+      loadInitialData();
+    } catch (err) {
+      showMsg("Failed to update roster status", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <OICLayout>
-      <div className="page-box">
-        {/* Header row */}
-        <div className="dr-header-row">
-          <h2 className="page-heading" style={{ marginBottom: 0 }}>Duty Roster</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span className="dr-week-label">&lt;Oct 23 – Oct 29, 2026&gt;</span>
-            <button className="btn-view-schedule" onClick={() => navigate("/duty-roster/schedule")}>
-               View Full Schedule
-            </button>
-          </div>
-        </div>
+    <Layout>
+      <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
+        {/* Title Section */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Box>
+            <Typography variant="h4" fontWeight="bold" color="primary">
+              Duty Roster Management
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Configure rules, generate AI recommendations, and publish personnel assignments.
+            </Typography>
+          </Box>
+        </Box>
 
-        {/* Weekly calendar strip */}
-        <div className="dr-week-strip">
-          {days.map((d, i) => (
-            <div
-              key={i}
-              className={`dr-day-cell ${selectedDay === i ? "dr-day-active" : ""}`}
-              onClick={() => setSelectedDay(i)}
-            >
-              <span className="dr-day-name">{d.day}</span>
-              <span className="dr-day-date">{d.date}</span>
-            </div>
-          ))}
-        </div>
+        {/* Navigation Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+          {isOIC ? (
+            <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)} color="secondary">
+              <Tab label="Pending Review" />
+              <Tab label="Approved" />
+              <Tab label="Rejected" />
+              <Tab label="Published" />
+            </Tabs>
+          ) : (
+            <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)}>
+              <Tab label="Create New" />
+              <Tab label="Drafts" />
+              <Tab label="Pending Approval" />
+              <Tab label="Published" />
+              <Tab label="Roster History" />
+              <Tab label="Duty Rules" />
+            </Tabs>
+          )}
+        </Box>
 
-        {/* Assign Duty Shift form */}
-        <div className="dr-form-box">
-          <h3 className="dr-form-title">Assign Duty Shift</h3>
+        {/* Tab 0 Content (IT Officer: Create New) */}
+        {!isOIC && tabIndex === 0 && (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
+                <Typography variant="h6" fontWeight="bold">
+                  Generate Schedule
+                </Typography>
 
-          <div className="dr-form-grid">
-            <div className="dr-field-row">
-              <label className="dr-field-label">Shift:</label>
-              <select
-                className="dr-field-input"
-                name="shift"
-                value={form.shift}
-                onChange={handleChange}
+                <FormControl component="fieldset">
+                  <RadioGroup row value={rosterType} onChange={(e) => setRosterType(e.target.value)}>
+                    <FormControlLabel value="Daily" control={<Radio />} label="Daily Duty" />
+                    <FormControlLabel value="Weekly" control={<Radio />} label="Weekly Duty" />
+                  </RadioGroup>
+                </FormControl>
+
+                {rosterType === "Daily" ? (
+                  <>
+                    <TextField
+                      label="Date"
+                      type="date"
+                      value={rosterDate}
+                      onChange={(e) => setRosterDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                    <FormControl fullWidth>
+                      <InputLabel>Shift</InputLabel>
+                      <Select value={rosterShift} onChange={(e) => setRosterShift(e.target.value)} label="Shift">
+                        <MenuItem value="Morning">Morning Shift (06:00 - 14:00)</MenuItem>
+                        <MenuItem value="Afternoon">Afternoon Shift (14:00 - 22:00)</MenuItem>
+                        <MenuItem value="Night">Night Shift (22:00 - 06:00)</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </>
+                ) : (
+                  <>
+                    <TextField
+                      label="Week Start Date"
+                      type="date"
+                      value={weekStart}
+                      onChange={(e) => setWeekStart(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Week End Date"
+                      type="date"
+                      value={weekEnd}
+                      onChange={(e) => setWeekEnd(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+                  </>
+                )}
+
+                <FormControlLabel
+                  control={<Checkbox checked={enableAI} onChange={(e) => setEnableAI(e.target.checked)} />}
+                  label="Enable AI Recommendation Engine"
+                />
+
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  onClick={handleGenerateRoster}
+                  disabled={loading}
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PlayArrowIcon />}
+                >
+                  Generate Roster
+                </Button>
+              </Paper>
+            </Grid>
+
+            {/* Generated Roster Display */}
+            <Grid item xs={12} md={8}>
+              {generatedAssignments ? (
+                <Paper sx={{ p: 3 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="h6" fontWeight="bold">
+                      Generated Assignments ({generatedAssignments.assignments.length})
+                    </Typography>
+                    <Box gap={1} display="flex">
+                      <Button variant="outlined" onClick={() => handleSaveRoster("Draft")}>
+                        Save Draft
+                      </Button>
+                      <Button variant="contained" color="success" onClick={() => handleSaveRoster("Pending Approval")}>
+                        Submit to OIC
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date/Shift</TableCell>
+                          <TableCell>Location</TableCell>
+                          <TableCell>Duty Type</TableCell>
+                          <TableCell>Assigned Officer</TableCell>
+                          <TableCell>AI Match Justification</TableCell>
+                          <TableCell align="right">Modify</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {generatedAssignments.assignments.map((asg, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              {new Date(asg.date).toDateString()} <br />
+                              <Chip size="small" label={asg.shift} color="secondary" variant="outlined" />
+                            </TableCell>
+                            <TableCell>{asg.location}</TableCell>
+                            <TableCell>{asg.dutyType}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="bold">{asg.officerName}</Typography>
+                              <Typography variant="caption" color="text.secondary">{asg.officerRank} | {asg.officerPoliceId}</Typography>
+                            </TableCell>
+                            <TableCell sx={{ fontSize: 11, maxWidth: 200 }}>{asg.aiRecommendationReason}</TableCell>
+                            <TableCell align="right">
+                              <IconButton size="small" color="primary" onClick={() => handleEditAssignment(idx)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+              ) : (
+                <Paper sx={{ p: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 300 }}>
+                  <Typography variant="h6" color="text.secondary" align="center">
+                    Select roster type, dates, and click "Generate Roster" to run AI recommendations engine.
+                  </Typography>
+                </Paper>
+              )}
+            </Grid>
+          </Grid>
+        )}
+
+        {/* Lists of Rosters Tab (OIC & IT Officer list filters) */}
+        {((!isOIC && tabIndex > 0 && tabIndex < 5) || (isOIC)) && (
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight="bold" mb={2}>
+              Rosters Listing
+            </Typography>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ROSTER ID</TableCell>
+                    <TableCell>TYPE</TableCell>
+                    <TableCell>SCHEDULE DURATION / SHIFT</TableCell>
+                    <TableCell>CREATED BY</TableCell>
+                    <TableCell>STATUS</TableCell>
+                    <TableCell align="right">ACTIONS</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <CircularProgress size={30} />
+                      </TableCell>
+                    </TableRow>
+                  ) : getFilteredRosters().length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
+                        No rosters found matching this filter tab.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    getFilteredRosters().map((r) => (
+                      <TableRow key={r._id}>
+                        <TableCell fontWeight="bold">#{r._id.slice(-6).toUpperCase()}</TableCell>
+                        <TableCell>
+                          <Chip label={r.rosterType} size="small" color="primary" />
+                        </TableCell>
+                        <TableCell>
+                          {r.rosterType === "Daily" ? (
+                            <>
+                              {new Date(r.date).toDateString()} <br />
+                              <Chip size="small" label={r.shift} variant="outlined" />
+                            </>
+                          ) : (
+                            `${new Date(r.weekStart).toDateString()} - ${new Date(r.weekEnd).toDateString()}`
+                          )}
+                        </TableCell>
+                        <TableCell>{r.createdBy}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={r.status}
+                            color={
+                              r.status === "Published" ? "success" :
+                              r.status === "Approved" ? "info" :
+                              r.status === "Pending Approval" ? "warning" : "default"
+                            }
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button variant="outlined" size="small" onClick={() => handleOpenRosterDetails(r._id)}>
+                            {isOIC && r.status === "Pending Approval" ? "Review & Action" : "View Details"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
+
+        {/* Tab 5 (IT Officer: Duty Rules page) */}
+        {!isOIC && tabIndex === 5 && (
+          <Paper sx={{ p: 3 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" fontWeight="bold">
+                Location Duty Rules
+              </Typography>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenRuleDialog(null)}>
+                Add New Rule
+              </Button>
+            </Box>
+
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>DUTY LOCATION</TableCell>
+                    <TableCell>DUTY TYPE</TableCell>
+                    <TableCell>OFFICERS REQUIRED</TableCell>
+                    <TableCell>MINIMUM RANK CONSTRAINT</TableCell>
+                    <TableCell>PRIORITY</TableCell>
+                    <TableCell align="right">ACTION</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rules.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
+                        No duty rules created yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    rules.map((rule) => (
+                      <TableRow key={rule._id}>
+                        <TableCell fontWeight="bold">{rule.location}</TableCell>
+                        <TableCell>{rule.dutyType}</TableCell>
+                        <TableCell>{rule.requiredOfficers}</TableCell>
+                        <TableCell>
+                          <Chip label={rule.minRank || "Constable"} size="small" color="secondary" />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={rule.priority}
+                            size="small"
+                            color={rule.priority === "High" ? "error" : rule.priority === "Medium" ? "warning" : "default"}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton size="small" color="primary" onClick={() => handleOpenRuleDialog(rule)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => handleDeleteRule(rule._id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
+
+        {/* Add/Edit Rule Dialog */}
+        <Dialog open={ruleDialog.open} onClose={() => setRuleDialog({ open: false, isEdit: false, id: null })}>
+          <DialogTitle>{ruleDialog.isEdit ? "Edit Duty Rule" : "Add Location Duty Rule"}</DialogTitle>
+          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2, minWidth: 360 }}>
+            <TextField
+              label="Location"
+              value={ruleForm.location}
+              onChange={(e) => setRuleForm({ ...ruleForm, location: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Duty Type"
+              value={ruleForm.dutyType}
+              onChange={(e) => setRuleForm({ ...ruleForm, dutyType: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Required Officers Count"
+              type="number"
+              value={ruleForm.requiredOfficers}
+              onChange={(e) => setRuleForm({ ...ruleForm, requiredOfficers: Number(e.target.value) })}
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>Minimum Rank constraint</InputLabel>
+              <Select
+                value={ruleForm.minRank}
+                onChange={(e) => setRuleForm({ ...ruleForm, minRank: e.target.value })}
+                label="Minimum Rank constraint"
               >
-                <option value="">Select Shift</option>
-                <option>Daytime Accident Investigation</option>
-                <option>Daytime Motorcycle Patrol</option>
-                <option>Night Patrol</option>
-                <option>Court Duties</option>
-                <option>Traffic Branch Duties</option>
-              </select>
-            </div>
+                <MenuItem value="Constable">Constable</MenuItem>
+                <MenuItem value="Sergeant">Sergeant</MenuItem>
+                <MenuItem value="Sub-Inspector">Sub-Inspector</MenuItem>
+                <MenuItem value="Inspector">Inspector</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>Priority</InputLabel>
+              <Select
+                value={ruleForm.priority}
+                onChange={(e) => setRuleForm({ ...ruleForm, priority: e.target.value })}
+                label="Priority"
+              >
+                <MenuItem value="Low">Low</MenuItem>
+                <MenuItem value="Medium">Medium</MenuItem>
+                <MenuItem value="High">High</MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRuleDialog({ open: false, isEdit: false, id: null })}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveRule}>Save Rule</Button>
+          </DialogActions>
+        </Dialog>
 
-            <div className="dr-field-row">
-              <label className="dr-field-label">Officer:</label>
-              <input
-                className="dr-field-input"
-                name="officerId"
-                placeholder="Enter officer ID"
-                value={form.officerId}
-                onChange={handleChange}
-              />
-            </div>
+        {/* Swap Officer Selector Dialog */}
+        <Dialog open={editAsgDialog} onClose={() => setEditAsgDialog(false)}>
+          <DialogTitle>Swap Officer Assignment</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" mb={2}>
+              Select an officer to manually override the assignment:
+            </Typography>
+            <FormControl fullWidth sx={{ minWidth: 300 }}>
+              <InputLabel>Officer</InputLabel>
+              <Select
+                onChange={(e) => handleSwapOfficer(e.target.value)}
+                label="Officer"
+                defaultValue=""
+              >
+                {officers.map(o => (
+                  <MenuItem key={o._id} value={o._id}>
+                    {o.fullName} ({o.rank} | ID: {o.policeId})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditAsgDialog(false)}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
 
-            <div className="dr-field-row">
-              <label className="dr-field-label">Location:</label>
-              <input
-                className="dr-field-input"
-                name="location"
-                placeholder="Enter location"
-                value={form.location}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="dr-field-row">
-              <label className="dr-field-label">Date:</label>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <select className="dr-field-input-sm" name="day" value={form.day} onChange={handleChange}>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                    <option key={d}>{d}</option>
+        {/* View Roster Details Dialog */}
+        <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>
+            Roster Details #{viewRoster?._id.slice(-6).toUpperCase()}
+            <Chip
+              label={viewRoster?.status}
+              size="small"
+              sx={{ ml: 2 }}
+              color={
+                viewRoster?.status === "Published" ? "success" :
+                viewRoster?.status === "Approved" ? "info" :
+                viewRoster?.status === "Pending Approval" ? "warning" : "default"
+              }
+            />
+          </DialogTitle>
+          <DialogContent>
+            <TableContainer sx={{ maxHeight: 400 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date/Shift</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell>Duty Type</TableCell>
+                    <TableCell>Officer</TableCell>
+                    <TableCell>Reason</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {viewRoster?.assignments.map((asg, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>
+                        {new Date(asg.date).toDateString()} <br />
+                        <Chip size="small" label={asg.shift} variant="outlined" />
+                      </TableCell>
+                      <TableCell>{asg.location}</TableCell>
+                      <TableCell>{asg.dutyType}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">{asg.officerName || (asg.officer && asg.officer.fullName)}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {asg.officerRank || (asg.officer && asg.officer.rank)} | {asg.officerPoliceId || (asg.officer && asg.officer.policeId)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ fontSize: 11 }}>{asg.aiRecommendationReason}</TableCell>
+                    </TableRow>
                   ))}
-                </select>
-                <select className="dr-field-input-sm" name="month" value={form.month} onChange={handleChange}>
-                  {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-                <select className="dr-field-input-sm" name="year" value={form.year} onChange={handleChange}>
-                  {["2025","2026","2027"].map((y) => <option key={y}>{y}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
+                </TableBody>
+              </Table>
+            </TableContainer>
 
-          <button className="btn-assign" onClick={handleAssign}>Assign</button>
-        </div>
-      </div>
-    </OICLayout>
+            {isOIC && viewRoster?.status === "Pending Approval" && (
+              <Box mt={3} p={2} sx={{ background: "#f8fafc", borderRadius: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold" mb={1}>
+                  OIC Action Panel
+                </Typography>
+                <TextField
+                  label="Rejection Reason (Required only if rejecting)"
+                  multiline
+                  rows={2}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+                <Box display="flex" gap={2}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<CheckIcon />}
+                    onClick={() => handleUpdateStatus("Approved")}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<CloseIcon />}
+                    onClick={() => handleUpdateStatus("Rejected")}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<UndoIcon />}
+                    onClick={() => handleUpdateStatus("Draft")}
+                  >
+                    Return for modification
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {isOIC && viewRoster?.status === "Approved" && (
+              <Box mt={3} display="flex" justifyContent="flex-end">
+                <Button
+                  variant="contained"
+                  color="warning"
+                  startIcon={<PublishIcon />}
+                  onClick={() => handleUpdateStatus("Published")}
+                >
+                  Publish Roster
+                </Button>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Msg Toast */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </Layout>
   );
 }
 

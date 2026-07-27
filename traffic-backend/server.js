@@ -58,6 +58,9 @@ app.use("/api/vehicles", vehicleRoutes);
 const dataRoutes = require("./routes/dataRoutes");
 app.use("/api", dataRoutes);
 
+const dutyRoutes = require("./routes/dutyRoutes");
+app.use("/api/duties", dutyRoutes);
+
 // Auto-seed initial vehicle fleet
 const Vehicle = require("./models/Vehicle");
 const seedVehicles = async () => {

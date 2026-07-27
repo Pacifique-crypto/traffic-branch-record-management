@@ -55,8 +55,8 @@ function App() {
         <Route path="/tor/:id"            element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><ViolationDetails /></PrivateRoute>} />
         <Route path="/sfr"                element={<PrivateRoute allowedRoles={["OIC"]}><SFR /></PrivateRoute>} />
         <Route path="/dlr"                element={<PrivateRoute allowedRoles={["OIC"]}><DLR /></PrivateRoute>} />
-        <Route path="/duty-roster"        element={<PrivateRoute allowedRoles={["OIC"]}><DutyRoster /></PrivateRoute>} />
-        <Route path="/duty-roster/schedule" element={<PrivateRoute allowedRoles={["OIC"]}><DutyRosterSchedule /></PrivateRoute>} />
+        <Route path="/duty-roster"        element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><DutyRoster /></PrivateRoute>} />
+        <Route path="/duty-roster/schedule" element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><DutyRosterSchedule /></PrivateRoute>} />
         <Route path="/reports"            element={<PrivateRoute><Reports /></PrivateRoute>} />
         <Route path="/analytics"          element={<PrivateRoute><Analytics /></PrivateRoute>} />
         <Route path="/notifications"      element={<PrivateRoute><Notifications /></PrivateRoute>} />
