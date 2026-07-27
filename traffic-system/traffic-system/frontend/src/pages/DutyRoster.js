@@ -428,7 +428,7 @@ function DutyRoster() {
                               <Typography variant="body2" fontWeight="bold">{asg.officerName}</Typography>
                               <Typography variant="caption" color="text.secondary">{asg.officerRank} | {asg.officerPoliceId}</Typography>
                             </TableCell>
-                            <TableCell sx={{ fontSize: 11, maxWidth: 200 }}>{asg.aiRecommendationReason}</TableCell>
+                            <TableCell sx={{ fontSize: 11, maxWidth: 200, whiteSpace: "pre-line" }}>{asg.aiRecommendationReason}</TableCell>
                             <TableCell align="right">
                               <IconButton size="small" color="primary" onClick={() => handleEditAssignment(idx)}>
                                 <EditIcon fontSize="small" />
@@ -712,7 +712,7 @@ function DutyRoster() {
                           {asg.officerRank || (asg.officer && asg.officer.rank)} | {asg.officerPoliceId || (asg.officer && asg.officer.policeId)}
                         </Typography>
                       </TableCell>
-                      <TableCell sx={{ fontSize: 11 }}>{asg.aiRecommendationReason}</TableCell>
+                      <TableCell sx={{ fontSize: 11, whiteSpace: "pre-line" }}>{asg.aiRecommendationReason}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

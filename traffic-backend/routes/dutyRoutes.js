@@ -5,6 +5,7 @@ const DutyRoster = require("../models/DutyRoster");
 const OfficerAvailability = require("../models/OfficerAvailability");
 const Officer = require("../models/Officer");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
+const { recommendOfficer } = require("../services/AIRecommendationService");
 
 // ==========================================
 // DUTY RULES CRUD
@@ -219,81 +220,75 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
                 if (officerRankVal < requiredRankVal) continue;
 
                 bestOfficer = officer;
-                bestReason = "Manual / Rule-based selection (AI recommendation disabled).";
+                bestReason = "✓ Available\n✓ Rank Eligible";
                 break;
               }
             } else {
-              // Run AI Rule-Based scoring
-              for (const officer of activeOfficers) {
-                const offIdStr = officer._id.toString();
+              // Run AI Rule-Based scoring using AIRecommendationService
+              const yesterday = new Date(d);
+              yesterday.setDate(yesterday.getDate() - 1);
+              const yesterdayStr = yesterday.toDateString();
 
-                // 1. Availability check
-                if (shiftAssignedOfficers.has(offIdStr)) continue;
-                if (leaveSet.has(`${offIdStr}_${dayStr}`)) continue;
+              // Get all assignments for yesterday
+              const yesterdayAsgs = [];
+              assignments.forEach(asg => {
+                if (new Date(asg.date).toDateString() === yesterdayStr) {
+                  yesterdayAsgs.push({
+                    officer: asg.officer,
+                    location: asg.location,
+                    shift: asg.shift,
+                    date: asg.date
+                  });
+                }
+              });
 
-                // 2. Rank eligibility check
-                const officerRankVal = RANK_HIERARCHY[officer.rank] || 1;
-                const requiredRankVal = RANK_HIERARCHY[rule.minRank] || 1;
-                if (officerRankVal < requiredRankVal) continue;
-
-                // 3. Night Shift rest rule check
-                // Check if officer worked Night shift on previous day, cannot work Morning or Afternoon shift today
-                let isRestrictedByNightShift = false;
-                if (sh === "Morning" || sh === "Afternoon") {
-                  const yesterday = new Date(d);
-                  yesterday.setDate(yesterday.getDate() - 1);
-                  const yesterdayStr = yesterday.toDateString();
-                  // Check if this officer is assigned to Night shift yesterday
-                  const workedNightYesterday = assignments.some(asg => 
-                    asg.officer.toString() === offIdStr && 
-                    new Date(asg.date).toDateString() === yesterdayStr && 
-                    asg.shift === "Night"
-                  );
-                  if (workedNightYesterday) {
-                    isRestrictedByNightShift = true;
+              existingRosters.forEach(r => {
+                r.assignments.forEach(asg => {
+                  if (new Date(asg.date).toDateString() === yesterdayStr) {
+                    yesterdayAsgs.push({
+                      officer: asg.officer,
+                      location: asg.location,
+                      shift: asg.shift,
+                      date: asg.date
+                    });
                   }
+                });
+              });
+
+              // Construct leaves array
+              const customLeaves = leaves.filter(l => new Date(l.date).toDateString() === dayStr);
+
+              // Construct currentAssignments in this run + shiftAssignedOfficers
+              const currentAssignments = assignments.map(asg => ({
+                officer: asg.officer,
+                date: asg.date,
+                shift: asg.shift
+              }));
+              shiftAssignedOfficers.forEach(offId => {
+                if (!currentAssignments.some(asg => asg.officer.toString() === offId && asg.shift === sh)) {
+                  currentAssignments.push({
+                    officer: offId,
+                    date: d,
+                    shift: sh
+                  });
                 }
-                if (isRestrictedByNightShift) continue;
+              });
 
-                // Calculate active score starting from base
-                let score = 100;
-                const scoreDetails = ["Available today", `Correct rank (${officer.rank} matches or exceeds required ${rule.minRank})`];
-
-                // Heuristic Mock Experience: derived deterministically from police ID or DOB
-                const experience = Math.abs(officer._id.toString().charCodeAt(officer._id.toString().length - 1) % 10) + 1;
-                score += experience;
-                scoreDetails.push(`Experience score +${experience}`);
-
-                // Workload balancer: deduct 15 points per assigned shift this week
-                const workloadCount = weeklyWorkload[offIdStr] || 0;
-                score -= (workloadCount * 15);
-                scoreDetails.push(`Balanced workload (${workloadCount} shifts assigned this week, -${workloadCount * 15} points)`);
-
-                // Previous day workload balance: check if they worked yesterday
-                const yesterday = new Date(d);
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toDateString();
-                const workedYesterday = assignments.some(asg => 
-                  asg.officer.toString() === offIdStr && 
-                  new Date(asg.date).toDateString() === yesterdayStr
+              for (const officer of activeOfficers) {
+                const { score, reason } = recommendOfficer(
+                  officer,
+                  rule,
+                  d,
+                  sh,
+                  yesterdayAsgs,
+                  currentAssignments,
+                  customLeaves
                 );
-                if (workedYesterday) {
-                  score -= 20;
-                  scoreDetails.push("Assigned to duty yesterday (-20 points)");
-                } else {
-                  scoreDetails.push("Not assigned yesterday (+0 points)");
-                }
-
-                // Rank fit bonus: give 10 points if rank is exact match (prevents overqualifying tasks)
-                if (officerRankVal === requiredRankVal) {
-                  score += 10;
-                  scoreDetails.push("Rank matches requirement exactly (+10 points)");
-                }
 
                 if (score > highestScore) {
                   highestScore = score;
                   bestOfficer = officer;
-                  bestReason = `Recommended because: ${scoreDetails.join(", ")}.`;
+                  bestReason = reason;
                 }
               }
             }
