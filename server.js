@@ -83,6 +83,28 @@ const seedVehicles = async () => {
 };
 seedVehicles();
 
+// Auto-seed initial operational shifts
+const Shift = require("./models/Shift");
+const seedShifts = async () => {
+  try {
+    const count = await Shift.countDocuments();
+    if (count === 0) {
+      console.log("Seeding initial operational police shifts...");
+      await Shift.insertMany([
+        { name: "Full Day Duty", startTime: "06:00", endTime: "18:00", description: "Traffic Control and General Duties", isActive: true },
+        { name: "Early Motorcycle Patrol", startTime: "06:00", endTime: "14:00", description: "Motorcycle Patrol (Morning)", isActive: true },
+        { name: "Late Motorcycle Patrol", startTime: "14:00", endTime: "22:00", description: "Motorcycle Patrol (Evening)", isActive: true },
+        { name: "Evening Duty", startTime: "14:00", endTime: "22:00", description: "Traffic Control (Evening Peak)", isActive: true },
+        { name: "Night Duty", startTime: "18:00", endTime: "06:00", description: "Night Patrol and Security Checks", isActive: true }
+      ]);
+      console.log("Operational shifts seeding complete! ✅");
+    }
+  } catch (err) {
+    console.error("Failed to seed initial operational shifts:", err);
+  }
+};
+seedShifts();
+
 // test route
 app.get("/", (req, res) => {
   res.send("API Running...");

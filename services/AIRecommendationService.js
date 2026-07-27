@@ -72,7 +72,7 @@ const recommendOfficer = (officer, rule, date, shift, yesterdayAssignments, curr
   // 5. Worked Night Shift Yesterday Check
   const workedNightYesterday = Array.isArray(yesterdayAssignments) && yesterdayAssignments.some(asg => 
     asg && asg.officer && asg.officer.toString() === offIdStr && 
-    asg.shift === "Night" &&
+    asg.shift && asg.shift.toLowerCase().includes("night") &&
     new Date(asg.date).toDateString() === yesterdayStr
   );
   if (workedNightYesterday) {
