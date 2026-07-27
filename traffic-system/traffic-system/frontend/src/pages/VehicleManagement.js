@@ -1,11 +1,48 @@
 import React, { useState, useEffect } from "react";
 import {
-  FiTruck, FiCheckCircle, FiTool, FiAlertOctagon, FiPlus,
-  FiSearch, FiMoreVertical, FiX, FiUserCheck, FiTrash2
-} from "react-icons/fi";
+  Container, Typography, Box, Paper, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Button, Grid, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel,
+  FormControl, Chip, CircularProgress, IconButton, Avatar, Card, CardContent
+} from "@mui/material";
+import {
+  Visibility as VisibilityIcon, DirectionsCar as CarIcon,
+  TwoWheeler as BikeIcon, LocalShipping as RecoveryIcon,
+  CheckCircle as ActiveIcon, Build as MaintenanceIcon,
+  Error as ErrorIcon, Add as AddIcon, Search as SearchIcon
+} from "@mui/icons-material";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
 
-const vehicleTypeOptions = ["Patrol Car", "Motorcycle", "Recovery Truck", "Jeep"];
+// Helper to determine icon based on type
+const getVehicleIcon = (type) => {
+  const t = (type || "").toLowerCase();
+  if (t.includes("bike") || t.includes("motorcycle")) return <BikeIcon sx={{ color: "text.secondary", mr: 1 }} />;
+  if (t.includes("truck") || t.includes("recovery")) return <RecoveryIcon sx={{ color: "text.secondary", mr: 1 }} />;
+  return <CarIcon sx={{ color: "text.secondary", mr: 1 }} />;
+};
+
+// Deterministic helper to mock rich vehicle metadata from registration number
+const getVehicleMeta = (regNo) => {
+  const cleaned = (regNo || "KA-1234").replace(/[^a-zA-Z0-9]/g, "");
+  const code = cleaned.charCodeAt(0) + (cleaned.charCodeAt(1) || 0) + (cleaned.charCodeAt(2) || 0);
+
+  const models = ["Toyota Land Cruiser Prado", "Nissan Patrol", "Honda CBX 750", "Mitsubishi L200", "Tata Winger Van"];
+  const classes = ["Emergency Response - A", "Highway Patrol - B", "Traffic Escort - C", "Recovery Unit - D"];
+  const branches = ["Negombo Traffic Div.", "Negombo Central Div.", "Kochchikade Post", "Katunayake Highway Div."];
+  const fuels = ["Diesel (Super)", "Petrol (Octane 95)", "Octane 92"];
+
+  return {
+    makeModel: models[code % models.length],
+    vehicleClass: classes[code % classes.length],
+    assignedBranch: branches[code % branches.length],
+    fuelType: fuels[code % fuels.length],
+    engineCap: `${(code % 3) * 1000 + 1200} cc`,
+    seatingCap: `${(code % 4) * 2 + 2} Persons`,
+    vin: `SLP-${(code * 12345).toString().slice(0, 5)}-${cleaned.slice(-1)}`,
+    engineNo: `${code}GD-FTV-${code * 7}`,
+    year: 2018 + (code % 7)
+  };
+};
 
 function VehicleManagement() {
   const userRole = localStorage.getItem("userRole") || "IT Officer";
@@ -16,6 +53,7 @@ function VehicleManagement() {
     LayoutComponent = require("../layouts/ITLayout").default;
   }
 
+  // States
   const [vehicles, setVehicles] = useState([]);
   const [officers, setOfficers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,36 +63,30 @@ function VehicleManagement() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 5;
 
-  // Modals state
-  const [showRegister, setShowRegister] = useState(false);
-  const [showAssign, setShowAssign] = useState(false);
-  const [activeMenuId, setActiveMenuId] = useState(null);
-
-  // Assign Officer Form
-  const [assignForm, setAssignForm] = useState({
-    vehicleId: "",
-    officerName: ""
-  });
-
-  // Register Form
+  // Dialog States
+  const [openRegister, setOpenRegister] = useState(false);
+  const [openAssign, setOpenAssign] = useState(false);
+  const [openDetails, setOpenDetails] = useState(false);
+  
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedOfficerId, setSelectedOfficerId] = useState("");
+  
+  // Registration Form State
   const [registerForm, setRegisterForm] = useState({
     registrationNo: "",
     deptNo: "",
     vehicleType: "Patrol Car"
   });
 
-  const [error, setError] = useState("");
-
   const fetchData = async () => {
     try {
-      const vData = await getVehicles();
-      if (Array.isArray(vData)) {
-        setVehicles(vData);
-      }
-      const oData = await getOfficers();
-      if (Array.isArray(oData)) {
-        setOfficers(oData.filter(o => o.status === "Active"));
-      }
+      setLoading(true);
+      const [vData, oData] = await Promise.all([
+        getVehicles().catch(() => []),
+        getOfficers().catch(() => [])
+      ]);
+      setVehicles(vData);
+      setOfficers(oData.filter(o => o.status === "Active" || o.status === "Approved"));
     } catch (err) {
       console.error(err);
     } finally {
@@ -66,519 +98,484 @@ function VehicleManagement() {
     fetchData();
   }, []);
 
-  // Stats calculation
-  const totalVehicles = vehicles.length;
-  const availableCount = vehicles.filter(v => v.status === "AVAILABLE").length;
+  // Stats
+  const totalFleet = vehicles.length;
+  const activeUnits = vehicles.filter(v => v.status === "AVAILABLE").length;
   const maintenanceCount = vehicles.filter(v => v.status === "MAINTENANCE").length;
-  const outOfServiceCount = vehicles.filter(v => v.status === "OUT OF SERVICE").length;
+  const unassignedCount = vehicles.filter(v => v.assignedOfficer === "Unassigned" || !v.assignedOfficer).length;
 
-  // Filtering logic
+  // Filters
   const filtered = vehicles.filter(v => {
     const matchesSearch =
       (v.registrationNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.deptNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.assignedOfficer || "").toLowerCase().includes(search.toLowerCase());
-
     const matchesType = typeFilter === "All" || v.vehicleType === typeFilter;
     const matchesStatus = statusFilter === "All" || v.status === statusFilter;
-
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!registerForm.registrationNo || !registerForm.deptNo) {
-      setError("Please fill all required fields.");
-      return;
-    }
-    setError("");
+  const handleOpenAssign = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setSelectedOfficerId("");
+    setOpenAssign(true);
+  };
+
+  const handleSaveAssignment = async () => {
+    if (!selectedOfficerId) return;
+    const officerName = selectedOfficerId === "Unassigned" ? "Unassigned" : selectedOfficerId;
     try {
-      const res = await registerVehicle(registerForm);
-      if (res && !res.error) {
-        setShowRegister(false);
-        setRegisterForm({ registrationNo: "", deptNo: "", vehicleType: "Patrol Car" });
-        fetchData();
-      } else {
-        setError(res.message || res.error || "Failed to register vehicle.");
-      }
+      setLoading(true);
+      await updateVehicle(selectedVehicle._id, { assignedOfficer: officerName });
+      setOpenAssign(false);
+      fetchData();
     } catch (err) {
-      setError("Error connecting to server.");
+      alert("Error saving assignment");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAssign = async (e) => {
-    e.preventDefault();
-    if (!assignForm.vehicleId || !assignForm.officerName) {
-      setError("Please fill all required fields.");
-      return;
-    }
-    setError("");
+  const handleSaveRegister = async () => {
+    if (!registerForm.registrationNo || !registerForm.deptNo) return;
     try {
-      const res = await updateVehicle(assignForm.vehicleId, { assignedOfficer: assignForm.officerName });
-      if (res && !res.error) {
-        setShowAssign(false);
-        setAssignForm({ vehicleId: "", officerName: "" });
-        fetchData();
-      } else {
-        setError(res.error || "Failed to assign officer.");
-      }
+      setLoading(true);
+      await registerVehicle(registerForm);
+      setOpenRegister(false);
+      setRegisterForm({ registrationNo: "", deptNo: "", vehicleType: "Patrol Car" });
+      fetchData();
     } catch (err) {
-      setError("Error connecting to server.");
+      alert("Error registering vehicle");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUpdateStatus = async (id, newStatus) => {
-    try {
-      const res = await updateVehicle(id, { status: newStatus });
-      if (res && !res.error) {
-        fetchData();
-        setActiveMenuId(null);
-      } else {
-        alert(res.error || "Failed to update status.");
-      }
-    } catch (err) {
-      alert("Error connecting to server.");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to unregister this vehicle?")) return;
-    try {
-      const res = await deleteVehicle(id);
-      if (res && !res.error) {
-        fetchData();
-        setActiveMenuId(null);
-      } else {
-        alert(res.error || "Failed to delete vehicle.");
-      }
-    } catch (err) {
-      alert("Error connecting to server.");
-    }
+  const handleOpenDetails = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setOpenDetails(true);
   };
 
   return (
     <LayoutComponent>
-      <div className="um-page" style={{ position: "relative" }}>
-        
-        {/* Header */}
-        <div className="um-header">
-          <div>
-            <h1 className="um-title">Vehicle Management</h1>
-            <p className="um-subtitle">Official Fleet Registry & Deployment</p>
-          </div>
+      <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
+        {/* Title & Register Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Box>
+            <Typography variant="h4" fontWeight="bold" color="primary">
+              Vehicle Management
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Manage, assign, and monitor Sri Lanka Police operational fleet.
+            </Typography>
+          </Box>
           {userRole === "IT Officer" && (
-            <div style={{ display: "flex", gap: 12 }}>
-              <button
-                className="um-register-btn"
-                style={{ backgroundColor: "#475569" }}
-                onClick={() => {
-                  setError("");
-                  setShowAssign(true);
-                }}
-              >
-                <FiUserCheck size={15} style={{ marginRight: 6 }} /> Assign Officer
-              </button>
-              <button
-                className="um-register-btn"
-                onClick={() => {
-                  setError("");
-                  setShowRegister(true);
-                }}
-              >
-                <FiPlus size={15} style={{ marginRight: 6 }} /> Register Vehicle
-              </button>
-            </div>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpenRegister(true)}
+              sx={{ bgcolor: "#0f172a", "&:hover": { bgcolor: "#1e293b" }, textTransform: "none", borderRadius: 2 }}
+            >
+              Register New Vehicle
+            </Button>
           )}
-        </div>
+        </Box>
 
-        {/* Stats Grid */}
-        <div className="um-stats" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-          <div className="um-stat-card">
-            <div>
-              <p className="um-stat-label">TOTAL VEHICLES</p>
-              <p className="um-stat-value">{totalVehicles}</p>
-              <p style={{ fontSize: "11px", color: "#16a34a", marginTop: "4px" }}>↗ 2 added this month</p>
-            </div>
-            <div className="um-stat-icon" style={{ background: "#f1f5f9", color: "#475569" }}>
-              <FiTruck size={22} />
-            </div>
-          </div>
+        {/* Stats Grid Cards */}
+        <Grid container spacing={3} mb={4}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <CardContent sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box>
+                  <Chip label="+4 this month" size="small" color="success" sx={{ fontSize: 10, mb: 1 }} />
+                  <Typography color="text.secondary" variant="body2" fontWeight="bold">Total Fleet</Typography>
+                  <Typography variant="h4" fontWeight="bold">{totalFleet}</Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: "#f1f5f9", color: "#475569" }}><CarIcon /></Avatar>
+              </CardContent>
+            </Card>
+          </Grid>
 
-          <div className="um-stat-card">
-            <div>
-              <p className="um-stat-label">AVAILABLE</p>
-              <p className="um-stat-value" style={{ color: "#16a34a" }}>{availableCount}</p>
-              <p style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>Currently on deployment</p>
-            </div>
-            <div className="um-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
-              <FiCheckCircle size={22} />
-            </div>
-          </div>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <CardContent sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box>
+                  <Box height={24} />
+                  <Typography color="text.secondary" variant="body2" fontWeight="bold">Active Units</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="success.main">{activeUnits}</Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: "#e8f5e9", color: "#2e7d32" }}><ActiveIcon /></Avatar>
+              </CardContent>
+            </Card>
+          </Grid>
 
-          <div className="um-stat-card">
-            <div>
-              <p className="um-stat-label">UNDER MAINTENANCE</p>
-              <p className="um-stat-value" style={{ color: "#d97706" }}>{maintenanceCount}</p>
-              <p style={{ fontSize: "11px", color: "#dc2626", marginTop: "4px" }}>⏰ 4 overdue service</p>
-            </div>
-            <div className="um-stat-icon" style={{ background: "#fef3c7", color: "#d97706" }}>
-              <FiTool size={22} />
-            </div>
-          </div>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <CardContent sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box>
+                  <Box height={24} />
+                  <Typography color="text.secondary" variant="body2" fontWeight="bold">Maintenance</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="warning.main">{maintenanceCount}</Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: "#fff8e1", color: "#f57c00" }}><MaintenanceIcon /></Avatar>
+              </CardContent>
+            </Card>
+          </Grid>
 
-          <div className="um-stat-card">
-            <div>
-              <p className="um-stat-label">OUT OF SERVICE</p>
-              <p className="um-stat-value" style={{ color: "#dc2626" }}>{outOfServiceCount}</p>
-              <p style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>Requiring replacement</p>
-            </div>
-            <div className="um-stat-icon" style={{ background: "#fee2e2", color: "#dc2626" }}>
-              <FiAlertOctagon size={22} />
-            </div>
-          </div>
-        </div>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <CardContent sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box>
+                  <Box height={24} />
+                  <Typography color="text.secondary" variant="body2" fontWeight="bold">Unassigned</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="error.main">{unassignedCount}</Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: "#ffebee", color: "#c62828" }}><ErrorIcon /></Avatar>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-        {/* Search and Filters row */}
-        <div className="um-section-card" style={{ padding: "20px", marginBottom: "20px" }}>
-          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
-            <div className="um-search-wrap" style={{ flex: 1, minWidth: "250px" }}>
-              <FiSearch size={15} color="#94a3b8" />
-              <input
-                className="um-search-input"
-                placeholder="Search vehicle records..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
+        {/* Filter Toolbar */}
+        <Paper sx={{ p: 2, mb: 3, display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center", borderRadius: 3 }}>
+          <TextField
+            placeholder="Search by Reg No or Officer..."
+            size="small"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{ startAdornment: <SearchIcon fontSize="small" sx={{ color: "text.secondary", mr: 1 }} /> }}
+            sx={{ flex: 1, minWidth: 200 }}
+          />
 
-            <select
-              className="um-filter-select"
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                padding: "10px 14px",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                backgroundColor: "#ffffff",
-                color: "#1e293b",
-                fontWeight: "600",
-                fontSize: "13px",
-                outline: "none",
-                cursor: "pointer"
-              }}
-            >
-              <option value="All">Vehicle Type</option>
-              {vehicleTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <MenuItem value="All">Vehicle Type</MenuItem>
+              <MenuItem value="Patrol Car">Patrol Car</MenuItem>
+              <MenuItem value="Motorcycle">Motorcycle</MenuItem>
+              <MenuItem value="Recovery Truck">Recovery Truck</MenuItem>
+            </Select>
+          </FormControl>
 
-            <select
-              className="um-filter-select"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                padding: "10px 14px",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                backgroundColor: "#ffffff",
-                color: "#1e293b",
-                fontWeight: "600",
-                fontSize: "13px",
-                outline: "none",
-                cursor: "pointer"
-              }}
-            >
-              <option value="All">Status</option>
-              <option value="AVAILABLE">AVAILABLE</option>
-              <option value="MAINTENANCE">MAINTENANCE</option>
-              <option value="OUT OF SERVICE">OUT OF SERVICE</option>
-            </select>
-          </div>
-        </div>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <MenuItem value="All">Status</MenuItem>
+              <MenuItem value="AVAILABLE">AVAILABLE</MenuItem>
+              <MenuItem value="MAINTENANCE">MAINTENANCE</MenuItem>
+              <MenuItem value="OUT OF SERVICE">OUT OF SERVICE</MenuItem>
+            </Select>
+          </FormControl>
+        </Paper>
 
-        {/* Table Registry */}
-        <div className="um-section-card">
-          <div className="um-section-header">
-            <h3 className="um-section-title">Vehicle Registry</h3>
-          </div>
-
-          <table className="um-table">
-            <thead>
-              <tr>
-                <th>REGISTRATION NO.</th>
-                <th>DEPT. NO.</th>
-                <th>VEHICLE TYPE</th>
-                <th>ASSIGNED OFFICER</th>
-                <th>STATUS</th>
-                {userRole === "IT Officer" && <th style={{ textAlign: "right" }}>ACTION</th>}
-              </tr>
-            </thead>
-            <tbody>
+        {/* Table List registry */}
+        <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <Table>
+            <TableHead sx={{ bgcolor: "#f8fafc" }}>
+              <TableRow>
+                <TableCell fontWeight="bold">REG NO</TableCell>
+                <TableCell fontWeight="bold">VEHICLE TYPE</TableCell>
+                <TableCell fontWeight="bold">ASSIGNED OFFICER</TableCell>
+                <TableCell fontWeight="bold">STATUS</TableCell>
+                <TableCell align="right" fontWeight="bold">ACTION</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan={userRole === "IT Officer" ? 6 : 5} style={{ textAlign: "center", padding: "20px", fontWeight: "bold" }}>
-                    Loading vehicle registry...
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}><CircularProgress size={30} /></TableCell>
+                </TableRow>
               ) : paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={userRole === "IT Officer" ? 6 : 5} style={{ textAlign: "center", padding: "20px" }}>
-                    No vehicle records found.
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>No vehicles found.</TableCell>
+                </TableRow>
               ) : (
                 paginated.map((v) => {
-                  const statusColors = {
-                    AVAILABLE: { bg: "#dcfce7", color: "#15803d" },
-                    MAINTENANCE: { bg: "#fef3c7", color: "#b45309" },
-                    "OUT OF SERVICE": { bg: "#fee2e2", color: "#b91c1c" }
-                  };
-                  const sc = statusColors[v.status] || { bg: "#f1f5f9", color: "#374151" };
+                  const meta = getVehicleMeta(v.registrationNo);
+                  const isAssigned = v.assignedOfficer && v.assignedOfficer !== "Unassigned";
 
                   return (
-                    <tr key={v._id} className="um-tr">
-                      <td style={{ fontWeight: "700" }}>{v.registrationNo}</td>
-                      <td style={{ color: "#475569", fontWeight: "500" }}>{v.deptNo}</td>
-                      <td>{v.vehicleType}</td>
-                      <td style={{ color: v.assignedOfficer === "Unassigned" ? "#94a3b8" : "#1e293b", fontWeight: "600" }}>
-                        {v.assignedOfficer}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            backgroundColor: sc.bg,
-                            color: sc.color,
-                            padding: "4px 8px",
-                            borderRadius: "12px",
-                            fontSize: "11px",
-                            fontWeight: "700"
-                          }}
-                        >
-                          {v.status}
-                        </span>
-                      </td>
-                      {userRole === "IT Officer" && (
-                        <td style={{ textAlign: "right", position: "relative" }}>
-                          <button
-                            className="ar-dots-btn"
-                            onClick={() => setActiveMenuId(activeMenuId === v._id ? null : v._id)}
-                          >
-                            <FiMoreVertical size={16} />
-                          </button>
-                          
-                          {activeMenuId === v._id && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                right: 10,
-                                top: 35,
-                                backgroundColor: "#ffffff",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px",
-                                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                                zIndex: 10,
-                                padding: "4px 0",
-                                width: "160px",
-                                textAlign: "left"
+                    <TableRow key={v._id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">{v.registrationNo}</Typography>
+                        <Typography variant="caption" color="text.secondary">VIN: {meta.vin}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          {getVehicleIcon(v.vehicleType)}
+                          <Typography variant="body2">{v.vehicleType}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {isAssigned ? (
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Avatar sx={{ width: 26, height: 26, fontSize: 11, bgcolor: "#1e3a8a" }}>
+                              {v.assignedOfficer.split(" ").slice(-1)[0]?.charAt(0) || "O"}
+                            </Avatar>
+                            <Typography variant="body2">{v.assignedOfficer}</Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" fontStyle="italic">Not Assigned</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={v.status === "AVAILABLE" ? "Active" : v.status === "MAINTENANCE" ? "Maintenance" : "Out of Service"}
+                          size="small"
+                          color={v.status === "AVAILABLE" ? "success" : v.status === "MAINTENANCE" ? "warning" : "error"}
+                          variant="light"
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box display="flex" justifyContent="flex-end" alignItems="center" gap={1}>
+                          <IconButton size="small" color="primary" onClick={() => handleOpenDetails(v)}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                          {userRole === "IT Officer" && (
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => handleOpenAssign(v)}
+                              sx={{
+                                textTransform: "none",
+                                bgcolor: isAssigned ? "#475569" : "#0f172a",
+                                color: "#ffffff",
+                                "&:hover": { bgcolor: isAssigned ? "#334155" : "#1e293b" },
+                                borderRadius: 1.5,
+                                fontSize: 11,
+                                py: 0.5
                               }}
                             >
-                              <button
-                                onClick={() => handleUpdateStatus(v._id, "AVAILABLE")}
-                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#16a34a" }}
-                              >
-                                Set AVAILABLE
-                              </button>
-                              <button
-                                onClick={() => handleUpdateStatus(v._id, "MAINTENANCE")}
-                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#d97706" }}
-                              >
-                                Set MAINTENANCE
-                              </button>
-                              <button
-                                onClick={() => handleUpdateStatus(v._id, "OUT OF SERVICE")}
-                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#dc2626" }}
-                              >
-                                Set OUT OF SERVICE
-                              </button>
-                              <div style={{ height: "1px", backgroundColor: "#e2e8f0", margin: "4px 0" }} />
-                              <button
-                                onClick={() => {
-                                  setAssignForm({ vehicleId: v._id, officerName: v.assignedOfficer === "Unassigned" ? "" : v.assignedOfficer });
-                                  setShowAssign(true);
-                                  setActiveMenuId(null);
-                                }}
-                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                              >
-                                Assign Officer
-                              </button>
-                              <button
-                                onClick={() => handleDelete(v._id)}
-                                style={{ width: "100%", padding: "8px 12px", border: "none", background: "none", textAlign: "left", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#ef4444", display: "flex", alignItems: "center", gap: "6px" }}
-                              >
-                                <FiTrash2 size={12} /> Unregister
-                              </button>
-                            </div>
+                              {isAssigned ? "Change Officer" : "Assign Officer"}
+                            </Button>
                           )}
-                        </td>
-                      )}
-                    </tr>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-          {/* Pagination */}
-          <div className="um-pagination">
-            <p className="um-pagination-info">
-              Showing {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} vehicles
-            </p>
-            <div className="um-page-btns">
-              <button className="um-page-btn" disabled={page === 1} onClick={() => setPage(p => p - 1)}>‹</button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i + 1}
-                  className={`um-page-btn ${page === i + 1 ? "um-page-active" : ""}`}
-                  onClick={() => setPage(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button className="um-page-btn" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
-            </div>
-          </div>
-        </div>
+        {/* View Details Dialog */}
+        <Dialog open={openDetails} onClose={() => setOpenDetails(false)} maxWidth="md" fullWidth>
+          {selectedVehicle && (() => {
+            const meta = getVehicleMeta(selectedVehicle.registrationNo);
+            const isAssigned = selectedVehicle.assignedOfficer && selectedVehicle.assignedOfficer !== "Unassigned";
 
-        {/* REGISTER VEHICLE MODAL */}
-        {showRegister && (
-          <div className="um-modal-overlay">
-            <div className="um-modal" style={{ maxWidth: "450px" }}>
-              <div className="um-modal-header">
-                <div>
-                  <h2 className="um-modal-title">Register Vehicle</h2>
-                  <p className="um-modal-sub">Add a new vehicle to the registry fleet.</p>
-                </div>
-                <button className="um-modal-close" onClick={() => setShowRegister(false)}><FiX size={18} /></button>
-              </div>
+            return (
+              <>
+                <DialogTitle sx={{ borderBottom: "1px solid #f1f5f9", display: "flex", gap: 2, alignItems: "center" }}>
+                  <Avatar sx={{ bgcolor: "#0f172a" }}><CarIcon /></Avatar>
+                  <Box>
+                    <Typography variant="h6" fontWeight="bold">Vehicle Details: {selectedVehicle.registrationNo}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {meta.makeModel.toUpperCase()} • Operational Status: <span style={{ color: "#16a34a", fontWeight: "bold" }}>{selectedVehicle.status}</span>
+                    </Typography>
+                  </Box>
+                </DialogTitle>
+                <DialogContent sx={{ p: 3 }}>
+                  <Grid container spacing={3} mt={0.5}>
+                    {/* Left Column Identification */}
+                    <Grid item xs={12} md={8} display="flex" flexDirection="column" gap={3}>
+                      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                        <CardContent>
+                          <Typography variant="subtitle2" fontWeight="bold" color="primary" mb={2}>Core Identification</Typography>
+                          <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Registration Number</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.registrationNo}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Department Number</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.deptNo}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Vehicle Type</Typography>
+                              <Typography variant="body2">{selectedVehicle.vehicleType}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Vehicle Class</Typography>
+                              <Typography variant="body2">{meta.vehicleClass}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Make / Model</Typography>
+                              <Typography variant="body2">{meta.makeModel}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Manufacturing Year</Typography>
+                              <Typography variant="body2">{meta.year}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Engine Number</Typography>
+                              <Typography variant="body2">{meta.engineNo}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography variant="caption" color="text.secondary">Chassis Number</Typography>
+                              <Typography variant="body2">{meta.vin}</Typography>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
 
-              <form onSubmit={handleRegister}>
-                <div className="um-modal-body">
-                  <div className="um-field-full">
-                    <label className="um-field-label">REGISTRATION NO. *</label>
-                    <input
-                      className="um-field-input"
-                      placeholder="e.g. WP KA-3421"
-                      value={registerForm.registrationNo}
-                      onChange={(e) => setRegisterForm({ ...registerForm, registrationNo: e.target.value })}
-                      required
-                    />
-                  </div>
+                      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                        <CardContent>
+                          <Grid container spacing={2}>
+                            <Grid item xs={3}>
+                              <Typography variant="caption" color="text.secondary">Fuel Type</Typography>
+                              <Typography variant="body2" fontWeight="bold">{meta.fuelType}</Typography>
+                            </Grid>
+                            <Grid item xs={3}>
+                              <Typography variant="caption" color="text.secondary">Engine Capacity</Typography>
+                              <Typography variant="body2" fontWeight="bold">{meta.engineCap}</Typography>
+                            </Grid>
+                            <Grid item xs={3}>
+                              <Typography variant="caption" color="text.secondary">Seating Capacity</Typography>
+                              <Typography variant="body2" fontWeight="bold">{meta.seatingCap}</Typography>
+                            </Grid>
+                            <Grid item xs={3}>
+                              <Typography variant="caption" color="text.secondary">Assigned Branch</Typography>
+                              <Typography variant="body2" fontWeight="bold">{meta.assignedBranch}</Typography>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
+                    </Grid>
 
-                  <div className="um-field-full">
-                    <label className="um-field-label">DEPARTMENT NO. *</label>
-                    <input
-                      className="um-field-input"
-                      placeholder="e.g. SLP-TRF-08"
-                      value={registerForm.deptNo}
-                      onChange={(e) => setRegisterForm({ ...registerForm, deptNo: e.target.value })}
-                      required
-                    />
-                  </div>
+                    {/* Right Column Assignment */}
+                    <Grid item xs={12} md={4}>
+                      <Card sx={{ bgcolor: "#0f172a", color: "#ffffff", borderRadius: 2, height: "100%" }}>
+                        <CardContent display="flex" flexDirection="column" alignItems="center" sx={{ textAlign: "center", py: 4 }}>
+                          <Typography variant="caption" display="block" mb={2} sx={{ opacity: 0.7 }}>CURRENT ASSIGNED OFFICER</Typography>
+                          {isAssigned ? (
+                            <>
+                              <Avatar sx={{ width: 64, height: 64, mx: "auto", mb: 2, bgcolor: "#ffffff", color: "#0f172a", fontWeight: "bold" }}>
+                                {selectedVehicle.assignedOfficer.split(" ").slice(-1)[0]?.charAt(0)}
+                              </Avatar>
+                              <Typography variant="body1" fontWeight="bold">{selectedVehicle.assignedOfficer}</Typography>
+                              <Typography variant="caption" display="block" sx={{ opacity: 0.7, mb: 3 }}>Traffic Police Division (Negombo)</Typography>
+                              <Button variant="contained" size="small" sx={{ bgcolor: "#ffffff", color: "#0f172a", "&:hover": { bgcolor: "#f1f5f9" }, textTransform: "none" }}>
+                                Contact Officer
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Avatar sx={{ width: 64, height: 64, mx: "auto", mb: 2, bgcolor: "#334155" }} />
+                              <Typography variant="body1" fontStyle="italic" sx={{ opacity: 0.6 }}>No Officer Assigned</Typography>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
 
-                  <div className="um-field-full">
-                    <label className="um-field-label">VEHICLE TYPE *</label>
-                    <select
-                      className="um-field-input"
-                      value={registerForm.vehicleType}
-                      onChange={(e) => setRegisterForm({ ...registerForm, vehicleType: e.target.value })}
-                    >
-                      {vehicleTypeOptions.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
+                  {/* Verification Items Row */}
+                  <Grid container spacing={2} mt={2}>
+                    <Grid item xs={12} sm={4}>
+                      <Card variant="outlined" sx={{ p: 2, borderBottom: "3px solid #16a34a" }}>
+                        <Typography variant="caption" color="text.secondary">REVENUE LICENSE</Typography>
+                        <Typography variant="body2" fontWeight="bold">12 Oct 2026</Typography>
+                        <Typography variant="caption" color="success.main">Status: Valid</Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Card variant="outlined" sx={{ p: 2, borderBottom: "3px solid #16a34a" }}>
+                        <Typography variant="caption" color="text.secondary">INSURANCE EXPIRY</Typography>
+                        <Typography variant="body2" fontWeight="bold">05 Jan 2027</Typography>
+                        <Typography variant="caption" color="success.main">Provider: SLIC</Typography>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Card variant="outlined" sx={{ p: 2, borderBottom: "3px solid #dc2626" }}>
+                        <Typography variant="caption" color="text.secondary">EMISSION TEST</Typography>
+                        <Typography variant="body2" fontWeight="bold">20 Oct 2026</Typography>
+                        <Typography variant="caption" color="error.main">Upcoming Expiry</Typography>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </DialogContent>
+                <DialogActions sx={{ borderTop: "1px solid #f1f5f9", px: 3, py: 2 }}>
+                  <Button variant="outlined" onClick={() => setOpenDetails(false)}>Close Details</Button>
+                </DialogActions>
+              </>
+            );
+          })()}
+        </Dialog>
 
-                  {error && <p className="um-error">{error}</p>}
-                </div>
+        {/* Change / Assign Officer Dialog */}
+        <Dialog open={openAssign} onClose={() => setOpenAssign(false)}>
+          {selectedVehicle && (
+            <>
+              <DialogTitle>Change Assigned Officer</DialogTitle>
+              <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2, minWidth: 340 }}>
+                <Card variant="outlined" sx={{ p: 2, bgcolor: "#f8fafc" }}>
+                  <Typography variant="caption" color="text.secondary">VEHICLE ID</Typography>
+                  <Typography variant="body2" fontWeight="bold" mb={1}>{selectedVehicle.registrationNo}</Typography>
+                  <Typography variant="caption" color="text.secondary">CURRENT ASSIGNED</Typography>
+                  <Typography variant="body2">{selectedVehicle.assignedOfficer || "Unassigned"}</Typography>
+                </Card>
 
-                <div className="um-modal-footer">
-                  <button type="button" className="um-cancel-btn" onClick={() => setShowRegister(false)}>Cancel</button>
-                  <button type="submit" className="um-submit-btn">Register Vehicle</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+                <FormControl fullWidth>
+                  <InputLabel>Select New Officer</InputLabel>
+                  <Select
+                    value={selectedOfficerId}
+                    onChange={(e) => setSelectedOfficerId(e.target.value)}
+                    label="Select New Officer"
+                  >
+                    <MenuItem value="Unassigned"><em>Unassigned / Release</em></MenuItem>
+                    {officers.map((o) => (
+                      <MenuItem key={o._id} value={o.fullName}>
+                        {o.fullName} ({o.rank} | {o.policeId})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setOpenAssign(false)}>Cancel</Button>
+                <Button variant="contained" onClick={handleSaveAssignment} disabled={!selectedOfficerId}>Save Transfer</Button>
+              </DialogActions>
+            </>
+          )}
+        </Dialog>
 
-        {/* ASSIGN OFFICER MODAL */}
-        {showAssign && (
-          <div className="um-modal-overlay">
-            <div className="um-modal" style={{ maxWidth: "450px" }}>
-              <div className="um-modal-header">
-                <div>
-                  <h2 className="um-modal-title">Assign Deployment</h2>
-                  <p className="um-modal-sub">Assign an officer to an active patrol vehicle.</p>
-                </div>
-                <button className="um-modal-close" onClick={() => setShowAssign(false)}><FiX size={18} /></button>
-              </div>
-
-              <form onSubmit={handleAssign}>
-                <div className="um-modal-body">
-                  <div className="um-field-full">
-                    <label className="um-field-label">SELECT VEHICLE *</label>
-                    <select
-                      className="um-field-input"
-                      value={assignForm.vehicleId}
-                      onChange={(e) => setAssignForm({ ...assignForm, vehicleId: e.target.value })}
-                      required
-                    >
-                      <option value="">Select Registration...</option>
-                      {vehicles.map(v => (
-                        <option key={v._id} value={v._id}>
-                          {v.registrationNo} ({v.deptNo}) - {v.assignedOfficer}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="um-field-full">
-                    <label className="um-field-label">SELECT ACTIVE OFFICER *</label>
-                    <select
-                      className="um-field-input"
-                      value={assignForm.officerName}
-                      onChange={(e) => setAssignForm({ ...assignForm, officerName: e.target.value })}
-                      required
-                    >
-                      <option value="">Select Officer...</option>
-                      <option value="Unassigned">Unassigned</option>
-                      {officers.map(o => (
-                        <option key={o._id} value={o.fullName}>{o.fullName} ({o.rank})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {error && <p className="um-error">{error}</p>}
-                </div>
-
-                <div className="um-modal-footer">
-                  <button type="button" className="um-cancel-btn" onClick={() => setShowAssign(false)}>Cancel</button>
-                  <button type="submit" className="um-submit-btn">Assign Officer</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-      </div>
+        {/* Register New Vehicle Dialog */}
+        <Dialog open={openRegister} onClose={() => setOpenRegister(false)}>
+          <DialogTitle>Register New Vehicle</DialogTitle>
+          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2, minWidth: 320 }}>
+            <TextField
+              label="Registration Number (e.g. WP KA-1234)"
+              value={registerForm.registrationNo}
+              onChange={(e) => setRegisterForm({ ...registerForm, registrationNo: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Department Serial Number"
+              value={registerForm.deptNo}
+              onChange={(e) => setRegisterForm({ ...registerForm, deptNo: e.target.value })}
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>Vehicle Type</InputLabel>
+              <Select
+                value={registerForm.vehicleType}
+                onChange={(e) => setRegisterForm({ ...registerForm, vehicleType: e.target.value })}
+                label="Vehicle Type"
+              >
+                <MenuItem value="Patrol Car">Patrol Car</MenuItem>
+                <MenuItem value="Motorcycle">Motorcycle</MenuItem>
+                <MenuItem value="Recovery Truck">Recovery Truck</MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenRegister(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveRegister} disabled={!registerForm.registrationNo || !registerForm.deptNo}>Register</Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
     </LayoutComponent>
   );
 }
