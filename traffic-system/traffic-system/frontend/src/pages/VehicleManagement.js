@@ -588,28 +588,30 @@ function VehicleManagement() {
         </Dialog>
 
         {/* Change / Assign Officer Dialog */}
-        <Dialog open={openAssign} onClose={() => setOpenAssign(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <Dialog open={openAssign} onClose={() => setOpenAssign(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, position: "relative" } }}>
           {selectedVehicle && (() => {
             const isAssigned = selectedVehicle.assignedOfficer && selectedVehicle.assignedOfficer !== "Unassigned";
             return (
               <>
-                <Box display="flex" justifyContent="space-between" alignItems="center" p={2.5} sx={{ borderBottom: "1px solid #f1f5f9" }}>
-                  <Box display="flex" alignItems="center" gap={1.5}>
-                    <Avatar sx={{ bgcolor: "#0f172a", width: 40, height: 40 }}>
-                      <CarIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold" color="text.primary">
-                        {isAssigned ? "Change Assigned Officer" : "Assign Officer"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {isAssigned ? "Vehicle Reassignment Process" : `Context: Vehicle: ${selectedVehicle.registrationNo}`}
-                      </Typography>
-                    </Box>
+                <IconButton 
+                  onClick={() => setOpenAssign(false)}
+                  sx={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
+                >
+                  <CloseIcon />
+                </IconButton>
+
+                <Box display="flex" p={2.5} sx={{ borderBottom: "1px solid #f1f5f9", pr: 8 }}>
+                  <Avatar sx={{ bgcolor: "#0f172a", width: 40, height: 40, mr: 1.5 }}>
+                    <CarIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight="bold" color="text.primary" sx={{ lineHeight: 1.2 }}>
+                      {isAssigned ? "Change Assigned Officer" : "Assign Officer"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {isAssigned ? "Vehicle Reassignment Process" : `Context: Vehicle: ${selectedVehicle.registrationNo}`}
+                    </Typography>
                   </Box>
-                  <IconButton onClick={() => setOpenAssign(false)}>
-                    <CloseIcon />
-                  </IconButton>
                 </Box>
 
                 <DialogContent sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
