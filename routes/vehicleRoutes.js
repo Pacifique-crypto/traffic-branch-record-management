@@ -26,7 +26,7 @@ router.post("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) =
     const newVehicle = new Vehicle({
       ...req.body,
       assignedOfficer: assignedOfficer || "Unassigned",
-      status: status || "AVAILABLE"
+      status: status || "PENDING"
     });
 
     await newVehicle.save();
@@ -51,7 +51,7 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
 });
 
 // DELETE VEHICLE
-router.delete("/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
+router.delete("/:id", verifyToken, authorizeRoles("admin", "oic"), async (req, res) => {
   try {
     await Vehicle.findByIdAndDelete(req.params.id);
     res.json({ message: "Vehicle deleted successfully" });
