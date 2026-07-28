@@ -36,6 +36,7 @@ function VehicleManagement() {
 
   // States
   const [vehicles, setVehicles] = useState([]);
+  const [pendingVehicles, setPendingVehicles] = useState([]);
   const [officers, setOfficers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -69,7 +70,7 @@ function VehicleManagement() {
     tyreSize: "",
     fuelTankCapacity: "",
     oilCapacity: "",
-    status: "AVAILABLE",
+    status: "PENDING",
     registrationDate: new Date().toISOString().split("T")[0],
     revenueLicenseExpiry: "",
     insuranceExpiry: "",
@@ -105,6 +106,31 @@ function VehicleManagement() {
     }
   };
 
+  const handleApproveVehicle = async (id) => {
+    try {
+      setLoading(true);
+      await updateVehicle(id, { status: "AVAILABLE" });
+      fetchData();
+    } catch (err) {
+      alert("Error approving vehicle");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectVehicle = async (id) => {
+    if (!window.confirm("Are you sure you want to reject this vehicle registration request?")) return;
+    try {
+      setLoading(true);
+      await deleteVehicle(id);
+      fetchData();
+    } catch (err) {
+      alert("Error rejecting vehicle");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -112,7 +138,8 @@ function VehicleManagement() {
         getVehicles().catch(() => []),
         getOfficers().catch(() => [])
       ]);
-      setVehicles(vData);
+      setVehicles(vData.filter(v => v.status !== "PENDING"));
+      setPendingVehicles(vData.filter(v => v.status === "PENDING"));
       setOfficers(oData.filter(o => o.status === "Active" || o.status === "Approved"));
     } catch (err) {
       console.error(err);
@@ -191,7 +218,7 @@ function VehicleManagement() {
         tyreSize: "",
         fuelTankCapacity: "",
         oilCapacity: "",
-        status: "AVAILABLE",
+        status: "PENDING",
         registrationDate: new Date().toISOString().split("T")[0],
         revenueLicenseExpiry: "",
         insuranceExpiry: "",
@@ -309,6 +336,90 @@ function VehicleManagement() {
             </Card>
           </Grid>
         </Grid>
+
+        {/* ── OIC: New Vehicle Approvals ── */}
+        {userRole === "OIC" && pendingVehicles.length > 0 && (
+          <Paper sx={{ p: 3, mb: 4, borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <Typography variant="h6" fontWeight="bold" color="primary">New Vehicle Approvals</Typography>
+            </Box>
+            <TableContainer>
+              <Table>
+                <TableHead sx={{ bgcolor: "#f8fafc" }}>
+                  <TableRow>
+                    <TableCell fontWeight="bold">REG NO</TableCell>
+                    <TableCell fontWeight="bold">VEHICLE TYPE</TableCell>
+                    <TableCell fontWeight="bold">ASSIGNED BRANCH</TableCell>
+                    <TableCell align="right" fontWeight="bold">APPROVE / REJECT</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pendingVehicles.map((v) => (
+                    <TableRow key={v._id} hover>
+                      <TableCell onClick={() => handleOpenDetails(v)} style={{ cursor: "pointer" }} title="View Details">
+                        <Typography variant="body2" fontWeight="bold" color="primary.main" sx={{ textDecoration: "underline" }}>
+                          {v.registrationNo}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">VIN: {v.chassisNo || "N/A"}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          {getVehicleIcon(v.vehicleType)}
+                          <Typography variant="body2">{v.vehicleType}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{v.branch || "Negombo Traffic Div."}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box display="flex" justifyContent="flex-end" gap={1}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            onClick={() => handleApproveVehicle(v._id)}
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: "bold",
+                              bgcolor: "#16a34a",
+                              color: "#ffffff",
+                              "&:hover": { bgcolor: "#15803d" },
+                              borderRadius: 1.5,
+                              fontSize: 11,
+                              px: 2,
+                              py: 0.5
+                            }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            onClick={() => handleRejectVehicle(v._id)}
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: "bold",
+                              bgcolor: "#dc2626",
+                              color: "#ffffff",
+                              "&:hover": { bgcolor: "#b91c1c" },
+                              borderRadius: 1.5,
+                              fontSize: 11,
+                              px: 2,
+                              py: 0.5
+                            }}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
 
         {/* Filter Toolbar */}
         <Paper sx={{ p: 2, mb: 3, display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center", borderRadius: 3 }}>
@@ -449,7 +560,7 @@ function VehicleManagement() {
                   <Box>
                     <Typography variant="h6" fontWeight="bold">Vehicle Details: {selectedVehicle.registrationNo}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {(selectedVehicle.makeModel || "N/A").toUpperCase()} • Operational Status: <span style={{ color: "#16a34a", fontWeight: "bold" }}>{selectedVehicle.status}</span>
+                      {(selectedVehicle.makeModel || "N/A").toUpperCase()} • Operational Status: <span style={{ color: selectedVehicle.status === "PENDING" ? "#eab308" : "#16a34a", fontWeight: "bold" }}>{selectedVehicle.status}</span>
                     </Typography>
                   </Box>
                 </DialogTitle>
