@@ -21,29 +21,6 @@ const getVehicleIcon = (type) => {
   return <CarIcon sx={{ color: "text.secondary", mr: 1 }} />;
 };
 
-// Deterministic helper to mock rich vehicle metadata from registration number
-const getVehicleMeta = (regNo) => {
-  const cleaned = (regNo || "KA-1234").replace(/[^a-zA-Z0-9]/g, "");
-  const code = cleaned.charCodeAt(0) + (cleaned.charCodeAt(1) || 0) + (cleaned.charCodeAt(2) || 0);
-
-  const models = ["Toyota Land Cruiser Prado", "Nissan Patrol", "Honda CBX 750", "Mitsubishi L200", "Tata Winger Van"];
-  const classes = ["Emergency Response - A", "Highway Patrol - B", "Traffic Escort - C", "Recovery Unit - D"];
-  const branches = ["Negombo Traffic Div.", "Negombo Central Div.", "Kochchikade Post", "Katunayake Highway Div."];
-  const fuels = ["Diesel (Super)", "Petrol (Octane 95)", "Octane 92"];
-
-  return {
-    makeModel: models[code % models.length],
-    vehicleClass: classes[code % classes.length],
-    assignedBranch: branches[code % branches.length],
-    fuelType: fuels[code % fuels.length],
-    engineCap: `${(code % 3) * 1000 + 1200} cc`,
-    seatingCap: `${(code % 4) * 2 + 2} Persons`,
-    vin: `SLP-${(code * 12345).toString().slice(0, 5)}-${cleaned.slice(-1)}`,
-    engineNo: `${code}GD-FTV-${code * 7}`,
-    year: 2018 + (code % 7)
-  };
-};
-
 function VehicleManagement() {
   const userRole = localStorage.getItem("userRole") || "IT Officer";
   let LayoutComponent;
@@ -71,11 +48,29 @@ function VehicleManagement() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedOfficerId, setSelectedOfficerId] = useState("");
   
-  // Registration Form State
+  // Registration Form State (20 Fields)
   const [registerForm, setRegisterForm] = useState({
     registrationNo: "",
     deptNo: "",
-    vehicleType: "Patrol Car"
+    chassisNo: "",
+    engineNo: "",
+    vehicleType: "Patrol Car",
+    makeModel: "",
+    year: new Date().getFullYear(),
+    color: "",
+    fuelType: "Diesel (Super)",
+    engineCapacity: "",
+    cylinders: 4,
+    tyreSize: "",
+    fuelTankCapacity: "",
+    oilCapacity: "",
+    status: "AVAILABLE",
+    registrationDate: new Date().toISOString().split("T")[0],
+    revenueLicenseExpiry: "",
+    insuranceExpiry: "",
+    emissionTestExpiry: "",
+    remarks: "",
+    assignedOfficer: "Unassigned"
   });
 
   const fetchData = async () => {
@@ -139,12 +134,38 @@ function VehicleManagement() {
   };
 
   const handleSaveRegister = async () => {
-    if (!registerForm.registrationNo || !registerForm.deptNo) return;
+    if (!registerForm.registrationNo || !registerForm.deptNo) {
+      alert("Registration Number and Department Number are required fields.");
+      return;
+    }
     try {
       setLoading(true);
       await registerVehicle(registerForm);
       setOpenRegister(false);
-      setRegisterForm({ registrationNo: "", deptNo: "", vehicleType: "Patrol Car" });
+      // Reset
+      setRegisterForm({
+        registrationNo: "",
+        deptNo: "",
+        chassisNo: "",
+        engineNo: "",
+        vehicleType: "Patrol Car",
+        makeModel: "",
+        year: new Date().getFullYear(),
+        color: "",
+        fuelType: "Diesel (Super)",
+        engineCapacity: "",
+        cylinders: 4,
+        tyreSize: "",
+        fuelTankCapacity: "",
+        oilCapacity: "",
+        status: "AVAILABLE",
+        registrationDate: new Date().toISOString().split("T")[0],
+        revenueLicenseExpiry: "",
+        insuranceExpiry: "",
+        emissionTestExpiry: "",
+        remarks: "",
+        assignedOfficer: "Unassigned"
+      });
       fetchData();
     } catch (err) {
       alert("Error registering vehicle");
@@ -156,6 +177,12 @@ function VehicleManagement() {
   const handleOpenDetails = (vehicle) => {
     setSelectedVehicle(vehicle);
     setOpenDetails(true);
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString();
   };
 
   return (
@@ -255,6 +282,9 @@ function VehicleManagement() {
               <MenuItem value="Patrol Car">Patrol Car</MenuItem>
               <MenuItem value="Motorcycle">Motorcycle</MenuItem>
               <MenuItem value="Recovery Truck">Recovery Truck</MenuItem>
+              <MenuItem value="Van">Van</MenuItem>
+              <MenuItem value="SUV">SUV</MenuItem>
+              <MenuItem value="Jeep">Jeep</MenuItem>
             </Select>
           </FormControl>
 
@@ -291,14 +321,13 @@ function VehicleManagement() {
                 </TableRow>
               ) : (
                 paginated.map((v) => {
-                  const meta = getVehicleMeta(v.registrationNo);
                   const isAssigned = v.assignedOfficer && v.assignedOfficer !== "Unassigned";
 
                   return (
                     <TableRow key={v._id} hover>
                       <TableCell>
                         <Typography variant="body2" fontWeight="bold">{v.registrationNo}</Typography>
-                        <Typography variant="caption" color="text.secondary">VIN: {meta.vin}</Typography>
+                        <Typography variant="caption" color="text.secondary">VIN: {v.chassisNo || "N/A"}</Typography>
                       </TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">
@@ -362,7 +391,6 @@ function VehicleManagement() {
         {/* View Details Dialog */}
         <Dialog open={openDetails} onClose={() => setOpenDetails(false)} maxWidth="md" fullWidth>
           {selectedVehicle && (() => {
-            const meta = getVehicleMeta(selectedVehicle.registrationNo);
             const isAssigned = selectedVehicle.assignedOfficer && selectedVehicle.assignedOfficer !== "Unassigned";
 
             return (
@@ -372,7 +400,7 @@ function VehicleManagement() {
                   <Box>
                     <Typography variant="h6" fontWeight="bold">Vehicle Details: {selectedVehicle.registrationNo}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {meta.makeModel.toUpperCase()} • Operational Status: <span style={{ color: "#16a34a", fontWeight: "bold" }}>{selectedVehicle.status}</span>
+                      {(selectedVehicle.makeModel || "N/A").toUpperCase()} • Operational Status: <span style={{ color: "#16a34a", fontWeight: "bold" }}>{selectedVehicle.status}</span>
                     </Typography>
                   </Box>
                 </DialogTitle>
@@ -390,31 +418,31 @@ function VehicleManagement() {
                             </Grid>
                             <Grid item xs={6}>
                               <Typography variant="caption" color="text.secondary">Department Number</Typography>
-                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.deptNo}</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.deptNo || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={6}>
                               <Typography variant="caption" color="text.secondary">Vehicle Type</Typography>
                               <Typography variant="body2">{selectedVehicle.vehicleType}</Typography>
                             </Grid>
                             <Grid item xs={6}>
-                              <Typography variant="caption" color="text.secondary">Vehicle Class</Typography>
-                              <Typography variant="body2">{meta.vehicleClass}</Typography>
+                              <Typography variant="caption" color="text.secondary">Color</Typography>
+                              <Typography variant="body2">{selectedVehicle.color || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={6}>
                               <Typography variant="caption" color="text.secondary">Make / Model</Typography>
-                              <Typography variant="body2">{meta.makeModel}</Typography>
+                              <Typography variant="body2">{selectedVehicle.makeModel || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={6}>
                               <Typography variant="caption" color="text.secondary">Manufacturing Year</Typography>
-                              <Typography variant="body2">{meta.year}</Typography>
+                              <Typography variant="body2">{selectedVehicle.year || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={6}>
                               <Typography variant="caption" color="text.secondary">Engine Number</Typography>
-                              <Typography variant="body2">{meta.engineNo}</Typography>
+                              <Typography variant="body2">{selectedVehicle.engineNo || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={6}>
                               <Typography variant="caption" color="text.secondary">Chassis Number</Typography>
-                              <Typography variant="body2">{meta.vin}</Typography>
+                              <Typography variant="body2">{selectedVehicle.chassisNo || "N/A"}</Typography>
                             </Grid>
                           </Grid>
                         </CardContent>
@@ -425,19 +453,31 @@ function VehicleManagement() {
                           <Grid container spacing={2}>
                             <Grid item xs={3}>
                               <Typography variant="caption" color="text.secondary">Fuel Type</Typography>
-                              <Typography variant="body2" fontWeight="bold">{meta.fuelType}</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.fuelType || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={3}>
                               <Typography variant="caption" color="text.secondary">Engine Capacity</Typography>
-                              <Typography variant="body2" fontWeight="bold">{meta.engineCap}</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.engineCapacity || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={3}>
-                              <Typography variant="caption" color="text.secondary">Seating Capacity</Typography>
-                              <Typography variant="body2" fontWeight="bold">{meta.seatingCap}</Typography>
+                              <Typography variant="caption" color="text.secondary">No of Cylinders</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.cylinders || "N/A"}</Typography>
                             </Grid>
                             <Grid item xs={3}>
-                              <Typography variant="caption" color="text.secondary">Assigned Branch</Typography>
-                              <Typography variant="body2" fontWeight="bold">{meta.assignedBranch}</Typography>
+                              <Typography variant="caption" color="text.secondary">Tyre Size</Typography>
+                              <Typography variant="body2" fontWeight="bold">{selectedVehicle.tyreSize || "N/A"}</Typography>
+                            </Grid>
+                            <Grid item xs={4} sx={{ mt: 1 }}>
+                              <Typography variant="caption" color="text.secondary">Fuel Tank Capacity</Typography>
+                              <Typography variant="body2">{selectedVehicle.fuelTankCapacity || "N/A"}</Typography>
+                            </Grid>
+                            <Grid item xs={4} sx={{ mt: 1 }}>
+                              <Typography variant="caption" color="text.secondary">Oil Capacity</Typography>
+                              <Typography variant="body2">{selectedVehicle.oilCapacity || "N/A"}</Typography>
+                            </Grid>
+                            <Grid item xs={4} sx={{ mt: 1 }}>
+                              <Typography variant="caption" color="text.secondary">Registration Date</Typography>
+                              <Typography variant="body2">{formatDate(selectedVehicle.registrationDate)}</Typography>
                             </Grid>
                           </Grid>
                         </CardContent>
@@ -475,25 +515,30 @@ function VehicleManagement() {
                   <Grid container spacing={2} mt={2}>
                     <Grid item xs={12} sm={4}>
                       <Card variant="outlined" sx={{ p: 2, borderBottom: "3px solid #16a34a" }}>
-                        <Typography variant="caption" color="text.secondary">REVENUE LICENSE</Typography>
-                        <Typography variant="body2" fontWeight="bold">12 Oct 2026</Typography>
-                        <Typography variant="caption" color="success.main">Status: Valid</Typography>
+                        <Typography variant="caption" color="text.secondary">REVENUE LICENSE EXPIRY</Typography>
+                        <Typography variant="body2" fontWeight="bold">{formatDate(selectedVehicle.revenueLicenseExpiry)}</Typography>
                       </Card>
                     </Grid>
                     <Grid item xs={12} sm={4}>
                       <Card variant="outlined" sx={{ p: 2, borderBottom: "3px solid #16a34a" }}>
                         <Typography variant="caption" color="text.secondary">INSURANCE EXPIRY</Typography>
-                        <Typography variant="body2" fontWeight="bold">05 Jan 2027</Typography>
-                        <Typography variant="caption" color="success.main">Provider: SLIC</Typography>
+                        <Typography variant="body2" fontWeight="bold">{formatDate(selectedVehicle.insuranceExpiry)}</Typography>
                       </Card>
                     </Grid>
                     <Grid item xs={12} sm={4}>
                       <Card variant="outlined" sx={{ p: 2, borderBottom: "3px solid #dc2626" }}>
-                        <Typography variant="caption" color="text.secondary">EMISSION TEST</Typography>
-                        <Typography variant="body2" fontWeight="bold">20 Oct 2026</Typography>
-                        <Typography variant="caption" color="error.main">Upcoming Expiry</Typography>
+                        <Typography variant="caption" color="text.secondary">EMISSION TEST EXPIRY</Typography>
+                        <Typography variant="body2" fontWeight="bold">{formatDate(selectedVehicle.emissionTestExpiry)}</Typography>
                       </Card>
                     </Grid>
+                    {selectedVehicle.remarks && (
+                      <Grid item xs={12}>
+                        <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                          <Typography variant="caption" color="text.secondary">REMARKS / NOTES</Typography>
+                          <Typography variant="body2">{selectedVehicle.remarks}</Typography>
+                        </Card>
+                      </Grid>
+                    )}
                   </Grid>
                 </DialogContent>
                 <DialogActions sx={{ borderTop: "1px solid #f1f5f9", px: 3, py: 2 }}>
@@ -541,38 +586,225 @@ function VehicleManagement() {
           )}
         </Dialog>
 
-        {/* Register New Vehicle Dialog */}
-        <Dialog open={openRegister} onClose={() => setOpenRegister(false)}>
-          <DialogTitle>Register New Vehicle</DialogTitle>
-          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2, minWidth: 320 }}>
-            <TextField
-              label="Registration Number (e.g. WP KA-1234)"
-              value={registerForm.registrationNo}
-              onChange={(e) => setRegisterForm({ ...registerForm, registrationNo: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Department Serial Number"
-              value={registerForm.deptNo}
-              onChange={(e) => setRegisterForm({ ...registerForm, deptNo: e.target.value })}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Vehicle Type</InputLabel>
-              <Select
-                value={registerForm.vehicleType}
-                onChange={(e) => setRegisterForm({ ...registerForm, vehicleType: e.target.value })}
-                label="Vehicle Type"
-              >
-                <MenuItem value="Patrol Car">Patrol Car</MenuItem>
-                <MenuItem value="Motorcycle">Motorcycle</MenuItem>
-                <MenuItem value="Recovery Truck">Recovery Truck</MenuItem>
-              </Select>
-            </FormControl>
+        {/* Register New Vehicle Dialog (20 Fields Form Grid) */}
+        <Dialog open={openRegister} onClose={() => setOpenRegister(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ borderBottom: "1px solid #e2e8f0" }}>Register New Vehicle</DialogTitle>
+          <DialogContent sx={{ pt: 3 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Registration Number (e.g. WP KA-1234)"
+                  required
+                  value={registerForm.registrationNo}
+                  onChange={(e) => setRegisterForm({ ...registerForm, registrationNo: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Department Number (e.g. SLP-TRAF-2026)"
+                  required
+                  value={registerForm.deptNo}
+                  onChange={(e) => setRegisterForm({ ...registerForm, deptNo: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Chassis Number"
+                  value={registerForm.chassisNo}
+                  onChange={(e) => setRegisterForm({ ...registerForm, chassisNo: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Engine Number"
+                  value={registerForm.engineNo}
+                  onChange={(e) => setRegisterForm({ ...registerForm, engineNo: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Vehicle Type</InputLabel>
+                  <Select
+                    value={registerForm.vehicleType}
+                    onChange={(e) => setRegisterForm({ ...registerForm, vehicleType: e.target.value })}
+                    label="Vehicle Type"
+                  >
+                    <MenuItem value="Patrol Car">Patrol Car</MenuItem>
+                    <MenuItem value="Motorcycle">Motorcycle</MenuItem>
+                    <MenuItem value="Recovery Truck">Recovery Truck</MenuItem>
+                    <MenuItem value="Van">Van</MenuItem>
+                    <MenuItem value="SUV">SUV</MenuItem>
+                    <MenuItem value="Jeep">Jeep</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Model / Make"
+                  value={registerForm.makeModel}
+                  onChange={(e) => setRegisterForm({ ...registerForm, makeModel: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Manufacturing Year"
+                  type="number"
+                  value={registerForm.year}
+                  onChange={(e) => setRegisterForm({ ...registerForm, year: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Color"
+                  value={registerForm.color}
+                  onChange={(e) => setRegisterForm({ ...registerForm, color: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Fuel Type</InputLabel>
+                  <Select
+                    value={registerForm.fuelType}
+                    onChange={(e) => setRegisterForm({ ...registerForm, fuelType: e.target.value })}
+                    label="Fuel Type"
+                  >
+                    <MenuItem value="Diesel (Super)">Diesel (Super)</MenuItem>
+                    <MenuItem value="Petrol (Octane 95)">Petrol (Octane 95)</MenuItem>
+                    <MenuItem value="Octane 92">Octane 92</MenuItem>
+                    <MenuItem value="Hybrid / Electric">Hybrid / Electric</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Engine Capacity (e.g. 2500 cc)"
+                  value={registerForm.engineCapacity}
+                  onChange={(e) => setRegisterForm({ ...registerForm, engineCapacity: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Number of Cylinders"
+                  type="number"
+                  value={registerForm.cylinders}
+                  onChange={(e) => setRegisterForm({ ...registerForm, cylinders: Number(e.target.value) })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Tyre Size"
+                  value={registerForm.tyreSize}
+                  onChange={(e) => setRegisterForm({ ...registerForm, tyreSize: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Fuel Tank Capacity"
+                  value={registerForm.fuelTankCapacity}
+                  onChange={(e) => setRegisterForm({ ...registerForm, fuelTankCapacity: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Engine Crankcase Oil Capacity"
+                  value={registerForm.oilCapacity}
+                  onChange={(e) => setRegisterForm({ ...registerForm, oilCapacity: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Vehicle Status</InputLabel>
+                  <Select
+                    value={registerForm.status}
+                    onChange={(e) => setRegisterForm({ ...registerForm, status: e.target.value })}
+                    label="Vehicle Status"
+                  >
+                    <MenuItem value="AVAILABLE">AVAILABLE</MenuItem>
+                    <MenuItem value="MAINTENANCE">MAINTENANCE</MenuItem>
+                    <MenuItem value="OUT OF SERVICE">OUT OF SERVICE</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Registration Date (Auto)"
+                  type="date"
+                  disabled
+                  value={registerForm.registrationDate}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Revenue License Expiry"
+                  type="date"
+                  value={registerForm.revenueLicenseExpiry}
+                  onChange={(e) => setRegisterForm({ ...registerForm, revenueLicenseExpiry: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Insurance Expiry"
+                  type="date"
+                  value={registerForm.insuranceExpiry}
+                  onChange={(e) => setRegisterForm({ ...registerForm, insuranceExpiry: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Emission Test Expiry"
+                  type="date"
+                  value={registerForm.emissionTestExpiry}
+                  onChange={(e) => setRegisterForm({ ...registerForm, emissionTestExpiry: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Assigned Officer</InputLabel>
+                  <Select
+                    value={registerForm.assignedOfficer}
+                    onChange={(e) => setRegisterForm({ ...registerForm, assignedOfficer: e.target.value })}
+                    label="Assigned Officer"
+                  >
+                    <MenuItem value="Unassigned">Unassigned</MenuItem>
+                    {officers.map(o => (
+                      <MenuItem key={o._id} value={o.fullName}>{o.fullName} ({o.rank})</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Remarks"
+                  value={registerForm.remarks}
+                  onChange={(e) => setRegisterForm({ ...registerForm, remarks: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenRegister(false)}>Cancel</Button>
-            <Button variant="contained" onClick={handleSaveRegister} disabled={!registerForm.registrationNo || !registerForm.deptNo}>Register</Button>
+          <DialogActions sx={{ borderTop: "1px solid #e2e8f0", px: 3, py: 2 }}>
+            <Button variant="outlined" onClick={() => setOpenRegister(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveRegister} disabled={!registerForm.registrationNo || !registerForm.deptNo}>Register Vehicle</Button>
           </DialogActions>
         </Dialog>
       </Container>
