@@ -222,8 +222,19 @@ function VehicleManagement() {
   return (
     <LayoutComponent>
       <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
-        {/* Title & Register Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box 
+          display="flex" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          mb={3}
+          sx={{
+            display: "flex !important",
+            flexDirection: "row !important",
+            justifyContent: "space-between !important",
+            alignItems: "center !important",
+            width: "100%"
+          }}
+        >
           <Box>
             <Typography variant="h4" fontWeight="bold" color="primary">
               Vehicle Management
