@@ -11,7 +11,7 @@ import {
   CheckCircle as ActiveIcon, Build as MaintenanceIcon,
   Error as ErrorIcon, Add as AddIcon, Search as SearchIcon,
   Check as CheckIcon, InfoOutlined as InfoIcon,
-  Close as CloseIcon
+  Close as CloseIcon, SwapHoriz as SwapIcon
 } from "@mui/icons-material";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
 
@@ -555,91 +555,120 @@ function VehicleManagement() {
 
         {/* Change / Assign Officer Dialog */}
         <Dialog open={openAssign} onClose={() => setOpenAssign(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-          {selectedVehicle && (
-            <>
-              <Box display="flex" justifyContent="space-between" alignItems="center" p={2} sx={{ borderBottom: "1px solid #f1f5f9" }}>
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  <Avatar sx={{ bgcolor: "#0f172a", width: 40, height: 40 }}>
-                    <CarIcon />
-                  </Avatar>
+          {selectedVehicle && (() => {
+            const isAssigned = selectedVehicle.assignedOfficer && selectedVehicle.assignedOfficer !== "Unassigned";
+            return (
+              <>
+                <Box display="flex" justifyContent="space-between" alignItems="center" p={2.5} sx={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <Box display="flex" alignItems="center" gap={1.5}>
+                    <Avatar sx={{ bgcolor: "#0f172a", width: 40, height: 40 }}>
+                      <CarIcon />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold" color="text.primary">
+                        {isAssigned ? "Change Assigned Officer" : "Assign Officer"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {isAssigned ? "Vehicle Reassignment Process" : `Context: Vehicle: ${selectedVehicle.registrationNo}`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <IconButton onClick={() => setOpenAssign(false)}>
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+
+                <DialogContent sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
+                  {isAssigned && (
+                    <Box sx={{ p: 2, bgcolor: "#eff6ff", borderRadius: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Box display="flex" alignItems="center" gap={1.5}>
+                        <Avatar sx={{ bgcolor: "#1e293b", width: 36, height: 36 }}>
+                          <CarIcon sx={{ fontSize: 18 }} />
+                        </Avatar>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">VEHICLE ID</Typography>
+                          <Typography variant="body2" fontWeight="bold">{selectedVehicle.registrationNo}</Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ textAlign: "right" }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block">CURRENT STATE</Typography>
+                        <Typography variant="body2" color="primary" fontWeight="bold">Current Officer: {selectedVehicle.assignedOfficer}</Typography>
+                      </Box>
+                    </Box>
+                  )}
+
+                  <Box sx={{ p: 2, bgcolor: "#f8fafc", borderRadius: 2, borderLeft: "4px solid #475569", display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                    <InfoIcon color="action" sx={{ fontSize: 18, mt: 0.2 }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12, lineHeight: 1.5 }}>
+                      The transfer date will be recorded as the return date for the current officer and the assignment date for the new officer.
+                    </Typography>
+                  </Box>
+
                   <Box>
-                    <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Assign Officer</Typography>
-                    <Typography variant="caption" color="text.secondary">Context: Vehicle: {selectedVehicle.registrationNo}</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block" mb={1}>
+                      {isAssigned ? "NEW OFFICER" : "SELECT OFFICER"}
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <Select
+                        value={selectedOfficerId}
+                        onChange={(e) => setSelectedOfficerId(e.target.value)}
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <span style={{ color: "#94a3b8" }}>{isAssigned ? "Select New Officer" : "Search for available officers..."}</span>;
+                          }
+                          return selected;
+                        }}
+                      >
+                        <MenuItem value="Unassigned"><em>Unassigned / Release</em></MenuItem>
+                        {officers.map((o) => (
+                          <MenuItem key={o._id} value={o.fullName}>
+                            {o.fullName} ({o.rank} | {o.policeId})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Box>
-                </Box>
-                <IconButton onClick={() => setOpenAssign(false)}>
-                  <CloseIcon />
-                </IconButton>
-              </Box>
 
-              <DialogContent sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block" mb={1}>SELECT OFFICER</Typography>
-                  <FormControl fullWidth size="small">
-                    <Select
-                      value={selectedOfficerId}
-                      onChange={(e) => setSelectedOfficerId(e.target.value)}
-                      displayEmpty
-                      renderValue={(selected) => {
-                        if (!selected) {
-                          return <span style={{ color: "#94a3b8" }}>Search for available officers...</span>;
-                        }
-                        return selected;
-                      }}
-                    >
-                      <MenuItem value="Unassigned"><em>Unassigned / Release</em></MenuItem>
-                      {officers.map((o) => (
-                        <MenuItem key={o._id} value={o.fullName}>
-                          {o.fullName} ({o.rank} | {o.policeId})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block" mb={1}>ASSIGNMENT DATE</Typography>
-                  <Box display="flex" alignItems="center" gap={2}>
-                    <TextField
-                      type="date"
-                      size="small"
-                      value={assignmentDate}
-                      onChange={(e) => setAssignmentDate(e.target.value)}
-                      sx={{ flex: 1 }}
-                    />
-                    <Chip label="DEFAULT: TODAY" size="small" sx={{ fontSize: 10, bgcolor: "#e2e8f0", fontWeight: "bold" }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" display="block" mb={1}>
+                      {isAssigned ? "TRANSFER DATE" : "ASSIGNMENT DATE"}
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <TextField
+                        type="date"
+                        size="small"
+                        value={assignmentDate}
+                        onChange={(e) => setAssignmentDate(e.target.value)}
+                        sx={{ flex: 1 }}
+                      />
+                      {!isAssigned && <Chip label="DEFAULT: TODAY" size="small" sx={{ fontSize: 10, bgcolor: "#e2e8f0", fontWeight: "bold" }} />}
+                    </Box>
                   </Box>
-                </Box>
+                </DialogContent>
 
-                <Box sx={{ p: 2, bgcolor: "#eff6ff", borderRadius: 2, border: "1px solid #dbeafe", display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-                  <InfoIcon color="primary" sx={{ fontSize: 18, mt: 0.2 }} />
-                  <Typography variant="body2" color="primary.dark" sx={{ fontSize: 12, lineHeight: 1.5 }}>
-                    Assigning an officer to this vehicle will update the unit's active patrol status and reflect in the Duty Management dashboard immediately.
-                  </Typography>
-                </Box>
-              </DialogContent>
-
-              <DialogActions sx={{ p: 3, pt: 0, justifyContent: "flex-end", gap: 2 }}>
-                <Button onClick={() => setOpenAssign(false)} sx={{ textTransform: "none", color: "text.secondary", fontWeight: "bold" }}>Cancel</Button>
-                <Button
-                  variant="contained"
-                  onClick={handleSaveAssignment}
-                  disabled={!selectedOfficerId}
-                  startIcon={<CheckIcon />}
-                  sx={{
-                    bgcolor: "#0f172a",
-                    "&:hover": { bgcolor: "#1e293b" },
-                    textTransform: "none",
-                    borderRadius: 2,
-                    px: 3,
-                    fontWeight: "bold"
-                  }}
-                >
-                  Assign
-                </Button>
-              </DialogActions>
-            </>
-          )}
+                <DialogActions sx={{ p: 3, pt: 0, justifyContent: "flex-end", gap: 2 }}>
+                  <Button onClick={() => setOpenAssign(false)} sx={{ textTransform: "none", color: "text.secondary", fontWeight: "bold" }}>Cancel</Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveAssignment}
+                    disabled={!selectedOfficerId}
+                    startIcon={isAssigned ? <SwapIcon /> : <CheckIcon />}
+                    sx={{
+                      bgcolor: "#0f172a",
+                      "&:hover": { bgcolor: "#1e293b" },
+                      textTransform: "none",
+                      borderRadius: 2,
+                      px: 3,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    {isAssigned ? "Save Transfer" : "Assign"}
+                  </Button>
+                </DialogActions>
+              </>
+            );
+          })()}
         </Dialog>
 
         {/* Register New Vehicle Dialog (20 Fields Form Grid) */}
