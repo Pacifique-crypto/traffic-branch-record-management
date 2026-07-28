@@ -16,6 +16,7 @@ import {
   MoreVert as MoreVertIcon, Delete as DeleteIcon
 } from "@mui/icons-material";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
+import { FiTruck, FiCheck, FiX } from "react-icons/fi";
 
 // Helper to determine icon based on type
 const getVehicleIcon = (type) => {
@@ -339,86 +340,58 @@ function VehicleManagement() {
 
         {/* ── OIC: New Vehicle Approvals ── */}
         {userRole === "OIC" && pendingVehicles.length > 0 && (
-          <Paper sx={{ p: 3, mb: 4, borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <Typography variant="h6" fontWeight="bold" color="primary">New Vehicle Approvals</Typography>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead sx={{ bgcolor: "#f8fafc" }}>
-                  <TableRow>
-                    <TableCell fontWeight="bold">REG NO</TableCell>
-                    <TableCell fontWeight="bold">VEHICLE TYPE</TableCell>
-                    <TableCell fontWeight="bold">ASSIGNED BRANCH</TableCell>
-                    <TableCell align="right" fontWeight="bold">APPROVE / REJECT</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {pendingVehicles.map((v) => (
-                    <TableRow key={v._id} hover>
-                      <TableCell onClick={() => handleOpenDetails(v)} style={{ cursor: "pointer" }} title="View Details">
-                        <Typography variant="body2" fontWeight="bold" color="primary.main" sx={{ textDecoration: "underline" }}>
-                          {v.registrationNo}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">VIN: {v.chassisNo || "N/A"}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          {getVehicleIcon(v.vehicleType)}
-                          <Typography variant="body2">{v.vehicleType}</Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{v.branch || "Negombo Traffic Div."}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box display="flex" justifyContent="flex-end" gap={1}>
-                          <Button
-                            variant="contained"
-                            color="success"
-                            size="small"
-                            onClick={() => handleApproveVehicle(v._id)}
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: "bold",
-                              bgcolor: "#16a34a",
-                              color: "#ffffff",
-                              "&:hover": { bgcolor: "#15803d" },
-                              borderRadius: 1.5,
-                              fontSize: 11,
-                              px: 2,
-                              py: 0.5
-                            }}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            onClick={() => handleRejectVehicle(v._id)}
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: "bold",
-                              bgcolor: "#dc2626",
-                              color: "#ffffff",
-                              "&:hover": { bgcolor: "#b91c1c" },
-                              borderRadius: 1.5,
-                              fontSize: 11,
-                              px: 2,
-                              py: 0.5
-                            }}
-                          >
-                            Reject
-                          </Button>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
+          <div className="um-section-card" style={{ marginBottom: 24 }}>
+            <div className="um-section-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <FiTruck size={18} color="#1e3a5f" />
+                <h3 className="um-section-title">New Vehicle Approvals</h3>
+              </div>
+            </div>
+            <table className="um-table">
+              <thead>
+                <tr>
+                  <th>REG NO</th>
+                  <th>VEHICLE TYPE</th>
+                  <th>ASSIGNED BRANCH</th>
+                  <th>APPROVE / REJECT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingVehicles.map(v => (
+                  <tr key={v._id} className="um-tr">
+                    <td onClick={() => handleOpenDetails(v)} style={{ cursor: "pointer" }} title="View Vehicle Details">
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div className="um-avatar" style={{ background: "#0f172a" }}>V</div>
+                        <div>
+                          <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold" }}>{v.registrationNo}</p>
+                          <p style={{ fontSize: 11, color: "#3b82f6", textDecoration: "underline", margin: 0 }}>Click to view details</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <p style={{ fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
+                        {getVehicleIcon(v.vehicleType)}
+                        {v.vehicleType}
+                      </p>
+                      <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>VIN: {v.chassisNo || "N/A"}</p>
+                    </td>
+                    <td><span className="um-role-badge">{v.branch || "Negombo Traffic Div."}</span></td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="um-approve-btn" onClick={() => handleApproveVehicle(v._id)} title="Approve">
+                          <FiCheck size={14} />
+                        </button>
+                        <button className="um-reject-btn" onClick={() => handleRejectVehicle(v._id)} title="Reject">
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="um-view-all">View all {pendingVehicles.length} pending requests</p>
+          </div>
         )}
 
         {/* Filter Toolbar */}
