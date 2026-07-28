@@ -3,7 +3,8 @@ import {
   Container, Typography, Box, Paper, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Button, Grid, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel,
-  FormControl, Chip, CircularProgress, IconButton, Avatar, Card, CardContent
+  FormControl, Chip, CircularProgress, IconButton, Avatar, Card, CardContent,
+  Menu
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon, DirectionsCar as CarIcon,
@@ -11,7 +12,8 @@ import {
   CheckCircle as ActiveIcon, Build as MaintenanceIcon,
   Error as ErrorIcon, Add as AddIcon, Search as SearchIcon,
   Check as CheckIcon, InfoOutlined as InfoIcon,
-  Close as CloseIcon, SwapHoriz as SwapIcon
+  Close as CloseIcon, SwapHoriz as SwapIcon,
+  MoreVert as MoreVertIcon, Delete as DeleteIcon
 } from "@mui/icons-material";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
 
@@ -73,8 +75,35 @@ function VehicleManagement() {
     insuranceExpiry: "",
     emissionTestExpiry: "",
     remarks: "",
-    assignedOfficer: "Unassigned"
+    assignedOfficer: "Unassigned",
+    branch: "Negombo Traffic Div."
   });
+
+  // Menu Anchor States
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [menuVehicle, setMenuVehicle] = useState(null);
+
+  const handleMenuOpen = (event, vehicle) => {
+    setMenuAnchor(event.currentTarget);
+    setMenuVehicle(vehicle);
+  };
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+    setMenuVehicle(null);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this vehicle record?")) return;
+    try {
+      setLoading(true);
+      await deleteVehicle(id);
+      fetchData();
+    } catch (err) {
+      alert("Error deleting vehicle");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -168,7 +197,8 @@ function VehicleManagement() {
         insuranceExpiry: "",
         emissionTestExpiry: "",
         remarks: "",
-        assignedOfficer: "Unassigned"
+        assignedOfficer: "Unassigned",
+        branch: "Negombo Traffic Div."
       });
       fetchData();
     } catch (err) {
@@ -310,6 +340,7 @@ function VehicleManagement() {
                 <TableCell fontWeight="bold">REG NO</TableCell>
                 <TableCell fontWeight="bold">VEHICLE TYPE</TableCell>
                 <TableCell fontWeight="bold">ASSIGNED OFFICER</TableCell>
+                <TableCell fontWeight="bold">BRANCH</TableCell>
                 <TableCell fontWeight="bold">STATUS</TableCell>
                 <TableCell align="right" fontWeight="bold">ACTION</TableCell>
               </TableRow>
@@ -352,6 +383,9 @@ function VehicleManagement() {
                         )}
                       </TableCell>
                       <TableCell>
+                        <Typography variant="body2">{v.branch || "Negombo Traffic Div."}</Typography>
+                      </TableCell>
+                      <TableCell>
                         <Chip
                           label={v.status === "AVAILABLE" ? "Active" : v.status === "MAINTENANCE" ? "Maintenance" : "Out of Service"}
                           size="small"
@@ -361,9 +395,6 @@ function VehicleManagement() {
                       </TableCell>
                       <TableCell align="right">
                         <Box display="flex" justifyContent="flex-end" alignItems="center" gap={1}>
-                          <IconButton size="small" color="primary" onClick={() => handleOpenDetails(v)}>
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
                           {userRole === "IT Officer" && (
                             <Button
                               variant="contained"
@@ -382,6 +413,9 @@ function VehicleManagement() {
                               {isAssigned ? "Change Officer" : "Assign Officer"}
                             </Button>
                           )}
+                          <IconButton size="small" onClick={(e) => handleMenuOpen(e, v)}>
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -878,6 +912,21 @@ function VehicleManagement() {
                 </FormControl>
               </Grid>
               <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Assigned Branch</InputLabel>
+                  <Select
+                    value={registerForm.branch}
+                    onChange={(e) => setRegisterForm({ ...registerForm, branch: e.target.value })}
+                    label="Assigned Branch"
+                  >
+                    <MenuItem value="Negombo Traffic Div.">Negombo Traffic Div.</MenuItem>
+                    <MenuItem value="Negombo Central Div.">Negombo Central Div.</MenuItem>
+                    <MenuItem value="Kochchikade Post">Kochchikade Post</MenuItem>
+                    <MenuItem value="Katunayake Highway Div.">Katunayake Highway Div.</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   label="Remarks"
                   value={registerForm.remarks}
@@ -892,6 +941,32 @@ function VehicleManagement() {
             <Button variant="contained" onClick={handleSaveRegister} disabled={!registerForm.registrationNo || !registerForm.deptNo}>Register Vehicle</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Actions Dropdown Menu */}
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+        >
+          <MenuItem onClick={() => {
+            handleOpenDetails(menuVehicle);
+            handleMenuClose();
+          }}>
+            <VisibilityIcon fontSize="small" sx={{ mr: 1, color: "primary.main" }} />
+            View Details
+          </MenuItem>
+          {userRole === "IT Officer" && (
+            <MenuItem onClick={() => {
+              if (menuVehicle) {
+                handleDelete(menuVehicle._id);
+              }
+              handleMenuClose();
+            }} sx={{ color: "error.main" }}>
+              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+              Delete Record
+            </MenuItem>
+          )}
+        </Menu>
       </Container>
     </LayoutComponent>
   );
