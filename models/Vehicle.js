@@ -48,6 +48,10 @@ const vehicleSchema = new mongoose.Schema(
     insuranceExpiry: Date,
     emissionTestExpiry: Date,
     remarks: String,
+    branch: {
+      type: String,
+      default: "Negombo Traffic Div."
+    },
   },
   {
     timestamps: true,
