@@ -10,7 +10,7 @@ import {
   TwoWheeler as BikeIcon, LocalShipping as RecoveryIcon,
   CheckCircle as ActiveIcon, Build as MaintenanceIcon,
   Error as ErrorIcon, Add as AddIcon, Search as SearchIcon,
-  CheckCircleOutline as CheckIcon, InfoOutlined as InfoIcon,
+  Check as CheckIcon, InfoOutlined as InfoIcon,
   Close as CloseIcon
 } from "@mui/icons-material";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
