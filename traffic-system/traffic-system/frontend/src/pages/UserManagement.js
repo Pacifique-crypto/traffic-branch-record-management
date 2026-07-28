@@ -271,14 +271,6 @@ function UserManagement() {
             <h3 className="um-section-title">
               Officer Registry
             </h3>
-            <div style={{ display: "flex", gap: 8 }}>
-              {userRole === "OIC" && (
-                <>
-                  <button className="um-icon-btn" title="Download"><FiDownload size={15} /></button>
-                  <button className="um-icon-btn" title="Print"><FiPrinter size={15} /></button>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Search */}
