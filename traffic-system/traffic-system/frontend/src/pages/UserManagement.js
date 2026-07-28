@@ -233,12 +233,12 @@ function UserManagement() {
               <tbody>
                 {approvals.map(a => (
                   <tr key={a.id} className="um-tr">
-                    <td>
+                    <td onClick={() => setDetailsOfficer(a)} style={{ cursor: "pointer" }} title="View Officer Details">
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div className="um-avatar">{a.avatar}</div>
                         <div>
-                          <p className="um-officer-name">{a.fullName}</p>
-                           
+                          <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold" }}>{a.fullName}</p>
+                          <p style={{ fontSize: 11, color: "#3b82f6", textDecoration: "underline", margin: 0 }}>Click to view details</p>
                         </div>
                       </div>
                     </td>
@@ -429,6 +429,7 @@ function UserManagement() {
       {detailsOfficer && (
         <DetailsModal
           officer={detailsOfficer}
+          showEdit={userRole === "IT Officer"}
           onClose={() => setDetailsOfficer(null)}
           onEdit={(o) => { setEditTarget(o); setDetailsOfficer(null); }}
         />
@@ -609,7 +610,7 @@ function RegisterModal({ onClose, onSave }) {
 }
 
 // ─── Officer Details Modal ───────────────────────────────────────
-function DetailsModal({ officer, onClose, onEdit }) {
+function DetailsModal({ officer, onClose, onEdit, showEdit }) {
   return (
     <div className="um-modal-overlay">
       <div className="um-modal um-details-modal">
@@ -659,7 +660,7 @@ function DetailsModal({ officer, onClose, onEdit }) {
 
         <div className="um-modal-footer">
           <button className="um-cancel-btn" onClick={onClose}>Close</button>
-          <button className="um-submit-btn" onClick={() => onEdit(officer)}>✏ Edit Details</button>
+          {showEdit && <button className="um-submit-btn" onClick={() => onEdit(officer)}>✏ Edit Details</button>}
         </div>
       </div>
     </div>
