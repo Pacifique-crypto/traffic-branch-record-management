@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
- 
+import ITLayout from "../layouts/ITLayout";
+import { getOfficers } from "../api";
 
 const initialNotifications = [
   {
     id: 1,
     title: "System Maintenance",
-    desc: "",
+    desc: "Routine server backup completed.",
     time: "2 days ago",
     read: false,
     type: "system",
+    icon: "⚙️"
   },
   {
     id: 2,
@@ -18,26 +20,46 @@ const initialNotifications = [
     time: "2 hours ago",
     read: true,
     type: "shift",
-  },
-  {
-    id: 3,
-    title: "Emergency Alert",
-    desc: "",
-    time: "15 min ago",
-    read: true,
-    type: "emergency",
+    icon: "📅"
   },
 ];
 
 const typeColor = (type) => {
-  if (type === "emergency") return "#ef4444";
+  if (type === "emergency" || type === "rejection") return "#ef4444";
   if (type === "system")    return "#3b82f6";
   if (type === "shift")     return "#f59e0b";
   return "#64748b";
 };
 
 function Notifications() {
+  const userRole = localStorage.getItem("userRole") || "IT Officer";
+  const LayoutComponent = userRole === "OIC" ? OICLayout : ITLayout;
+
   const [notifications, setNotifications] = useState(initialNotifications);
+
+  useEffect(() => {
+    const fetchRejectionNotifs = async () => {
+      try {
+        const offs = await getOfficers();
+        if (Array.isArray(offs)) {
+          const rejected = offs.filter(o => o.status === "Rejected");
+          const rejectedNotifs = rejected.map(r => ({
+            id: `rej-${r._id || r.id}`,
+            title: `Officer Registration Rejected: ${r.fullName}`,
+            desc: `OIC Remarks: "${r.rejectionRemarks || "No reason specified"}" (Username: ${r.username || r.policeId})`,
+            time: r.updatedAt ? new Date(r.updatedAt).toLocaleDateString() : "Recently",
+            read: false,
+            type: "rejection",
+            icon: "⚠️"
+          }));
+          setNotifications(prev => [...rejectedNotifs, ...initialNotifications]);
+        }
+      } catch (err) {
+        console.error("Failed to load notifications:", err);
+      }
+    };
+    fetchRejectionNotifs();
+  }, []);
 
   const unread = notifications.filter((n) => !n.read).length;
 
@@ -54,7 +76,7 @@ function Notifications() {
   };
 
   return (
-    <OICLayout>
+    <LayoutComponent>
       <div className="page-box">
         <div className="notif-header-row">
           <h2 className="page-heading" style={{ marginBottom: 0 }}>Notifications</h2>
@@ -92,7 +114,7 @@ function Notifications() {
 
               {/* Icon */}
               <div className="notif-icon-wrap" style={{ background: `${typeColor(n.type)}18` }}>
-                <span style={{ fontSize: "20px" }}>{n.icon}</span>
+                <span style={{ fontSize: "20px" }}>{n.icon || "🔔"}</span>
               </div>
 
               {/* Content */}
@@ -119,7 +141,7 @@ function Notifications() {
           ))}
         </div>
       </div>
-    </OICLayout>
+    </LayoutComponent>
   );
 }
 

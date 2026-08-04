@@ -67,6 +67,11 @@ const officerSchema = new mongoose.Schema({
   status: {
     type: String,
     default: "Pending"
+  },
+
+  rejectionRemarks: {
+    type: String,
+    default: ""
   }
 
 }, { timestamps: true });

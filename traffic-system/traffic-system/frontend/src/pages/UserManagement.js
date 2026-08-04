@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   FiUsers, FiCheckCircle, FiXCircle, FiMoreVertical,
   FiUserPlus, FiEye, FiEyeOff, FiCheck, FiX, FiSearch,
-  FiDownload, FiPrinter, FiFilter
+  FiDownload, FiPrinter, FiFilter, FiAlertTriangle
 } from "react-icons/fi";
 import { getOfficers, registerOfficer, updateOfficer, deleteOfficer } from "../api";
 
@@ -39,13 +39,14 @@ function UserManagement() {
   const [detailsOfficer, setDetailsOfficer] = useState(null);
   const [resetTarget, setResetTarget]     = useState(null);
   const [editTarget, setEditTarget]       = useState(null);
+  const [rejectTarget, setRejectTarget]   = useState(null);
 
   const fetchOfficers = async () => {
     try {
       const data = await getOfficers();
       if (Array.isArray(data)) {
         const activeOrDeactive = data
-          .filter(o => o.status === "Active" || o.status === "Deactive")
+          .filter(o => o.status === "Active" || o.status === "Deactive" || o.status === "Rejected")
           .map(o => ({ ...o, id: o._id }));
         const pending = data
           .filter(o => o.status === "Pending")
@@ -105,10 +106,11 @@ function UserManagement() {
     }
   };
 
-  const handleReject = async (id) => {
+  const handleConfirmReject = async (id, remarks) => {
     try {
-      const res = await deleteOfficer(id);
+      const res = await updateOfficer(id, { status: "Rejected", rejectionRemarks: remarks });
       if (res && !res.error) {
+        setRejectTarget(null);
         fetchOfficers();
       } else {
         alert(res.error || "Failed to reject officer.");
@@ -255,7 +257,7 @@ function UserManagement() {
                         <button className="um-approve-btn" onClick={() => handleApprove(a.id)} title="Approve">
                           <FiCheck size={14} />
                         </button>
-                        <button className="um-reject-btn" onClick={() => handleReject(a.id)} title="Reject">
+                        <button className="um-reject-btn" onClick={() => setRejectTarget(a)} title="Reject">
                           <FiX size={14} />
                         </button>
                       </div>
@@ -307,6 +309,7 @@ function UserManagement() {
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Deactive">Deactive</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
 
@@ -466,6 +469,15 @@ function UserManagement() {
         <ResetPwModal
           officer={resetTarget}
           onClose={() => setResetTarget(null)}
+        />
+      )}
+
+      {/* ══ REJECT CONFIRMATION MODAL (OIC) ══ */}
+      {rejectTarget && (
+        <RejectConfirmModal
+          officer={rejectTarget}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={handleConfirmReject}
         />
       )}
     </LayoutComponent>
@@ -941,6 +953,76 @@ function ResetPwModal({ officer, onClose }) {
             <button className="um-submit-btn" onClick={handleSet}>Set New Password</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Reject Confirmation Modal ───────────────────────────────────
+function RejectConfirmModal({ officer, onClose, onConfirm }) {
+  const [remarks, setRemarks] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    await onConfirm(officer.id || officer._id, remarks);
+    setLoading(false);
+  };
+
+  return (
+    <div className="um-modal-overlay">
+      <div className="um-modal" style={{ maxWidth: 460 }}>
+        <div className="um-modal-header" style={{ borderBottom: "1px solid #fee2e2" }}>
+          <div>
+            <h2 className="um-modal-title" style={{ color: "#dc2626", display: "flex", alignItems: "center", gap: 8 }}>
+              <FiAlertTriangle size={20} color="#dc2626" /> Confirm Officer Rejection
+            </h2>
+            <p className="um-modal-sub">Please review before rejecting this registration request.</p>
+          </div>
+          <button className="um-modal-close" onClick={onClose}><FiX size={18} /></button>
+        </div>
+
+        <div className="um-modal-body" style={{ padding: "20px 24px" }}>
+          <div style={{
+            background: "#fef2f2",
+            border: "1px solid #fca5a5",
+            borderRadius: "10px",
+            padding: "14px 16px",
+            marginBottom: "18px"
+          }}>
+            <p style={{ margin: 0, fontSize: "14px", color: "#991b1b", fontWeight: "600" }}>
+              Are you sure you want to reject this Officer?
+            </p>
+            <div style={{ marginTop: "8px", fontSize: "13px", color: "#7f1d1d" }}>
+              <strong>Officer:</strong> {officer.fullName} <br/>
+              <strong>Username:</strong> {officer.username || officer.policeId} | <strong>Rank:</strong> {officer.rank || "Constable"}
+            </div>
+          </div>
+
+          <div className="um-field-full">
+            <label className="um-field-label">REJECTION REMARKS / REASON</label>
+            <textarea
+              className="um-field-input um-textarea"
+              placeholder="Enter rejection reason or remarks for IT Officer (e.g. Incomplete credentials, Incorrect Police Unit)..."
+              value={remarks}
+              onChange={e => setRemarks(e.target.value)}
+              rows={3}
+            />
+            <p className="um-field-hint">These remarks will be notified to the IT Officer workspace.</p>
+          </div>
+        </div>
+
+        <div className="um-modal-footer">
+          <button className="um-cancel-btn" onClick={onClose} disabled={loading}>Cancel</button>
+          <button
+            className="um-submit-btn"
+            style={{ backgroundColor: "#dc2626", borderColor: "#dc2626" }}
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Rejecting..." : "Confirm Rejection"}
+          </button>
+        </div>
       </div>
     </div>
   );
