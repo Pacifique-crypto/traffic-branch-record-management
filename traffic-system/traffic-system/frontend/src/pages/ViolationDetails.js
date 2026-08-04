@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiPrinter, FiPlus, FiUpload } from "react-icons/fi";
-import { getViolationById, updateViolation } from "../api";
+import { getViolationById, getViolations, updateViolation } from "../api";
 
 const vData = {
   "TR-2023-8842": {
@@ -58,18 +58,37 @@ function ViolationDetails() {
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        const result = await getViolationById(id);
-        setData(result);
-        if (result.remarks) {
-          if (Array.isArray(result.remarks)) {
-            setRemarks(result.remarks);
-          } else if (typeof result.remarks === "string") {
-            setRemarks([{ text: result.remarks, author: "Reporting Officer" }]);
+        let result = await getViolationById(id);
+
+        // If direct lookup returned error, message, or empty object:
+        if (!result || result.message || !result.violationType) {
+          const list = await getViolations();
+          if (Array.isArray(list)) {
+            const cleanId = id.toUpperCase();
+            const found = list.find(v => {
+              const vId = (v._id || v.id || "").toString().toUpperCase();
+              const vRef = (v.referenceNumber || `VO-${vId.slice(-4)}`).toUpperCase();
+              return vId === cleanId || vRef === cleanId || vId.endsWith(cleanId.replace(/^VO-/, ""));
+            });
+            if (found) {
+              result = found;
+            }
+          }
+        }
+
+        if (result && !result.message) {
+          setData(result);
+          if (result.remarks) {
+            if (Array.isArray(result.remarks)) {
+              setRemarks(result.remarks);
+            } else if (typeof result.remarks === "string") {
+              setRemarks([{ text: result.remarks, author: "Reporting Officer" }]);
+            } else {
+              setRemarks([]);
+            }
           } else {
             setRemarks([]);
           }
-        } else {
-          setRemarks([]);
         }
       } catch (err) {
         console.error("Failed to load violation details:", err);

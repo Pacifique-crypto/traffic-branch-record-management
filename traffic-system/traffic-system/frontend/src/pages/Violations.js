@@ -230,9 +230,10 @@ function Violations() {
                   const ac = actionColors[actionVal] || { bg: "#f1f5f9", color: "#374151" };
                   const dateStr = v.violationDate || "";
                   const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");
+                  const mongoId = v._id || v.id;
                   const refNo = v.referenceNumber || (v.id && v.id.startsWith("VO-") ? v.id : `VO-${(v.id || v._id || "").slice(-4).toUpperCase()}`);
                   return (
-                    <tr key={v.id} className="ar-tr" onClick={() => navigate(`/tor/${refNo}`)}>
+                    <tr key={mongoId} className="ar-tr" onClick={() => navigate(`/tor/${mongoId}`)}>
                       <td className="ar-ref">{refNo}</td>
                       <td className="ar-datetime">
                         <span>{datePart}</span><br/>
@@ -251,7 +252,7 @@ function Violations() {
                           ? `${v.submittingOfficer} & ${v.assistantOfficer}`
                           : v.submittingOfficer || v.assistantOfficer || v.officer || "Unknown"}
                       </td>
-                      <td onClick={(e) => { e.stopPropagation(); navigate(`/tor/${refNo}`); }}>
+                      <td onClick={(e) => { e.stopPropagation(); navigate(`/tor/${mongoId}`); }}>
                         <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
                       </td>
                       {isOIC && (
