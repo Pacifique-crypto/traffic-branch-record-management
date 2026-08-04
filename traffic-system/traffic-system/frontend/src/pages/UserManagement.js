@@ -231,25 +231,23 @@ function UserManagement() {
                   <th>RANK</th>
                   <th>REQUESTED ROLE</th>
                   <th>APPROVE / REJECT</th>
+                  <th>DETAILS</th>
                 </tr>
               </thead>
               <tbody>
                 {approvals.map(a => (
                   <tr key={a.id} className="um-tr">
-                    <td onClick={() => setDetailsOfficer(a)} style={{ cursor: "pointer" }} title="View Officer Details">
+                    <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div className="um-avatar">{a.avatar}</div>
-                        <div>
-                          <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold" }}>{a.fullName}</p>
-                          <p style={{ fontSize: 11, color: "#3b82f6", textDecoration: "underline", margin: 0 }}>Click to view details</p>
-                        </div>
+                        <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold", margin: 0 }}>{a.fullName}</p>
                       </div>
                     </td>
                     <td>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{a.username || a.policeId || "-"}</p>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", margin: 0 }}>{a.username || a.policeId || "-"}</p>
                     </td>
                     <td>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569" }}>{a.rank || "Constable"}</p>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>{a.rank || "Constable"}</p>
                     </td>
                     <td><span className="um-role-badge">{a.requestedRole}</span></td>
                     <td>
@@ -261,6 +259,14 @@ function UserManagement() {
                           <FiX size={14} />
                         </button>
                       </div>
+                    </td>
+                    <td>
+                      <FiMoreVertical
+                        size={18}
+                        onClick={() => setDetailsOfficer(a)}
+                        style={{ cursor: "pointer", color: "#64748b" }}
+                        title="View Full Details"
+                      />
                     </td>
                   </tr>
                 ))}
