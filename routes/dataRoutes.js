@@ -281,14 +281,24 @@ router.get("/violations", verifyToken, authorizeRoles("officer", "oic", "admin")
 router.get("/violations/:id", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
     const mongoose = require("mongoose");
-    let query = {};
+    let violation = null;
+
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      query = { _id: req.params.id };
-    } else {
-      query = { referenceNumber: req.params.id };
+      violation = await Violation.findById(req.params.id);
     }
 
-    const violation = await Violation.findOne(query);
+    if (!violation) {
+      violation = await Violation.findOne({ referenceNumber: req.params.id });
+    }
+
+    if (!violation) {
+      const paramUpper = req.params.id.toUpperCase();
+      const allViolations = await Violation.find();
+      violation = allViolations.find(v => {
+        const computedRef = (v.referenceNumber || `VO-${v._id.toString().slice(-4).toUpperCase()}`).toUpperCase();
+        return computedRef === paramUpper || v._id.toString().toUpperCase().endsWith(paramUpper.replace(/^VO-/, ""));
+      });
+    }
 
     if (!violation) {
       return res.status(404).json({
@@ -375,24 +385,29 @@ router.post("/violations", verifyToken, authorizeRoles("officer", "oic", "admin"
 router.put("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const mongoose = require("mongoose");
-    let query = {};
-    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      query = { _id: req.params.id };
-    } else {
-      query = { referenceNumber: req.params.id };
-    }
+    let violation = null;
 
-    const violation = await Violation.findOneAndUpdate(
-      query,
-      req.body,
-      {
-        new: true,
-      }
-    );
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      violation = await Violation.findById(req.params.id);
+    }
+    if (!violation) {
+      violation = await Violation.findOne({ referenceNumber: req.params.id });
+    }
+    if (!violation) {
+      const paramUpper = req.params.id.toUpperCase();
+      const allViolations = await Violation.find();
+      violation = allViolations.find(v => {
+        const computedRef = (v.referenceNumber || `VO-${v._id.toString().slice(-4).toUpperCase()}`).toUpperCase();
+        return computedRef === paramUpper || v._id.toString().toUpperCase().endsWith(paramUpper.replace(/^VO-/, ""));
+      });
+    }
 
     if (!violation) {
       return res.status(404).json({ message: "Violation not found" });
     }
+
+    Object.assign(violation, req.body);
+    await violation.save();
 
     const obj = violation.toObject();
     obj.referenceNumber = obj.referenceNumber || `VO-${(obj._id || "").toString().slice(-4).toUpperCase()}`;
@@ -413,14 +428,28 @@ router.put("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async
 router.delete("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     const mongoose = require("mongoose");
-    let query = {};
+    let targetId = null;
+
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      query = { _id: req.params.id };
+      targetId = req.params.id;
     } else {
-      query = { referenceNumber: req.params.id };
+      const violation = await Violation.findOne({ referenceNumber: req.params.id });
+      if (violation) {
+        targetId = violation._id;
+      } else {
+        const paramUpper = req.params.id.toUpperCase();
+        const allViolations = await Violation.find();
+        const found = allViolations.find(v => {
+          const computedRef = (v.referenceNumber || `VO-${v._id.toString().slice(-4).toUpperCase()}`).toUpperCase();
+          return computedRef === paramUpper || v._id.toString().toUpperCase().endsWith(paramUpper.replace(/^VO-/, ""));
+        });
+        if (found) targetId = found._id;
+      }
     }
 
-    await Violation.findOneAndDelete(query);
+    if (targetId) {
+      await Violation.findByIdAndDelete(targetId);
+    }
 
     res.json({
       message: "Violation deleted successfully",
