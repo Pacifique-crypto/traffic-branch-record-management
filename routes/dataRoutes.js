@@ -257,6 +257,7 @@ router.post("/accidents", verifyToken, authorizeRoles("officer", "oic", "admin")
 
 
 // ==============================
+// ==============================
 // ✅ GET ALL VIOLATIONS
 // ==============================
 router.get("/violations", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
@@ -264,7 +265,8 @@ router.get("/violations", verifyToken, authorizeRoles("officer", "oic", "admin")
     const violations = await Violation.find({}, { evidencePhoto: 0, voiceNote: 0, attachment: 0 }).sort({ createdAt: -1 });
     const mapped = violations.map(v => {
       const obj = v.toObject();
-      obj.id = obj.id || obj._id;
+      obj.referenceNumber = obj.referenceNumber || `VO-${(obj._id || "").toString().slice(-4).toUpperCase()}`;
+      obj.id = obj.referenceNumber || obj._id.toString();
       return obj;
     });
     res.json(mapped);
@@ -278,7 +280,15 @@ router.get("/violations", verifyToken, authorizeRoles("officer", "oic", "admin")
 // ==============================
 router.get("/violations/:id", verifyToken, authorizeRoles("officer", "oic", "admin"), async (req, res) => {
   try {
-    const violation = await Violation.findById(req.params.id);
+    const mongoose = require("mongoose");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      query = { _id: req.params.id };
+    } else {
+      query = { referenceNumber: req.params.id };
+    }
+
+    const violation = await Violation.findOne(query);
 
     if (!violation) {
       return res.status(404).json({
@@ -287,7 +297,8 @@ router.get("/violations/:id", verifyToken, authorizeRoles("officer", "oic", "adm
     }
 
     const obj = violation.toObject();
-    obj.id = obj.id || obj._id;
+    obj.referenceNumber = obj.referenceNumber || `VO-${(obj._id || "").toString().slice(-4).toUpperCase()}`;
+    obj.id = obj.referenceNumber || obj._id.toString();
     res.json(obj);
 
   } catch (err) {
@@ -345,9 +356,13 @@ router.post("/violations", verifyToken, authorizeRoles("officer", "oic", "admin"
     const newViolation = new Violation(payload);
     await newViolation.save();
 
+    const obj = newViolation.toObject();
+    obj.referenceNumber = obj.referenceNumber || `VO-${(obj._id || "").toString().slice(-4).toUpperCase()}`;
+    obj.id = obj.referenceNumber || obj._id.toString();
+
     res.status(201).json({
       message: "Violation added successfully",
-      violation: newViolation,
+      violation: obj,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -359,16 +374,31 @@ router.post("/violations", verifyToken, authorizeRoles("officer", "oic", "admin"
 // ==============================
 router.put("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
+    const mongoose = require("mongoose");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      query = { _id: req.params.id };
+    } else {
+      query = { referenceNumber: req.params.id };
+    }
 
-    const violation = await Violation.findByIdAndUpdate(
-      req.params.id,
+    const violation = await Violation.findOneAndUpdate(
+      query,
       req.body,
       {
         new: true,
       }
     );
 
-    res.json(violation);
+    if (!violation) {
+      return res.status(404).json({ message: "Violation not found" });
+    }
+
+    const obj = violation.toObject();
+    obj.referenceNumber = obj.referenceNumber || `VO-${(obj._id || "").toString().slice(-4).toUpperCase()}`;
+    obj.id = obj.referenceNumber || obj._id.toString();
+
+    res.json(obj);
 
   } catch (err) {
     res.status(500).json({
@@ -382,8 +412,15 @@ router.put("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async
 // ==============================
 router.delete("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
+    const mongoose = require("mongoose");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      query = { _id: req.params.id };
+    } else {
+      query = { referenceNumber: req.params.id };
+    }
 
-    await Violation.findByIdAndDelete(req.params.id);
+    await Violation.findOneAndDelete(query);
 
     res.json({
       message: "Violation deleted successfully",

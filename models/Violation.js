@@ -97,10 +97,22 @@ const violationSchema = new mongoose.Schema({
     default: "",
   },
 
+  referenceNumber: {
+    type: String,
+    unique: true,
+  },
+
 }, {
   timestamps: true,
 });
 
 violationSchema.index({ createdAt: -1 });
+
+violationSchema.pre("save", async function() {
+  if (!this.referenceNumber) {
+    const count = await mongoose.model("Violation").countDocuments();
+    this.referenceNumber = `VO-${1020 + count + 1}`;
+  }
+});
 
 module.exports = mongoose.model("Violation", violationSchema);
