@@ -225,7 +225,8 @@ function UserManagement() {
               <thead>
                 <tr>
                   <th>OFFICER NAME</th>
-                  <th>RANK & NO</th>
+                  <th>USERNAME</th>
+                  <th>RANK</th>
                   <th>REQUESTED ROLE</th>
                   <th>APPROVE / REJECT</th>
                 </tr>
@@ -243,8 +244,10 @@ function UserManagement() {
                       </div>
                     </td>
                     <td>
-                      <p style={{ fontWeight: 600, fontSize: 13 }}>{a.rank}</p>
-                      <p style={{ fontSize: 12, color: "#64748b" }}>#{a.policeId}</p>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{a.username || a.policeId || "-"}</p>
+                    </td>
+                    <td>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569" }}>{a.rank || "Constable"}</p>
                     </td>
                     <td><span className="um-role-badge">{a.requestedRole}</span></td>
                     <td>
@@ -279,7 +282,7 @@ function UserManagement() {
               <FiSearch size={15} color="#94a3b8" />
               <input
                 className="um-search-input"
-                placeholder="Search by name, rank no..."
+                placeholder="Search by name, username, rank..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
               />
@@ -312,8 +315,9 @@ function UserManagement() {
             <thead>
               <tr>
                 <th>OFFICER NAME</th>
-                <th>RANK & ID</th>
-                {userRole === "OIC" && <th>ROLE</th>}
+                <th>USERNAME</th>
+                <th>RANK</th>
+                <th>ROLE</th>
                 <th>STATUS</th>
                 <th>ACTION</th>
               </tr>
@@ -328,26 +332,34 @@ function UserManagement() {
                         <div className="um-avatar">{o.fullName ? o.fullName.charAt(0) : "O"}</div>
                         <div>
                           <p className="um-officer-name">{o.fullName}</p>
-                           
                         </div>
                       </div>
                     </td>
                     <td>
-                      <p style={{ fontWeight: 700, fontSize: 13 }}>{o.policeId}</p>
-                      <p style={{ fontSize: 12, color: "#64748b", fontStyle: "italic" }}>{o.rank}</p>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>{o.username || o.policeId || "-"}</p>
                     </td>
-                    {userRole === "OIC" && (
-                      <td><span className="um-role-badge">{o.role}</span></td>
-                    )}
-                   <td>
-  <span 
-    className={`um-status-badge ${o.status === "Active" ? "um-active" : "um-deactive"}`}
-    onClick={() => handleToggleStatus(o.id)}
-    style={{ cursor: "pointer" }}
-  >
-    {o.status}
-  </span>
-</td>
+                    <td>
+                      <span style={{
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        backgroundColor: rc.bg,
+                        color: rc.color
+                      }}>
+                        {o.rank || "Constable"}
+                      </span>
+                    </td>
+                    <td><span className="um-role-badge">{o.role}</span></td>
+                    <td>
+                      <span 
+                        className={`um-status-badge ${o.status === "Active" ? "um-active" : "um-deactive"}`}
+                        onClick={() => handleToggleStatus(o.id)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        {o.status}
+                      </span>
+                    </td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         {userRole === "IT Officer" && (
@@ -369,7 +381,7 @@ function UserManagement() {
                 );
               })}
               {paginated.length === 0 && (
-                <tr><td colSpan={userRole === "OIC" ? 5 : 4} className="no-data">No officers found.</td></tr>
+                <tr><td colSpan={6} className="no-data">No officers found.</td></tr>
               )}
             </tbody>
           </table>
@@ -743,9 +755,9 @@ function DetailsModal({ officer, onClose, onEdit, showEdit }) {
               <p className="um-details-value">{officer.fullName}</p>
             </div>
             <div className="um-details-rank-box">
-              <p className="um-details-label">RANK & OFFICER ID</p>
-              <p className="um-details-value" style={{ fontSize: 16 }}>{officer.policeId}</p>
-              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{officer.rank} ({officer.role})</p>
+              <p className="um-details-label">USERNAME & RANK</p>
+              <p className="um-details-value" style={{ fontSize: 16 }}>{officer.username || officer.policeId}</p>
+              <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{officer.rank || "Constable"} ({officer.role})</p>
             </div>
             <div>
               <p className="um-details-label">NIC NUMBER</p>
@@ -757,7 +769,7 @@ function DetailsModal({ officer, onClose, onEdit, showEdit }) {
             </div>
             <div>
               <p className="um-details-label">DATE OF BIRTH</p>
-              <p className="um-details-value">{officer.dob}</p>
+              <p className="um-details-value">{officer.dob ? String(officer.dob).slice(0,10) : "N/A"}</p>
             </div>
             <div>
               <p className="um-details-label">GENDER</p>
@@ -783,14 +795,20 @@ function DetailsModal({ officer, onClose, onEdit, showEdit }) {
 
 // ─── Edit Modal ──────────────────────────────────────────────────
 function EditModal({ officer, onClose, onSave }) {
-  const [form, setForm] = useState({ ...officer });
+  const [form, setForm] = useState({
+    ...officer,
+    username: officer.username || officer.policeId || "",
+  });
   const [error, setError] = useState("");
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSave = () => {
-    if (!form.fullName || !form.policeId || !form.email) { setError("Please fill required fields."); return; }
-    onSave(form);
+    if (!form.fullName || (!form.username && !form.policeId) || !form.email) { setError("Please fill required fields."); return; }
+    onSave({
+      ...form,
+      policeId: form.username || form.policeId
+    });
   };
 
   return (
@@ -810,12 +828,12 @@ function EditModal({ officer, onClose, onSave }) {
           </div>
           <div className="um-field-row">
             <div className="um-field">
-              <label className="um-field-label">RANK & OFFICER ID *</label>
-              <input className="um-field-input" name="policeId" value={form.policeId} onChange={handleChange} />
+              <label className="um-field-label">USERNAME *</label>
+              <input className="um-field-input" name="username" value={form.username} onChange={handleChange} />
             </div>
             <div className="um-field">
-              <label className="um-field-label">ROLE</label>
-              <input className="um-field-input" name="role" value={form.role} onChange={handleChange} />
+              <label className="um-field-label">RANK</label>
+              <input className="um-field-input" name="rank" value={form.rank} onChange={handleChange} />
             </div>
           </div>
           <div className="um-field-row">
@@ -885,7 +903,7 @@ function ResetPwModal({ officer, onClose }) {
     <div className="um-modal-overlay">
       <div className="um-modal" style={{ maxWidth: 420 }}>
         <div className="um-modal-header">
-          <h2 className="um-modal-title">Reset Password for {officer.policeId}</h2>
+          <h2 className="um-modal-title">Reset Password for {officer.username || officer.policeId || officer.fullName}</h2>
           <button className="um-modal-close" onClick={onClose}><FiX size={18} /></button>
         </div>
         <div className="um-modal-body">
