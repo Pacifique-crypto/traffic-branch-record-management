@@ -463,15 +463,48 @@ function UserManagement() {
 // ─── Register Modal ─────────────────────────────────────────────
 function RegisterModal({ onClose, onSave }) {
   const [form, setForm] = useState({
-    fullName: "", policeId: "", role: "", nic: "", contactNo: "",
-    gender: "", dob: "", address: "", password: "", rank: "",
+    fullName: "",
+    username: "",
+    role: "",
+    nic: "",
+    contactNo: "",
     email: "",
+    rank: "",
+    gender: "",
+    dob: "",
+    address: "",
+    password: "",
   });
+  const [isUsernameEdited, setIsUsernameEdited] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError]   = useState("");
 
   const roles = ["OIC", "IT Officer", "Traffic Officer"];
   const ranks = ["Inspector", "Sub-Inspector", "Sergeant", "Constable"];
+
+  const recommendUsername = (name) => {
+    if (!name) return "";
+    const words = name.trim().split(/\s+/).map(w => w.replace(/[^a-zA-Z0-9]/g, "")).filter(Boolean);
+    if (words.length === 0) return "";
+    if (words.length === 1) return words[0].toLowerCase();
+    const firstLetters = words.slice(0, -1).map(w => w[0].toLowerCase()).join("");
+    const lastName = words[words.length - 1].toLowerCase();
+    return firstLetters + lastName;
+  };
+
+  const handleFullNameChange = (e) => {
+    const val = e.target.value;
+    const updatedForm = { ...form, fullName: val };
+    if (!isUsernameEdited) {
+      updatedForm.username = recommendUsername(val);
+    }
+    setForm(updatedForm);
+  };
+
+  const handleUsernameChange = (e) => {
+    setIsUsernameEdited(true);
+    setForm({ ...form, username: e.target.value });
+  };
 
   const handleChange = e => {
     let val = e.target.value;
@@ -482,12 +515,54 @@ function RegisterModal({ onClose, onSave }) {
   };
 
   const handleSubmit = () => {
-    if (!form.fullName || !form.policeId || !form.role || !form.nic || !form.contactNo || !form.gender || !form.dob || !form.password || !form.email) {
-      setError("Please fill in all required fields."); return;
+    if (
+      !form.fullName.trim() ||
+      !form.username.trim() ||
+      !form.role ||
+      !form.nic.trim() ||
+      !form.contactNo.trim() ||
+      !form.email.trim() ||
+      !form.rank ||
+      !form.gender ||
+      !form.password
+    ) {
+      setError("Please fill in all required fields.");
+      return;
     }
-    if (form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+
+    // NIC Sri Lanka Validation (9 digits + V/X or 12 digits)
+    const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
+    if (!nicRegex.test(form.nic.trim())) {
+      setError("Invalid NIC format. Use Sri Lankan NIC format (e.g. 123456789V or 199012345678).");
+      return;
+    }
+
+    // Contact number validation (exactly 10 digits)
+    const contactRegex = /^[0-9]{10}$/;
+    if (!contactRegex.test(form.contactNo.trim())) {
+      setError("Contact number must be exactly 10 digits.");
+      return;
+    }
+
+    // Email validation (@gmail.com)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+    if (!emailRegex.test(form.email.trim())) {
+      setError("Email must be a valid @gmail.com address.");
+      return;
+    }
+
+    // Password validation (at least 8 chars, uppercase, lowercase, number)
+    const pwRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!pwRegex.test(form.password)) {
+      setError("Password must be at least 8 characters and contain numbers, lowercase, and uppercase letters.");
+      return;
+    }
+
     setError("");
-    onSave(form);
+    onSave({
+      ...form,
+      policeId: form.username.trim(), // sync policeId with username
+    });
   };
 
   return (
@@ -505,15 +580,29 @@ function RegisterModal({ onClose, onSave }) {
           {/* Full Name */}
           <div className="um-field-full">
             <label className="um-field-label">FULL NAME *</label>
-            <input className="um-field-input" name="fullName" placeholder="e.g. Kamal Rajapakshe" value={form.fullName} onChange={handleChange} />
+            <input
+              className="um-field-input"
+              name="fullName"
+              placeholder="e.g. Ranjith Ajith Perera"
+              value={form.fullName}
+              onChange={handleFullNameChange}
+            />
           </div>
 
           <div className="um-field-row">
+            {/* Username (Auto recommended) */}
             <div className="um-field">
-              <label className="um-field-label">RANK & OFFICER ID *</label>
-              <input className="um-field-input" name="policeId" placeholder="e.g. PC 107272" value={form.policeId} onChange={handleChange} />
-              <p className="um-field-hint">This will be the username for login.</p>
+              <label className="um-field-label">USERNAME *</label>
+              <input
+                className="um-field-input"
+                name="username"
+                placeholder="e.g. raperera"
+                value={form.username}
+                onChange={handleUsernameChange}
+              />
+              <p className="um-field-hint">Auto-recommended from full name.</p>
             </div>
+            {/* Role */}
             <div className="um-field">
               <label className="um-field-label">ROLE *</label>
               <select className="um-field-input" name="role" value={form.role} onChange={handleChange}>
@@ -524,23 +613,46 @@ function RegisterModal({ onClose, onSave }) {
           </div>
 
           <div className="um-field-row">
+            {/* NIC */}
             <div className="um-field">
               <label className="um-field-label">NIC NUMBER *</label>
-              <input className="um-field-input" name="nic" placeholder="e.g. 199012345678" value={form.nic} onChange={handleChange} />
+              <input
+                className="um-field-input"
+                name="nic"
+                placeholder="e.g. 199012345678 or 123456789V"
+                value={form.nic}
+                onChange={handleChange}
+              />
             </div>
+            {/* Contact No */}
             <div className="um-field">
-              <label className="um-field-label">CONTACT NO *</label>
-              <input className="um-field-input" name="contactNo" placeholder="e.g. 077 123 4567" value={form.contactNo} onChange={handleChange} />
+              <label className="um-field-label">CONTACT NO * (10 Digits)</label>
+              <input
+                className="um-field-input"
+                name="contactNo"
+                placeholder="e.g. 0771234567"
+                value={form.contactNo}
+                onChange={handleChange}
+              />
             </div>
           </div>
 
           <div className="um-field-row">
+            {/* Email */}
             <div className="um-field">
-              <label className="um-field-label">EMAIL *</label>
-              <input className="um-field-input" name="email" placeholder="officer@police.lk" type="email" value={form.email} onChange={handleChange} />
+              <label className="um-field-label">EMAIL * (@gmail.com)</label>
+              <input
+                className="um-field-input"
+                name="email"
+                placeholder="officer@gmail.com"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+              />
             </div>
+            {/* Rank */}
             <div className="um-field">
-              <label className="um-field-label">RANK</label>
+              <label className="um-field-label">RANK *</label>
               <select className="um-field-input" name="rank" value={form.rank} onChange={handleChange}>
                 <option value="">Select Rank...</option>
                 {ranks.map(r => <option key={r}>{r}</option>)}
@@ -549,6 +661,7 @@ function RegisterModal({ onClose, onSave }) {
           </div>
 
           <div className="um-field-row">
+            {/* Gender */}
             <div className="um-field">
               <label className="um-field-label">GENDER *</label>
               <select className="um-field-input" name="gender" value={form.gender} onChange={handleChange}>
@@ -558,16 +671,24 @@ function RegisterModal({ onClose, onSave }) {
                 <option>Other</option>
               </select>
             </div>
+            {/* DOB (Optional) */}
             <div className="um-field">
-              <label className="um-field-label">DATE OF BIRTH *</label>
+              <label className="um-field-label">DATE OF BIRTH (Optional)</label>
               <input className="um-field-input" name="dob" type="date" value={form.dob} onChange={handleChange} />
             </div>
           </div>
 
-          {/* Address */}
+          {/* Address (Optional) */}
           <div className="um-field-full">
-            <label className="um-field-label">RESIDENTIAL ADDRESS</label>
-            <textarea className="um-field-input um-textarea" name="address" placeholder="Enter full address..." value={form.address} onChange={handleChange} rows={2} />
+            <label className="um-field-label">RESIDENTIAL ADDRESS (Optional)</label>
+            <textarea
+              className="um-field-input um-textarea"
+              name="address"
+              placeholder="Enter full address..."
+              value={form.address}
+              onChange={handleChange}
+              rows={2}
+            />
           </div>
 
           {/* Password */}
@@ -578,7 +699,7 @@ function RegisterModal({ onClose, onSave }) {
                 className="um-field-input"
                 name="password"
                 type={showPw ? "text" : "password"}
-                placeholder="Minimum 6 characters"
+                placeholder="At least 8 characters (A-Z, a-z, 0-9)"
                 value={form.password}
                 onChange={handleChange}
                 style={{ paddingRight: 40 }}
@@ -587,6 +708,7 @@ function RegisterModal({ onClose, onSave }) {
                 {showPw ? <FiEyeOff size={15} /> : <FiEye size={15} />}
               </button>
             </div>
+            <p className="um-field-hint">Must include numbers, uppercase & lowercase letters (min 8 chars).</p>
           </div>
 
           {error && <p className="um-error">{error}</p>}
@@ -609,7 +731,7 @@ function DetailsModal({ officer, onClose, onEdit, showEdit }) {
         <div className="um-details-header">
           <div>
             <h2 className="um-modal-title" style={{ color: "white" }}>Officer Details</h2>
-            <p style={{ color: "#94a3b8", fontSize: 12 }}>Personnel Record ID: PMS-2023-{officer.policeId.replace(/\s/g,"")}</p>
+            <p style={{ color: "#94a3b8", fontSize: 12 }}>Personnel Record ID: PMS-2023-{(officer.policeId || officer.username || "").replace(/\s/g,"")}</p>
           </div>
           <button className="um-modal-close" style={{ color: "white" }} onClick={onClose}><FiX size={18} /></button>
         </div>
