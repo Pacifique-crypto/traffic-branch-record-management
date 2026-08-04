@@ -121,24 +121,31 @@ function ViolationDetails() {
   }
 
   const driver = {
-    name: data.driver || "Unknown",
-    nic: data.driverNIC || "Unknown",
-    dlNo: data.drivingLicence || "Unknown",
+    name: data.driver || data.driverName || data.name || "N/A",
+    nic: data.driverNIC || data.nic || "N/A",
+    dlNo: data.drivingLicence || data.dlNo || data.licenceNo || "N/A",
     licenseValidity: data.licenseValidity || "N/A",
-    address: data.driverAddress || "Unknown",
+    address: data.driverAddress || data.address || "N/A",
   };
 
   const vehicle = {
-    no: data.vehicle || "Unknown",
-    type: data.vehicleType || "Unknown",
-    make: data.vehicleMake || "N/A",
-    color: data.vehicleColor || "N/A",
-    fuelType: data.vehicleFuelType || "N/A",
+    no: data.vehicle || data.vehicleNumber || data.vehicleNo || "N/A",
+    type: data.vehicleType || data.vehicleClass || "N/A",
+    make: data.vehicleMake || data.make || "N/A",
+    color: data.vehicleColor || data.color || "N/A",
+    fuelType: data.vehicleFuelType || data.fuelType || "N/A",
   };
 
-  const officers = data.officers || [
-    { name: data.assistantOfficer || "Unknown", station: "Negombo HQ" }
-  ];
+  const officers = (data.officers && Array.isArray(data.officers) && data.officers.length > 0)
+    ? data.officers
+    : [
+        ...(data.submittingOfficer ? [{ name: data.submittingOfficer, station: "Negombo Traffic HQ" }] : []),
+        ...(data.assistantOfficer ? [{ name: data.assistantOfficer, station: "Negombo Traffic HQ" }] : [])
+      ];
+
+  if (officers.length === 0) {
+    officers.push({ name: data.officer || "Reporting Officer", station: "Negombo Traffic HQ" });
+  }
 
   const evidence = data.evidence || (
     data.evidencePhoto
@@ -188,10 +195,10 @@ function ViolationDetails() {
             <div className="acd-section">
               <div className="acd-section-title"><span>⚠️</span> OFFENCE DETAILS</div>
               <div className="acd-grid-2">
-                <div><p className="acd-label">NAME OF OFFENCE</p><p className="acd-value">{data.violationType || data.offence}</p></div>
-                <div><p className="acd-label">LAW SECTION</p><p className="acd-value">{data.lawSection}</p></div>
-                <div><p className="acd-label">DATE AND TIME</p><p className="acd-value">{data.violationDate || data.dateTime}</p></div>
-                <div><p className="acd-label">PLACE</p><p className="acd-value">{data.location || data.place}</p></div>
+                <div><p className="acd-label">NAME OF OFFENCE</p><p className="acd-value">{data.violationType || data.offence || "N/A"}</p></div>
+                <div><p className="acd-label">LAW SECTION</p><p className="acd-value">{data.lawSection || "Motor Traffic Act"}</p></div>
+                <div><p className="acd-label">DATE AND TIME</p><p className="acd-value">{data.violationDate || data.dateTime || (data.createdAt ? new Date(data.createdAt).toLocaleString() : "N/A")}</p></div>
+                <div><p className="acd-label">PLACE</p><p className="acd-value">{data.location || data.place || "N/A"}</p></div>
               </div>
             </div>
 
