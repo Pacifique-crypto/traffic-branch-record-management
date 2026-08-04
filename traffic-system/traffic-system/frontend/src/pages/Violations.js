@@ -230,9 +230,10 @@ function Violations() {
                   const ac = actionColors[actionVal] || { bg: "#f1f5f9", color: "#374151" };
                   const dateStr = v.violationDate || "";
                   const [datePart, timePart] = dateStr.includes("T") ? dateStr.split("T") : dateStr.split(" ");
+                  const refNo = v.referenceNumber || (v.id && v.id.startsWith("VO-") ? v.id : `VO-${(v.id || v._id || "").slice(-4).toUpperCase()}`);
                   return (
-                    <tr key={v.id} className="ar-tr" onClick={() => navigate(`/tor/${v.id}`)}>
-                      <td className="ar-ref">{v.id ? v.id.slice(-6).toUpperCase() : "VID-NEW"}</td>
+                    <tr key={v.id} className="ar-tr" onClick={() => navigate(`/tor/${refNo}`)}>
+                      <td className="ar-ref">{refNo}</td>
                       <td className="ar-datetime">
                         <span>{datePart}</span><br/>
                         <span style={{ color: "#94a3b8", fontSize: 12 }}>{timePart ? timePart.slice(0, 5) : ""}</span>
@@ -250,7 +251,7 @@ function Violations() {
                           ? `${v.submittingOfficer} & ${v.assistantOfficer}`
                           : v.submittingOfficer || v.assistantOfficer || v.officer || "Unknown"}
                       </td>
-                      <td onClick={(e) => { e.stopPropagation(); navigate(`/tor/${v.id}`); }}>
+                      <td onClick={(e) => { e.stopPropagation(); navigate(`/tor/${refNo}`); }}>
                         <button className="ar-dots-btn"><FiMoreVertical size={16} /></button>
                       </td>
                       {isOIC && (

@@ -149,6 +149,10 @@ function ViolationDetails() {
       : []
   );
 
+  const displayRefNo = data.referenceNumber || (data.id && data.id.startsWith("VO-") ? data.id : (id && id.startsWith("VO-") ? id : `VO-${(data.id || data._id || id || "").slice(-4).toUpperCase()}`));
+  const dateStr = data.createdAt ? new Date(data.createdAt).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "Oct 24, 2023";
+  const timeStr = data.createdAt ? new Date(data.createdAt).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' }) : "10:20 PM";
+
   return (
     <Layout>
       <div className="acd-page">
@@ -156,16 +160,16 @@ function ViolationDetails() {
         <div className="acd-breadcrumb">
           <span onClick={() => navigate("/tor")} style={{ cursor: "pointer", color: "#64748b" }}>TOR</span>
           <span> › </span>
-          <span style={{ color: "#0f172a" }}>{id}</span>
+          <span style={{ color: "#0f172a" }}>{displayRefNo}</span>
         </div>
 
         <div className="acd-header">
           <button className="acd-back-btn" onClick={() => navigate("/tor")}>
-            <FiArrowLeft size={16} style={{ marginRight: 6 }} /> Ref No: {id}
+            <FiArrowLeft size={16} style={{ marginRight: 6 }} /> Ref No: {displayRefNo}
           </button>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{ textAlign: "right", fontSize: 12, color: "#64748b" }}>
-              <p>Generated on Oct 24, 2023 • 10:20 PM</p>
+              <p>Logged on {dateStr} • {timeStr}</p>
             </div>
             <button className="acd-print-btn" onClick={() => window.print()}>
               <FiPrinter size={14} style={{ marginRight: 6 }} /> Print Report
@@ -174,7 +178,7 @@ function ViolationDetails() {
         </div>
 
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Traffic Violation Report</h2>
-        <p style={{ fontSize: 12, color: "#64748b", marginBottom: 20 }}>Ref No: {id}</p>
+        <p style={{ fontSize: 12, color: "#64748b", marginBottom: 20 }}>Ref No: {displayRefNo}</p>
 
         <div className="acd-two-col">
           {/* LEFT */}

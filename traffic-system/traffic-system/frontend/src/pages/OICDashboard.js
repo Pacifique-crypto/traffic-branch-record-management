@@ -93,6 +93,7 @@ function OICDashboard() {
         // 2. Violations
         (viols || []).forEach(v => {
           const date = new Date(v.createdAt || v.violationDate || 0);
+          const refNo = v.referenceNumber || (v.id && v.id.startsWith("VO-") ? v.id : `VO-${(v.id || v._id || "").slice(-4).toUpperCase()}`);
           activities.push({
             id: `viol-${v.id || v._id}`,
             icon: <FiFileText size={18} color="#2563eb" />,
@@ -100,14 +101,14 @@ function OICDashboard() {
             badge: "Violation Reported",
             badgeColor: "#2563eb",
             badgeBg: "#dbeafe",
-            code: v.id ? `#TOR-${v.id.slice(-4).toUpperCase()}` : "#TOR-NEW",
+            code: refNo,
             title: v.violationType || v.offence || "Traffic Offence",
             sub: `Submitted by ${v.submittingOfficer || "Traffic Officer"}`,
             time: timeAgo(v.createdAt || v.violationDate),
             date: date,
             status: "Standard Review",
             statusColor: "#64748b",
-            path: `/tor/${v.id || v._id}`
+            path: `/tor/${refNo}`
           });
         });
 
