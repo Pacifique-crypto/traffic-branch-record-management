@@ -8,11 +8,12 @@ const bcrypt = require("bcryptjs");
 router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     console.log("Register payload received on backend:", req.body);
-    const { fullName, dob, policeId, gender, contactNo, username, nic, password, email, rank, role, address, status } = req.body;
+    const targetUsername = (username && username.trim()) ? username.trim() : (policeId || "").trim();
+    const targetPoliceId = (policeId && policeId.trim()) ? policeId.trim() : targetUsername;
 
-    const existing = await Officer.findOne({ $or: [{ policeId }, { username: username || policeId }, { nic }] });
+    const existing = await Officer.findOne({ $or: [{ policeId: targetPoliceId }, { username: targetUsername }, { nic }] });
     if (existing) {
-      return res.status(400).json({ message: "Officer already registered with this Police ID, NIC, or Username" });
+      return res.status(400).json({ message: "Officer already registered with this NIC, Username or Police ID" });
     }
 
     // 🔐 hash password
@@ -21,11 +22,11 @@ router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req
 
     const newOfficer = new Officer({
       fullName,
-      dob,
-      policeId,
+      dob: dob ? dob : undefined,
+      policeId: targetPoliceId,
       gender,
       contactNo,
-      username: (username && username.trim()) ? username : policeId,
+      username: targetUsername,
       nic,
       password: hashedPassword,
       email,

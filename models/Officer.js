@@ -8,7 +8,7 @@ const officerSchema = new mongoose.Schema({
 
   dob: {
     type: Date,
-    required: true
+    required: false
   },
 
   policeId: {
