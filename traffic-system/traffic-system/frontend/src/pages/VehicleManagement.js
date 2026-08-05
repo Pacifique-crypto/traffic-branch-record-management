@@ -50,12 +50,15 @@ function VehicleManagement() {
       ]);
 
       if (Array.isArray(vData)) {
+        const isPending  = (s) => Boolean(s && String(s).toUpperCase() === "PENDING");
+        const isRejected = (s) => Boolean(s && String(s).toUpperCase() === "REJECTED");
+
         const activeOrFleet = vData
-          .filter(v => v.status !== "Pending" && v.status !== "PENDING" && v.status !== "Rejected")
+          .filter(v => !isPending(v.status) && !isRejected(v.status))
           .map(v => ({ ...v, id: v._id }));
 
         const pending = vData
-          .filter(v => v.status === "Pending" || v.status === "PENDING")
+          .filter(v => isPending(v.status))
           .map(v => ({ ...v, id: v._id }));
 
         setVehicles(activeOrFleet);
