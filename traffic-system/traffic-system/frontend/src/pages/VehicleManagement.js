@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   FiTruck, FiCheckCircle, FiXCircle, FiMoreVertical,
   FiUserPlus, FiCheck, FiX, FiSearch, FiAlertTriangle,
-  FiPlus, FiClock, FiEdit, FiUserCheck, FiWrench
+  FiPlus, FiClock, FiEdit, FiUserCheck, FiTool
 } from "react-icons/fi";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
 
@@ -199,7 +199,7 @@ function VehicleManagement() {
               <p className="um-stat-value" style={{ color: "#f59e0b" }}>{maintenanceCount}</p>
             </div>
             <div className="um-stat-icon" style={{ background: "#fef3c7", color: "#b45309" }}>
-              <FiWrench size={22} />
+              <FiTool size={22} />
             </div>
           </div>
           <div className="um-stat-card">
