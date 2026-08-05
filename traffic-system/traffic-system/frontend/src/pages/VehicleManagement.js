@@ -16,7 +16,7 @@ import {
   MoreVert as MoreVertIcon, Delete as DeleteIcon
 } from "@mui/icons-material";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
-import { FiTruck, FiCheck, FiX } from "react-icons/fi";
+import { FiTruck, FiCheck, FiX, FiAlertTriangle } from "react-icons/fi";
 
 // Helper to determine icon based on type
 const getVehicleIcon = (type) => {
@@ -46,10 +46,12 @@ function VehicleManagement() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 5;
 
-  // Dialog States
+  // Dialog & Modal States
   const [openRegister, setOpenRegister] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
   const [openDetails, setOpenDetails] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectRemarks, setRejectRemarks] = useState("");
   
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedOfficerId, setSelectedOfficerId] = useState("");
@@ -71,7 +73,7 @@ function VehicleManagement() {
     tyreSize: "",
     fuelTankCapacity: "",
     oilCapacity: "",
-    status: "PENDING",
+    status: "Pending",
     registrationDate: new Date().toISOString().split("T")[0],
     revenueLicenseExpiry: "",
     insuranceExpiry: "",
@@ -119,11 +121,13 @@ function VehicleManagement() {
     }
   };
 
-  const handleRejectVehicle = async (id) => {
-    if (!window.confirm("Are you sure you want to reject this vehicle registration request?")) return;
+  const handleConfirmRejectVehicle = async () => {
+    if (!rejectTarget) return;
     try {
       setLoading(true);
-      await deleteVehicle(id);
+      await updateVehicle(rejectTarget._id, { status: "Rejected", rejectionRemarks: rejectRemarks });
+      setRejectTarget(null);
+      setRejectRemarks("");
       fetchData();
     } catch (err) {
       alert("Error rejecting vehicle");
@@ -139,8 +143,10 @@ function VehicleManagement() {
         getVehicles().catch(() => []),
         getOfficers().catch(() => [])
       ]);
-      setVehicles(vData.filter(v => v.status !== "PENDING"));
-      setPendingVehicles(vData.filter(v => v.status === "PENDING"));
+      const approvedOrActive = vData.filter(v => v.status !== "PENDING" && v.status !== "Pending" && v.status !== "Rejected");
+      const pending = vData.filter(v => v.status === "PENDING" || v.status === "Pending");
+      setVehicles(approvedOrActive);
+      setPendingVehicles(pending);
       setOfficers(oData.filter(o => o.status === "Active" || o.status === "Approved"));
     } catch (err) {
       console.error(err);
@@ -155,7 +161,7 @@ function VehicleManagement() {
 
   // Stats
   const totalFleet = vehicles.length;
-  const activeUnits = vehicles.filter(v => v.status === "AVAILABLE").length;
+  const activeUnits = vehicles.filter(v => v.status === "AVAILABLE" || v.status === "Active" || v.status === "Approved").length;
   const maintenanceCount = vehicles.filter(v => v.status === "MAINTENANCE").length;
   const unassignedCount = vehicles.filter(v => v.assignedOfficer === "Unassigned" || !v.assignedOfficer).length;
 
@@ -201,7 +207,13 @@ function VehicleManagement() {
     }
     try {
       setLoading(true);
-      await registerVehicle(registerForm);
+      const officer = JSON.parse(localStorage.getItem("officer") || "{}");
+      const submitterName = officer.name || officer.fullName || "IT Officer";
+      await registerVehicle({
+        ...registerForm,
+        status: "Pending",
+        submittedBy: submitterName
+      });
       setOpenRegister(false);
       // Reset
       setRegisterForm({
@@ -219,7 +231,7 @@ function VehicleManagement() {
         tyreSize: "",
         fuelTankCapacity: "",
         oilCapacity: "",
-        status: "PENDING",
+        status: "Pending",
         registrationDate: new Date().toISOString().split("T")[0],
         revenueLicenseExpiry: "",
         insuranceExpiry: "",
@@ -289,7 +301,7 @@ function VehicleManagement() {
             <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
               <CardContent sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Box>
-                  <Chip label="+4 this month" size="small" color="success" sx={{ fontSize: 10, mb: 1 }} />
+                  <Chip label="Approved" size="small" color="success" sx={{ fontSize: 10, mb: 1 }} />
                   <Typography color="text.secondary" variant="body2" fontWeight="bold">Total Fleet</Typography>
                   <Typography variant="h4" fontWeight="bold">{totalFleet}</Typography>
                 </Box>
@@ -329,10 +341,10 @@ function VehicleManagement() {
               <CardContent sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Box>
                   <Box height={24} />
-                  <Typography color="text.secondary" variant="body2" fontWeight="bold">Unassigned</Typography>
-                  <Typography variant="h4" fontWeight="bold" color="error.main">{unassignedCount}</Typography>
+                  <Typography color="text.secondary" variant="body2" fontWeight="bold">Pending Approval</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="error.main">{pendingVehicles.length}</Typography>
                 </Box>
-                <Avatar sx={{ bgcolor: "#ffebee", color: "#c62828" }}><ErrorIcon /></Avatar>
+                <Avatar sx={{ bgcolor: "#fee2e2", color: "#ef4444" }}><ErrorIcon /></Avatar>
               </CardContent>
             </Card>
           </Grid>
@@ -350,22 +362,23 @@ function VehicleManagement() {
             <table className="um-table">
               <thead>
                 <tr>
-                  <th>REG NO</th>
+                  <th>REGISTRATION NO</th>
                   <th>VEHICLE TYPE</th>
-                  <th>ASSIGNED BRANCH</th>
+                  <th>ASSIGNED OFFICER</th>
+                  <th>BRANCH</th>
+                  <th>SUBMITTED BY</th>
+                  <th>SUBMITTED DATE</th>
                   <th>APPROVE / REJECT</th>
+                  <th>DETAILS</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingVehicles.map(v => (
                   <tr key={v._id} className="um-tr">
-                    <td onClick={() => handleOpenDetails(v)} style={{ cursor: "pointer" }} title="View Vehicle Details">
+                    <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div className="um-avatar" style={{ background: "#0f172a" }}>V</div>
-                        <div>
-                          <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold" }}>{v.registrationNo}</p>
-                          <p style={{ fontSize: 11, color: "#3b82f6", textDecoration: "underline", margin: 0 }}>Click to view details</p>
-                        </div>
+                        <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold", margin: 0 }}>{v.registrationNo}</p>
                       </div>
                     </td>
                     <td>
@@ -373,18 +386,31 @@ function VehicleManagement() {
                         {getVehicleIcon(v.vehicleType)}
                         {v.vehicleType}
                       </p>
-                      <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>VIN: {v.chassisNo || "N/A"}</p>
+                    </td>
+                    <td>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", margin: 0 }}>{v.assignedOfficer || "Unassigned"}</p>
                     </td>
                     <td><span className="um-role-badge">{v.branch || "Negombo Traffic Div."}</span></td>
+                    <td>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>{v.submittedBy || "IT Officer"}</p>
+                    </td>
+                    <td>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>{formatDate(v.createdAt || v.registrationDate)}</p>
+                    </td>
                     <td>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button className="um-approve-btn" onClick={() => handleApproveVehicle(v._id)} title="Approve">
                           <FiCheck size={14} />
                         </button>
-                        <button className="um-reject-btn" onClick={() => handleRejectVehicle(v._id)} title="Reject">
+                        <button className="um-reject-btn" onClick={() => setRejectTarget(v)} title="Reject">
                           <FiX size={14} />
                         </button>
                       </div>
+                    </td>
+                    <td>
+                      <IconButton size="small" onClick={() => handleOpenDetails(v)} title="View Full Details">
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </td>
                   </tr>
                 ))}
@@ -1064,6 +1090,71 @@ function VehicleManagement() {
             </MenuItem>
           )}
         </Menu>
+
+        {/* ── Reject Confirmation Modal ── */}
+        {rejectTarget && (
+          <div style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(15,23,42,0.6)", display: "flex", alignItems: "center",
+            justifyContent: "center", zIndex: 1300, padding: 20
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 16, width: "100%", maxWidth: 460,
+              padding: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{ background: "#fee2e2", padding: 10, borderRadius: 12, color: "#dc2626" }}>
+                  <FiAlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Reject Vehicle Registration</h3>
+                  <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Reg No: {rejectTarget.registrationNo}</p>
+                </div>
+              </div>
+
+              <p style={{ fontSize: 14, color: "#334155", marginBottom: 16 }}>
+                Are you sure you want to reject this vehicle registration request?
+              </p>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
+                  REJECTION REMARKS (OPTIONAL)
+                </label>
+                <textarea
+                  value={rejectRemarks}
+                  onChange={(e) => setRejectRemarks(e.target.value)}
+                  placeholder="Enter reason for rejection..."
+                  rows={3}
+                  style={{
+                    width: "100%", padding: 12, borderRadius: 10, border: "1px solid #cbd5e1",
+                    fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit"
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button
+                  onClick={() => { setRejectTarget(null); setRejectRemarks(""); }}
+                  style={{
+                    padding: "10px 16px", borderRadius: 10, border: "1px solid #cbd5e1",
+                    background: "#f8fafc", color: "#475569", fontWeight: 600, cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmRejectVehicle}
+                  style={{
+                    padding: "10px 16px", borderRadius: 10, border: "none",
+                    background: "#dc2626", color: "#fff", fontWeight: 600, cursor: "pointer"
+                  }}
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Container>
     </LayoutComponent>
   );
