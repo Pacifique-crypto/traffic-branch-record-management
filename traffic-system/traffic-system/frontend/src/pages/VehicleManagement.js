@@ -213,8 +213,8 @@ function VehicleManagement() {
           </div>
         </div>
 
-        {/* ── New Vehicle Approvals Section (OIC & IT Officer visibility) ── */}
-        {approvals.length > 0 && (
+        {/* ── OIC: New Vehicle Approvals ── */}
+        {userRole === "OIC" && approvals.length > 0 && (
           <div className="um-section-card">
             <div className="um-section-header">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -226,12 +226,10 @@ function VehicleManagement() {
               <thead>
                 <tr>
                   <th>REGISTRATION NO</th>
+                  <th>DEPT NO</th>
                   <th>VEHICLE TYPE</th>
                   <th>ASSIGNED OFFICER</th>
-                  <th>BRANCH</th>
-                  <th>SUBMITTED BY</th>
-                  <th>SUBMITTED DATE</th>
-                  <th>{userRole === "OIC" ? "APPROVE / REJECT" : "STATUS"}</th>
+                  <th>APPROVE / REJECT</th>
                   <th>DETAILS</th>
                 </tr>
               </thead>
@@ -250,8 +248,11 @@ function VehicleManagement() {
                     </td>
                     <td>
                       <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", margin: 0 }}>
-                        {v.vehicleType || "Patrol Car"}
+                        {v.deptNo}
                       </p>
+                    </td>
+                    <td>
+                      <span className="um-role-badge">{v.vehicleType || "Patrol Car"}</span>
                     </td>
                     <td>
                       <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>
@@ -259,33 +260,14 @@ function VehicleManagement() {
                       </p>
                     </td>
                     <td>
-                      <span className="um-role-badge">{v.branch || "Negombo Traffic Div."}</span>
-                    </td>
-                    <td>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>
-                        {v.submittedBy || "IT Officer"}
-                      </p>
-                    </td>
-                    <td>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>
-                        {formatDate(v.createdAt || v.registrationDate)}
-                      </p>
-                    </td>
-                    <td>
-                      {userRole === "OIC" ? (
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button className="um-approve-btn" onClick={() => handleApprove(v.id)} title="Approve">
-                            <FiCheck size={14} />
-                          </button>
-                          <button className="um-reject-btn" onClick={() => setRejectTarget(v)} title="Reject">
-                            <FiX size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="um-status-badge" style={{ background: "#fef3c7", color: "#b45309" }}>
-                          Pending Approval
-                        </span>
-                      )}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="um-approve-btn" onClick={() => handleApprove(v.id)} title="Approve">
+                          <FiCheck size={14} />
+                        </button>
+                        <button className="um-reject-btn" onClick={() => setRejectTarget(v)} title="Reject">
+                          <FiX size={14} />
+                        </button>
+                      </div>
                     </td>
                     <td>
                       <FiMoreVertical
@@ -299,7 +281,7 @@ function VehicleManagement() {
                 ))}
               </tbody>
             </table>
-            <p className="um-view-all">View all {approvals.length} pending vehicle requests</p>
+            <p className="um-view-all">View all {approvals.length} pending requests</p>
           </div>
         )}
 
