@@ -108,56 +108,47 @@ export default function ViolationsScreen({ navigation }) {
 
   const filteredData =
     violations.filter((item) => {
-
-      const status =
-        item.status || "";
-
-      const driver =
-        item.driver || "";
-
-      const vehicle =
-        item.vehicle || "";
-
-      const location =
-        item.location || "";
-
-      const violation =
-        item.violationType || "";
+      const status = item.status || "";
+      const driver = item.driver || item.driverName || "";
+      const vehicle = item.vehicle || item.vehicleNumber || "";
+      const location = item.location || item.place || "";
+      const violation = item.violationType || item.offence || "";
+      const refNo = item.referenceNumber || item.id || "";
+      const subOff = item.submittingOfficer || item.officer || "";
+      const assOff = item.assistantOfficer || "";
 
       const matchFilter =
         selectedFilter === "All" ||
         status.toLowerCase() === selectedFilter.toLowerCase() ||
         (selectedFilter === "Verified" && status.toLowerCase() === "paid");
 
-      const matchSearch =
+      const offName = (global.loggedOfficerName || "").toLowerCase();
+      const offUser = (global.loggedOfficerUsername || "").toLowerCase();
+      const offId   = (global.loggedOfficerPoliceId || "").toLowerCase();
 
-        driver
-          .toLowerCase()
-          .includes(search.toLowerCase())
-
-        ||
-
-        vehicle
-          .toLowerCase()
-          .includes(search.toLowerCase())
-
-        ||
-
-        location
-          .toLowerCase()
-          .includes(search.toLowerCase())
-
-        ||
-
-        violation
-          .toLowerCase()
-          .includes(search.toLowerCase());
-
-      return (
-        matchFilter &&
-        matchSearch
+      // Check if this violation was submitted by the logged-in officer
+      const isMine = Boolean(
+        (!offName && !offUser && !offId) ||
+        (offName && (subOff.toLowerCase().includes(offName) || assOff.toLowerCase().includes(offName))) ||
+        (offUser && (subOff.toLowerCase().includes(offUser) || assOff.toLowerCase().includes(offUser))) ||
+        (offId && (subOff.toLowerCase().includes(offId) || assOff.toLowerCase().includes(offId)))
       );
 
+      const isSearching = search.trim().length > 0;
+
+      const matchSearch = isSearching
+        ? (
+            driver.toLowerCase().includes(search.toLowerCase()) ||
+            vehicle.toLowerCase().includes(search.toLowerCase()) ||
+            location.toLowerCase().includes(search.toLowerCase()) ||
+            violation.toLowerCase().includes(search.toLowerCase()) ||
+            refNo.toLowerCase().includes(search.toLowerCase()) ||
+            subOff.toLowerCase().includes(search.toLowerCase()) ||
+            assOff.toLowerCase().includes(search.toLowerCase())
+          )
+        : isMine;
+
+      return matchFilter && matchSearch;
     });
 
   if (loading) {

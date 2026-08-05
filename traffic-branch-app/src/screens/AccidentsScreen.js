@@ -129,47 +129,45 @@ export default function AccidentsScreen({ navigation }) {
 
   const filteredData =
     accidents.filter((item) => {
-
-      const severity =
-        item.severity || "";
-
-      const location =
-        item.location || "";
-
-      const driver =
-        item.driver || "";
-
-      const vehicle =
-        item.vehicle || "";
+      const severity = item.severity || "";
+      const location = item.location || "";
+      const driver = item.driver || item.driverName || "";
+      const vehicle = item.vehicle || item.vehicleNumber || "";
+      const refNo = item.referenceNumber || item.id || "";
+      const subOff = item.submittingOfficer || item.officer || "";
+      const assOff = item.assistantOfficer || "";
 
       const matchFilter =
         selectedFilter === "All" ||
         severity.toLowerCase() === selectedFilter.toLowerCase() ||
         (selectedFilter === "Property" && severity.toLowerCase().includes("property"));
 
-      const matchSearch =
+      const offName = (global.loggedOfficerName || "").toLowerCase();
+      const offUser = (global.loggedOfficerUsername || "").toLowerCase();
+      const offId   = (global.loggedOfficerPoliceId || "").toLowerCase();
 
-        location
-          .toLowerCase()
-          .includes(search.toLowerCase())
-
-        ||
-
-        driver
-          .toLowerCase()
-          .includes(search.toLowerCase())
-
-        ||
-
-        vehicle
-          .toLowerCase()
-          .includes(search.toLowerCase());
-
-      return (
-        matchFilter &&
-        matchSearch
+      // Check if this accident was submitted by the logged-in officer
+      const isMine = Boolean(
+        (!offName && !offUser && !offId) ||
+        (offName && (subOff.toLowerCase().includes(offName) || assOff.toLowerCase().includes(offName))) ||
+        (offUser && (subOff.toLowerCase().includes(offUser) || assOff.toLowerCase().includes(offUser))) ||
+        (offId && (subOff.toLowerCase().includes(offId) || assOff.toLowerCase().includes(offId)))
       );
 
+      const isSearching = search.trim().length > 0;
+
+      const matchSearch = isSearching
+        ? (
+            location.toLowerCase().includes(search.toLowerCase()) ||
+            driver.toLowerCase().includes(search.toLowerCase()) ||
+            vehicle.toLowerCase().includes(search.toLowerCase()) ||
+            refNo.toLowerCase().includes(search.toLowerCase()) ||
+            subOff.toLowerCase().includes(search.toLowerCase()) ||
+            assOff.toLowerCase().includes(search.toLowerCase())
+          )
+        : isMine;
+
+      return matchFilter && matchSearch;
     });
 
   if (loading) {

@@ -73,12 +73,20 @@ export default function LoginScreen({ navigation }) {
     if (response.ok) {
       console.log("LOGIN SUCCESS");
       if (data.officer) {
+        global.loggedOfficer = data.officer;
         if (data.officer.fullName) {
           global.loggedOfficerName = data.officer.fullName;
+        }
+        if (data.officer.username) {
+          global.loggedOfficerUsername = data.officer.username;
+        } else {
+          global.loggedOfficerUsername = username;
         }
         if (data.officer.policeId) {
           global.loggedOfficerPoliceId = data.officer.policeId;
         }
+      } else {
+        global.loggedOfficerUsername = username;
       }
       if (data.token) {
         global.userToken = data.token;
