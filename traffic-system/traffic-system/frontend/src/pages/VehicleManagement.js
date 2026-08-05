@@ -470,7 +470,7 @@ function VehicleManagement() {
               const submitterName = officer.name || officer.fullName || "IT Officer";
               const res = await registerVehicle({
                 ...vehicleData,
-                status: "Pending",
+                status: "PENDING",
                 submittedBy: submitterName
               });
               if (res && !res.error) {
