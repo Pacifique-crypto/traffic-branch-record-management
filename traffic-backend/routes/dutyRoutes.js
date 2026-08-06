@@ -5,6 +5,7 @@ const DutyRoster = require("../models/DutyRoster");
 const OfficerAvailability = require("../models/OfficerAvailability");
 const Officer = require("../models/Officer");
 const Shift = require("../models/Shift");
+const Vehicle = require("../models/Vehicle");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const { recommendOfficer } = require("../services/AIRecommendationService");
 
@@ -78,8 +79,18 @@ router.get("/rules", verifyToken, async (req, res) => {
 
 router.post("/rules", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
   try {
-    const { location, dutyType, requiredOfficers, minRank, priority } = req.body;
-    const rule = new DutyRule({ location, dutyType, requiredOfficers: Number(requiredOfficers), minRank, priority });
+    const { location, dutyType, requiredOfficers, minRank, priority, shift, requiresVehicle, vehicleType, maxConsecutiveAssignments } = req.body;
+    const rule = new DutyRule({
+      location,
+      dutyType,
+      requiredOfficers: Number(requiredOfficers),
+      minRank,
+      priority,
+      shift: shift || "Morning (06:00 - 14:00)",
+      requiresVehicle: Boolean(requiresVehicle),
+      vehicleType: vehicleType || "",
+      maxConsecutiveAssignments: Number(maxConsecutiveAssignments || 3)
+    });
     await rule.save();
     res.status(201).json(rule);
   } catch (err) {
@@ -89,10 +100,20 @@ router.post("/rules", verifyToken, authorizeRoles("admin", "it officer"), async 
 
 router.put("/rules/:id", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
   try {
-    const { location, dutyType, requiredOfficers, minRank, priority } = req.body;
+    const { location, dutyType, requiredOfficers, minRank, priority, shift, requiresVehicle, vehicleType, maxConsecutiveAssignments } = req.body;
     const rule = await DutyRule.findByIdAndUpdate(
       req.params.id,
-      { location, dutyType, requiredOfficers: Number(requiredOfficers), minRank, priority },
+      {
+        location,
+        dutyType,
+        requiredOfficers: Number(requiredOfficers),
+        minRank,
+        priority,
+        shift: shift || "Morning (06:00 - 14:00)",
+        requiresVehicle: Boolean(requiresVehicle),
+        vehicleType: vehicleType || "",
+        maxConsecutiveAssignments: Number(maxConsecutiveAssignments || 3)
+      },
       { new: true }
     );
     res.json(rule);
@@ -254,6 +275,39 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
         .map(l => `${l.officer.toString()}_${new Date(l.date).toDateString()}`)
     );
 
+    // Fetch all published rosters & available vehicles
+    const publishedRosters = await DutyRoster.find({ status: "Published" });
+    const availableVehicles = await Vehicle.find({ status: { $in: ["AVAILABLE", "Active", "Approved"] } });
+    const assignedVehiclesPerShift = new Set();
+
+    const getOfficerConsecutiveCount = (officerId, targetDate) => {
+      let count = 0;
+      const offIdStr = officerId.toString();
+      let checkDate = new Date(targetDate);
+      checkDate.setDate(checkDate.getDate() - 1);
+
+      for (let i = 0; i < 7; i++) {
+        const dayStr = checkDate.toDateString();
+        const workedInPublished = publishedRosters.some(r =>
+          r.assignments && r.assignments.some(a =>
+            a.officer && a.officer.toString() === offIdStr &&
+            new Date(a.date).toDateString() === dayStr
+          )
+        );
+        const workedInCurrent = assignments.some(a =>
+          a.officer && a.officer.toString() === offIdStr &&
+          new Date(a.date).toDateString() === dayStr
+        );
+        if (workedInPublished || workedInCurrent) {
+          count++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return count;
+    };
+
     // Sort rules by priority (High first) so we assign important slots first
     const sortedRules = [...rules].sort((a, b) => {
       const priorityMap = { High: 3, Medium: 2, Low: 1 };
@@ -277,6 +331,15 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
             let highestScore = -Infinity;
             let bestReason = "";
 
+            // Check vehicle allocation for this rule slot
+            let allocatedVehicle = null;
+            if (rule.requiresVehicle) {
+              allocatedVehicle = availableVehicles.find(v =>
+                !assignedVehiclesPerShift.has(`${v._id.toString()}_${dayStr}_${sh}`) &&
+                (!rule.vehicleType || v.vehicleType === rule.vehicleType)
+              ) || null;
+            }
+
             if (!enableAI) {
               // Select first eligible officer without scoring
               for (const officer of activeOfficers) {
@@ -288,8 +351,14 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
                 const requiredRankVal = RANK_HIERARCHY[rule.minRank] || 1;
                 if (officerRankVal < requiredRankVal) continue;
 
+                const consecutiveCount = getOfficerConsecutiveCount(officer._id, d);
+                if (consecutiveCount >= (rule.maxConsecutiveAssignments || 3)) continue;
+
                 bestOfficer = officer;
                 bestReason = "✓ Available\n✓ Rank Eligible";
+                if (rule.requiresVehicle && allocatedVehicle) {
+                  bestReason += `\n✓ Vehicle Allocated: ${allocatedVehicle.vehicleType} (${allocatedVehicle.registrationNo})`;
+                }
                 break;
               }
             } else {
@@ -344,6 +413,7 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
               });
 
               for (const officer of activeOfficers) {
+                const consecutiveCount = getOfficerConsecutiveCount(officer._id, d);
                 const { score, reason } = recommendOfficer(
                   officer,
                   rule,
@@ -351,7 +421,9 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
                   sh,
                   yesterdayAsgs,
                   currentAssignments,
-                  customLeaves
+                  customLeaves,
+                  consecutiveCount,
+                  allocatedVehicle
                 );
 
                 if (score > highestScore) {
@@ -366,6 +438,9 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
               const offIdStr = bestOfficer._id.toString();
               shiftAssignedOfficers.add(offIdStr);
               weeklyWorkload[offIdStr] += 1;
+              if (allocatedVehicle) {
+                assignedVehiclesPerShift.add(`${allocatedVehicle._id.toString()}_${dayStr}_${sh}`);
+              }
 
               assignments.push({
                 officer: bestOfficer._id,

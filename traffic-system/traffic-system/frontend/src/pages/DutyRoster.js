@@ -7,7 +7,7 @@ import {
   TableContainer, TableHead, TableRow, Button, Grid, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel,
   FormControl, Radio, RadioGroup, FormControlLabel, Chip, CircularProgress,
-  IconButton, Alert, Snackbar, Tabs, Tab, Checkbox, ListItemText
+  IconButton, Alert, Snackbar, Tabs, Tab, Checkbox, ListItemText, FormLabel
 } from "@mui/material";
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -40,7 +40,17 @@ function DutyRoster() {
 
   // Rules Dialog State
   const [ruleDialog, setRuleDialog] = useState({ open: false, isEdit: false, id: null });
-  const [ruleForm, setRuleForm] = useState({ location: "", dutyType: "", requiredOfficers: 1, minRank: "Constable", priority: "Medium" });
+  const [ruleForm, setRuleForm] = useState({
+    location: "",
+    dutyType: "",
+    requiredOfficers: 1,
+    minRank: "Constable",
+    priority: "Medium",
+    shift: "Morning (06:00 - 14:00)",
+    requiresVehicle: false,
+    vehicleType: "",
+    maxConsecutiveAssignments: 3
+  });
 
   // Roster Creation State
   const [rosterType, setRosterType] = useState("Daily");
@@ -118,18 +128,40 @@ function DutyRoster() {
         dutyType: rule.dutyType,
         requiredOfficers: rule.requiredOfficers,
         minRank: rule.minRank,
-        priority: rule.priority
+        priority: rule.priority,
+        shift: rule.shift || "Morning (06:00 - 14:00)",
+        requiresVehicle: Boolean(rule.requiresVehicle),
+        vehicleType: rule.vehicleType || "",
+        maxConsecutiveAssignments: rule.maxConsecutiveAssignments || 3
       });
       setRuleDialog({ open: true, isEdit: true, id: rule._id });
     } else {
-      setRuleForm({ location: "", dutyType: "", requiredOfficers: 1, minRank: "Constable", priority: "Medium" });
+      setRuleForm({
+        location: "",
+        dutyType: "",
+        requiredOfficers: 1,
+        minRank: "Constable",
+        priority: "Medium",
+        shift: "Morning (06:00 - 14:00)",
+        requiresVehicle: false,
+        vehicleType: "",
+        maxConsecutiveAssignments: 3
+      });
       setRuleDialog({ open: true, isEdit: false, id: null });
     }
   };
 
   const handleSaveRule = async () => {
-    if (!ruleForm.location || !ruleForm.dutyType) {
-      showMsg("Please fill in location and duty type fields.", "warning");
+    if (!ruleForm.location || !ruleForm.dutyType || !ruleForm.shift) {
+      showMsg("Please fill in required fields: Location, Duty Type, and Shift.", "warning");
+      return;
+    }
+    if (ruleForm.requiresVehicle && !ruleForm.vehicleType) {
+      showMsg("Please select a Vehicle Type when Requires Vehicle is set to Yes.", "warning");
+      return;
+    }
+    if (ruleForm.maxConsecutiveAssignments < 1 || ruleForm.maxConsecutiveAssignments > 7) {
+      showMsg("Maximum Consecutive Assignments must be between 1 and 7.", "warning");
       return;
     }
     try {
@@ -558,8 +590,11 @@ function DutyRoster() {
                   <TableRow>
                     <TableCell>DUTY LOCATION</TableCell>
                     <TableCell>DUTY TYPE</TableCell>
-                    <TableCell>OFFICERS REQUIRED</TableCell>
-                    <TableCell>MINIMUM RANK CONSTRAINT</TableCell>
+                    <TableCell>SHIFT</TableCell>
+                    <TableCell>OFFICERS REQ</TableCell>
+                    <TableCell>VEHICLE REQ</TableCell>
+                    <TableCell>MIN RANK</TableCell>
+                    <TableCell>MAX CONSECUTIVE</TableCell>
                     <TableCell>PRIORITY</TableCell>
                     <TableCell align="right">ACTION</TableCell>
                   </TableRow>
@@ -567,7 +602,7 @@ function DutyRoster() {
                 <TableBody>
                   {rules.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
+                      <TableCell colSpan={9} align="center" sx={{ color: "text.secondary" }}>
                         No duty rules created yet.
                       </TableCell>
                     </TableRow>
@@ -576,10 +611,21 @@ function DutyRoster() {
                       <TableRow key={rule._id}>
                         <TableCell fontWeight="bold">{rule.location}</TableCell>
                         <TableCell>{rule.dutyType}</TableCell>
+                        <TableCell>
+                          <Chip label={rule.shift || "Morning (06:00 - 14:00)"} size="small" variant="outlined" color="primary" />
+                        </TableCell>
                         <TableCell>{rule.requiredOfficers}</TableCell>
+                        <TableCell>
+                          {rule.requiresVehicle ? (
+                            <Chip label={`Yes (${rule.vehicleType || "Vehicle"})`} size="small" color="info" />
+                          ) : (
+                            <Chip label="No" size="small" variant="outlined" />
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Chip label={rule.minRank || "Constable"} size="small" color="secondary" />
                         </TableCell>
+                        <TableCell>{rule.maxConsecutiveAssignments || 3} shifts</TableCell>
                         <TableCell>
                           <Chip
                             label={rule.priority}
@@ -605,55 +651,145 @@ function DutyRoster() {
         )}
 
         {/* Add/Edit Rule Dialog */}
-        <Dialog open={ruleDialog.open} onClose={() => setRuleDialog({ open: false, isEdit: false, id: null })}>
-          <DialogTitle>{ruleDialog.isEdit ? "Edit Duty Rule" : "Add Location Duty Rule"}</DialogTitle>
-          <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2, minWidth: 360 }}>
-            <TextField
-              label="Location"
-              value={ruleForm.location}
-              onChange={(e) => setRuleForm({ ...ruleForm, location: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Duty Type"
-              value={ruleForm.dutyType}
-              onChange={(e) => setRuleForm({ ...ruleForm, dutyType: e.target.value })}
-              fullWidth
-            />
-            <TextField
-              label="Required Officers Count"
-              type="number"
-              value={ruleForm.requiredOfficers}
-              onChange={(e) => setRuleForm({ ...ruleForm, requiredOfficers: Number(e.target.value) })}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Minimum Rank constraint</InputLabel>
-              <Select
-                value={ruleForm.minRank}
-                onChange={(e) => setRuleForm({ ...ruleForm, minRank: e.target.value })}
-                label="Minimum Rank constraint"
-              >
-                <MenuItem value="Constable">Constable</MenuItem>
-                <MenuItem value="Sergeant">Sergeant</MenuItem>
-                <MenuItem value="Sub-Inspector">Sub-Inspector</MenuItem>
-                <MenuItem value="Inspector">Inspector</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
-              <Select
-                value={ruleForm.priority}
-                onChange={(e) => setRuleForm({ ...ruleForm, priority: e.target.value })}
-                label="Priority"
-              >
-                <MenuItem value="Low">Low</MenuItem>
-                <MenuItem value="Medium">Medium</MenuItem>
-                <MenuItem value="High">High</MenuItem>
-              </Select>
-            </FormControl>
+        <Dialog open={ruleDialog.open} onClose={() => setRuleDialog({ open: false, isEdit: false, id: null })} maxWidth="md" fullWidth>
+          <DialogTitle>{ruleDialog.isEdit ? "Edit Location Duty Rule" : "Add Location Duty Rule"}</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <Grid container spacing={3}>
+              {/* Basic Information Section */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" fontWeight="bold" color="primary" sx={{ borderBottom: 1, borderColor: "divider", pb: 0.5, mb: 1 }}>
+                  Basic Information
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Location"
+                  value={ruleForm.location}
+                  onChange={(e) => setRuleForm({ ...ruleForm, location: e.target.value })}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Duty Type"
+                  value={ruleForm.dutyType}
+                  onChange={(e) => setRuleForm({ ...ruleForm, dutyType: e.target.value })}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Shift</InputLabel>
+                  <Select
+                    value={ruleForm.shift}
+                    onChange={(e) => setRuleForm({ ...ruleForm, shift: e.target.value })}
+                    label="Shift"
+                  >
+                    <MenuItem value="Morning (06:00 - 14:00)">Morning (06:00 - 14:00)</MenuItem>
+                    <MenuItem value="Evening (14:00 - 22:00)">Evening (14:00 - 22:00)</MenuItem>
+                    <MenuItem value="Night (22:00 - 06:00)">Night (22:00 - 06:00)</MenuItem>
+                    <MenuItem value="Full Day (06:00 - 18:00)">Full Day (06:00 - 18:00)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Required Officers Count"
+                  type="number"
+                  value={ruleForm.requiredOfficers}
+                  onChange={(e) => setRuleForm({ ...ruleForm, requiredOfficers: Number(e.target.value) })}
+                  fullWidth
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Minimum Rank Constraint</InputLabel>
+                  <Select
+                    value={ruleForm.minRank}
+                    onChange={(e) => setRuleForm({ ...ruleForm, minRank: e.target.value })}
+                    label="Minimum Rank Constraint"
+                  >
+                    <MenuItem value="Constable">Constable</MenuItem>
+                    <MenuItem value="Sergeant">Sergeant</MenuItem>
+                    <MenuItem value="Sub-Inspector">Sub-Inspector</MenuItem>
+                    <MenuItem value="Inspector">Inspector</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Priority</InputLabel>
+                  <Select
+                    value={ruleForm.priority}
+                    onChange={(e) => setRuleForm({ ...ruleForm, priority: e.target.value })}
+                    label="Priority"
+                  >
+                    <MenuItem value="Low">Low</MenuItem>
+                    <MenuItem value="Medium">Medium</MenuItem>
+                    <MenuItem value="High">High</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Vehicle Requirements Section */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" fontWeight="bold" color="primary" sx={{ borderBottom: 1, borderColor: "divider", pb: 0.5, mb: 1, mt: 1 }}>
+                  Vehicle Requirements
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl component="fieldset">
+                  <FormLabel component="legend">Requires Vehicle</FormLabel>
+                  <RadioGroup
+                    row
+                    value={ruleForm.requiresVehicle ? "Yes" : "No"}
+                    onChange={(e) => setRuleForm({ ...ruleForm, requiresVehicle: e.target.value === "Yes" })}
+                  >
+                    <FormControlLabel value="Yes" control={<Radio />} label="Yes" />
+                    <FormControlLabel value="No" control={<Radio />} label="No" />
+                  </RadioGroup>
+                </FormControl>
+              </Grid>
+              {ruleForm.requiresVehicle && (
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Vehicle Type</InputLabel>
+                    <Select
+                      value={ruleForm.vehicleType}
+                      onChange={(e) => setRuleForm({ ...ruleForm, vehicleType: e.target.value })}
+                      label="Vehicle Type"
+                    >
+                      <MenuItem value="Motorcycle">Motorcycle</MenuItem>
+                      <MenuItem value="Patrol Car">Patrol Car</MenuItem>
+                      <MenuItem value="Recovery Truck">Recovery Truck</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              )}
+
+              {/* Workload Rules Section */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" fontWeight="bold" color="primary" sx={{ borderBottom: 1, borderColor: "divider", pb: 0.5, mb: 1, mt: 1 }}>
+                  Workload Rules
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Maximum Consecutive Assignments"
+                  type="number"
+                  value={ruleForm.maxConsecutiveAssignments}
+                  onChange={(e) => setRuleForm({ ...ruleForm, maxConsecutiveAssignments: Number(e.target.value) })}
+                  fullWidth
+                  helperText="Limits consecutive published duty assignments before AI skips officer (1 to 7 shifts)"
+                  inputProps={{ min: 1, max: 7 }}
+                />
+              </Grid>
+            </Grid>
           </DialogContent>
-          <DialogActions>
+          <DialogActions sx={{ p: 2 }}>
             <Button onClick={() => setRuleDialog({ open: false, isEdit: false, id: null })}>Cancel</Button>
             <Button variant="contained" onClick={handleSaveRule}>Save Rule</Button>
           </DialogActions>
