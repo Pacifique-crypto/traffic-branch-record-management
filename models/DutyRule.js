@@ -23,6 +23,25 @@ const dutyRuleSchema = new mongoose.Schema({
     type: String,
     enum: ["Low", "Medium", "High"],
     default: "Medium"
+  },
+  shift: {
+    type: String,
+    required: true,
+    default: "Morning (06:00 - 14:00)"
+  },
+  requiresVehicle: {
+    type: Boolean,
+    default: false
+  },
+  vehicleType: {
+    type: String,
+    default: ""
+  },
+  maxConsecutiveAssignments: {
+    type: Number,
+    default: 3,
+    min: 1,
+    max: 7
   }
 }, { timestamps: true });
 
