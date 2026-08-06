@@ -183,11 +183,16 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
     const { rosterType, date, shift, weekStart, weekEnd, enableAI } = req.body;
 
     const activeOfficers = await Officer.find({ status: { $ne: "Pending" } });
-    const rules = await DutyRule.find({});
+    let rules = await DutyRule.find({});
     const activeShifts = await Shift.find({ isActive: true });
     
     if (rules.length === 0) {
-      return res.status(400).json({ message: "No duty rules configured. Please set up duty rules first." });
+      rules = [
+        { location: "Negombo Clock Tower Junction", dutyType: "Traffic Control", requiredOfficers: 2, minRank: "Constable", priority: "High" },
+        { location: "Beach Road Tourism Zone", dutyType: "Patrol Duty", requiredOfficers: 2, minRank: "Constable", priority: "Medium" },
+        { location: "Colombo-Chilaw Highway (A3)", dutyType: "Speed Check & Inspection", requiredOfficers: 2, minRank: "Sergeant", priority: "High" },
+        { location: "Kochchikade Bridge Checkpoint", dutyType: "Security Checkpoint", requiredOfficers: 1, minRank: "Constable", priority: "Medium" }
+      ];
     }
 
     const assignments = [];

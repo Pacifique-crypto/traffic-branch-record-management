@@ -175,11 +175,12 @@ function DutyRoster() {
       };
 
       const res = await generateAIDutyRoster(payload);
-      if (res.error) {
-        showMsg(res.error, "error");
-      } else {
+      if (res && res.assignments && Array.isArray(res.assignments)) {
         setGeneratedAssignments(res);
-        showMsg("AI recommendation roster generated successfully!");
+        showMsg("Rule-based AI recommendation roster generated successfully!");
+      } else {
+        const errMsg = res?.message || res?.error || "Failed to generate roster assignments.";
+        showMsg(errMsg, "error");
       }
     } catch (err) {
       showMsg("Failed to connect to generator engine", "error");
@@ -402,7 +403,7 @@ function DutyRoster() {
 
             {/* Generated Roster Display */}
             <Grid item xs={12} md={8}>
-              {generatedAssignments ? (
+              {generatedAssignments && Array.isArray(generatedAssignments.assignments) ? (
                 <Paper sx={{ p: 3 }}>
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                     <Typography variant="h6" fontWeight="bold">
