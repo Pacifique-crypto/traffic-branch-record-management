@@ -58,13 +58,45 @@ const [step, setStep] = useState(1);
 // VIOLATION DETAILS
 // ================================
 
-const [violationType, setViolationType] = useState("");
+const OFFENCE_OPTIONS = [
+  "Speeding",
+  "No Helmet",
+  "Seat Belt",
+  "Dangerous Driving",
+  "Careless Driving",
+  "No License",
+  "Signal Violation",
+  "Drunk Driving",
+  "Overloading",
+  "Others",
+];
+
+const VEHICLE_TYPE_OPTIONS = [
+  "Car",
+  "Motorcycle",
+  "Bus",
+  "Van",
+  "Lorry",
+  "SUV / Jeep",
+  "Three-Wheeler",
+  "Others",
+];
+
+const [selectedOffences, setSelectedOffences] = useState([]);
 const [customViolationType, setCustomViolationType] = useState("");
 const [fineAmount, setFineAmount] = useState("");
 const [lawSection, setLawSection] = useState("");
 const [actionTaken, setActionTaken] = useState("");
 const [location, setLocation] = useState("");
 const [dateTime, setDateTime] = useState("");
+
+const toggleOffence = (offence) => {
+  if (selectedOffences.includes(offence)) {
+    setSelectedOffences(selectedOffences.filter(item => item !== offence));
+  } else {
+    setSelectedOffences([...selectedOffences, offence]);
+  }
+};
 
 // ================================
 // DRIVER DETAILS
@@ -78,9 +110,17 @@ const [drivingLicence, setDrivingLicence] = useState("");
 // VEHICLE DETAILS
 // ================================
 const [vehicleNumber, setVehicleNumber] = useState("");
-const [vehicleType, setVehicleType] = useState("");
+const [selectedVehicleTypes, setSelectedVehicleTypes] = useState([]);
 const [customVehicleType, setCustomVehicleType] = useState("");
 const [assistantOfficer, setAssistantOfficer] = useState("");
+
+const toggleVehicleType = (vType) => {
+  if (selectedVehicleTypes.includes(vType)) {
+    setSelectedVehicleTypes(selectedVehicleTypes.filter(item => item !== vType));
+  } else {
+    setSelectedVehicleTypes([...selectedVehicleTypes, vType]);
+  }
+};
 
 // ================================
 // DESCRIPTION
@@ -295,8 +335,15 @@ const recordVoice = async () => {
   };
 
   const handleSubmit = async () => {
-    const finalViolationType = violationType === "Others" ? customViolationType : violationType;
-    const finalVehicleType = vehicleType === "Others" ? customVehicleType : vehicleType;
+    const finalOffences = selectedOffences
+      .map(o => o === "Others" ? (customViolationType || "Others") : o)
+      .filter(Boolean);
+    const finalViolationType = finalOffences.join(", ");
+
+    const finalVehicles = selectedVehicleTypes
+      .map(v => v === "Others" ? (customVehicleType || "Others") : v)
+      .filter(Boolean);
+    const finalVehicleType = finalVehicles.join(", ");
 
     if (
       !finalViolationType ||
@@ -307,7 +354,7 @@ const recordVoice = async () => {
       !location ||
       !dateTime
     ) {
-      Alert.alert("Please fill all fields");
+      Alert.alert("Please fill all required fields", "Please ensure at least one Offence and one Vehicle Type are selected.");
       return;
     }
 
@@ -496,52 +543,35 @@ onChangeText={setDateTime}
 />
 
 <Text style={styles.label}>
-Name of Offence
+Name of Offence (Select multiple if applicable)
 </Text>
 
-<View style={styles.pickerBox}>
-
-<Picker
-selectedValue={violationType}
-onValueChange={calculateFine}
->
-
-<Picker.Item
-label="Select Offence"
-value=""
-/>
-
-<Picker.Item
-label="Speeding"
-value="Speeding"
-/>
-
-<Picker.Item
-label="No Helmet"
-value="No Helmet"
-/>
-
-<Picker.Item
-label="Seat Belt"
-value="Seat Belt"
-/>
-
-<Picker.Item
-label="Dangerous Driving"
-value="Dangerous Driving"
-/>
-
-<Picker.Item
-label="Others"
-value="Others"
-/>
-
-</Picker>
-
+<View style={styles.chipContainer}>
+  {OFFENCE_OPTIONS.map((offence) => {
+    const isSelected = selectedOffences.includes(offence);
+    return (
+      <TouchableOpacity
+        key={offence}
+        style={[styles.chip, isSelected && styles.chipSelected]}
+        onPress={() => toggleOffence(offence)}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name={isSelected ? "checkbox" : "square-outline"}
+          size={18}
+          color={isSelected ? "#ffffff" : "#4b5563"}
+          style={{ marginRight: 6 }}
+        />
+        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+          {offence}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
 </View>
 
-{violationType === "Others" && (
-  <View style={{ marginTop: 10 }}>
+{selectedOffences.includes("Others") && (
+  <View style={{ marginTop: 5, marginBottom: 15 }}>
     <Text style={styles.label}>Custom Offence Name</Text>
     <TextInput
       style={styles.input}
@@ -731,30 +761,35 @@ onChangeText={setVehicleNumber}
 />
 
 <Text style={styles.label}>
-Vehicle Type
+Vehicle Type (Select multiple if applicable)
 </Text>
 
-<View style={styles.pickerBox}>
-
-<Picker
-selectedValue={vehicleType}
-onValueChange={setVehicleType}
->
-
-<Picker.Item label="Select Vehicle Type" value="" />
-<Picker.Item label="Car" value="Car" />
-<Picker.Item label="Motorcycle" value="Motorcycle" />
-<Picker.Item label="Bus" value="Bus" />
-<Picker.Item label="Van" value="Van" />
-<Picker.Item label="Lorry" value="Lorry" />
-<Picker.Item label="Others" value="Others" />
-
-</Picker>
-
+<View style={styles.chipContainer}>
+  {VEHICLE_TYPE_OPTIONS.map((vType) => {
+    const isSelected = selectedVehicleTypes.includes(vType);
+    return (
+      <TouchableOpacity
+        key={vType}
+        style={[styles.chip, isSelected && styles.chipSelected]}
+        onPress={() => toggleVehicleType(vType)}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name={isSelected ? "checkbox" : "square-outline"}
+          size={18}
+          color={isSelected ? "#ffffff" : "#4b5563"}
+          style={{ marginRight: 6 }}
+        />
+        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+          {vType}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
 </View>
 
-{vehicleType === "Others" && (
-  <View style={{ marginTop: 10 }}>
+{selectedVehicleTypes.includes("Others") && (
+  <View style={{ marginTop: 5, marginBottom: 15 }}>
     <Text style={styles.label}>Custom Vehicle Type</Text>
     <TextInput
       style={styles.input}
@@ -1206,5 +1241,39 @@ fontWeight:"bold",
 marginLeft:10,
 },
 
+chipContainer: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginBottom: 10,
+  marginTop: 4,
+},
+
+chip: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#f3f4f6",
+  borderWidth: 1,
+  borderColor: "#d1d5db",
+  borderRadius: 20,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  marginRight: 8,
+  marginBottom: 8,
+},
+
+chipSelected: {
+  backgroundColor: "#1e3a8a",
+  borderColor: "#1e3a8a",
+},
+
+chipText: {
+  fontSize: 14,
+  fontWeight: "600",
+  color: "#374151",
+},
+
+chipTextSelected: {
+  color: "#ffffff",
+},
 
 });
