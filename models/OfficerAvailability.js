@@ -6,23 +6,31 @@ const officerAvailabilitySchema = new mongoose.Schema({
     ref: "Officer",
     required: true
   },
-  date: {
+  startDate: {
     type: Date,
     required: true
   },
-  status: {
-    type: String,
-    enum: ["Available", "On Leave"],
-    default: "Available"
+  endDate: {
+    type: Date,
+    required: true
   },
-  shift: {
+  leaveType: {
     type: String,
-    enum: ["Morning", "Afternoon", "Night", "All"],
-    default: "All"
+    required: true
+  },
+  remarks: {
+    type: String,
+    default: ""
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Admin",
+    required: true
   }
 }, { timestamps: true });
 
-// Compound index to avoid duplicate availability entries for the same officer on the same date
-officerAvailabilitySchema.index({ officer: 1, date: 1 }, { unique: true });
+// Compound index for querying officer leave periods
+officerAvailabilitySchema.index({ officer: 1, startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model("OfficerAvailability", officerAvailabilitySchema);
+

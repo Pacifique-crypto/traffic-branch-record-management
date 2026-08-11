@@ -266,14 +266,25 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
 
     // Custom availabilities / leaves
     const leaves = await OfficerAvailability.find({
-      status: "On Leave",
-      date: { $gte: rangeStartDay, $lte: rangeEndDay }
+      startDate: { $lte: rangeEndDay },
+      endDate: { $gte: rangeStartDay }
     });
-    const leaveSet = new Set(
-      leaves
-        .filter(l => l.officer)
-        .map(l => `${l.officer.toString()}_${new Date(l.date).toDateString()}`)
-    );
+
+    const isOfficerOnLeave = (officerId, targetDate) => {
+      const offIdStr = officerId.toString();
+      const target = new Date(targetDate);
+      target.setHours(12, 0, 0, 0);
+      const tTime = target.getTime();
+
+      return leaves.some(l => {
+        if (!l.officer || l.officer.toString() !== offIdStr) return false;
+        const s = new Date(l.startDate);
+        s.setHours(0, 0, 0, 0);
+        const e = new Date(l.endDate);
+        e.setHours(23, 59, 59, 999);
+        return tTime >= s.getTime() && tTime <= e.getTime();
+      });
+    };
 
     // Fetch all published rosters & available vehicles
     const publishedRosters = await DutyRoster.find({ status: "Published" });
@@ -345,7 +356,7 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
               for (const officer of activeOfficers) {
                 const offIdStr = officer._id.toString();
                 if (shiftAssignedOfficers.has(offIdStr)) continue;
-                if (leaveSet.has(`${offIdStr}_${dayStr}`)) continue;
+                if (isOfficerOnLeave(officer._id, d)) continue;
                 
                 const officerRankVal = RANK_HIERARCHY[officer.rank] || 1;
                 const requiredRankVal = RANK_HIERARCHY[rule.minRank] || 1;

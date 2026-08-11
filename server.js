@@ -61,6 +61,9 @@ app.use("/api", dataRoutes);
 const dutyRoutes = require("./routes/dutyRoutes");
 app.use("/api/duties", dutyRoutes);
 
+const leaveRoutes = require("./routes/leaveRoutes");
+app.use("/api/leaves", leaveRoutes);
+
 // Auto-seed initial vehicle fleet
 const Vehicle = require("./models/Vehicle");
 const seedVehicles = async () => {
