@@ -306,3 +306,42 @@ export const deleteDutyShift = async (id) => {
   });
   return res.json();
 };
+
+// ==========================================
+// OFFICER LEAVE API CALLS
+// ==========================================
+export const getOfficerLeaves = async () => {
+  const res = await fetch(`${BASE_URL}/leaves`, { headers: getHeaders() });
+  return res.json();
+};
+
+export const getLeavesByOfficer = async (officerId) => {
+  const res = await fetch(`${BASE_URL}/leaves/officer/${officerId}`, { headers: getHeaders() });
+  return res.json();
+};
+
+export const createOfficerLeave = async (data) => {
+  const res = await fetch(`${BASE_URL}/leaves`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const updateOfficerLeave = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/leaves/${id}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const deleteOfficerLeave = async (id) => {
+  const res = await fetch(`${BASE_URL}/leaves/${id}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  return res.json();
+};

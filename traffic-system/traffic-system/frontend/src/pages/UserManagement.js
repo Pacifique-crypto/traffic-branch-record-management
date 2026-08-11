@@ -2,11 +2,10 @@ import React, { useState, useEffect } from "react";
 import {
   FiUsers, FiCheckCircle, FiXCircle, FiMoreVertical,
   FiUserPlus, FiEye, FiEyeOff, FiCheck, FiX, FiSearch,
-  FiDownload, FiPrinter, FiFilter, FiAlertTriangle
+  FiDownload, FiPrinter, FiFilter, FiAlertTriangle, FiCalendar, FiTrash2
 } from "react-icons/fi";
-import { getOfficers, registerOfficer, updateOfficer, deleteOfficer } from "../api";
-
-
+import { getOfficers, registerOfficer, updateOfficer, deleteOfficer, getLeavesByOfficer, deleteOfficerLeave } from "../api";
+import MarkOfficerLeaveModal from "../components/MarkOfficerLeaveModal";
 
 const PAGE_SIZE = 5;
 
@@ -36,6 +35,7 @@ function UserManagement() {
 
   // Modals
   const [showRegister, setShowRegister]   = useState(false);
+  const [leaveModalOfficer, setLeaveModalOfficer] = useState(null);
   const [detailsOfficer, setDetailsOfficer] = useState(null);
   const [resetTarget, setResetTarget]     = useState(null);
   const [editTarget, setEditTarget]       = useState(null);
@@ -153,9 +153,14 @@ function UserManagement() {
             </p>
           </div>
           {userRole === "IT Officer" && (
-            <button className="um-register-btn" onClick={() => setShowRegister(true)}>
-              <FiUserPlus size={15} style={{ marginRight: 6 }} /> Register Officer
-            </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="um-register-btn" style={{ backgroundColor: "#0f172a" }} onClick={() => setLeaveModalOfficer({})}>
+                <FiCalendar size={15} style={{ marginRight: 6 }} /> Mark Leave
+              </button>
+              <button className="um-register-btn" onClick={() => setShowRegister(true)}>
+                <FiUserPlus size={15} style={{ marginRight: 6 }} /> Register Officer
+              </button>
+            </div>
           )}
         </div>
 
@@ -372,12 +377,21 @@ function UserManagement() {
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         {userRole === "IT Officer" && (
-                          <span 
-                            onClick={() => setResetTarget(o)} 
-                            style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
-                          >
-                            Reset PW
-                          </span>
+                          <>
+                            <span 
+                              onClick={() => setLeaveModalOfficer(o)} 
+                              style={{ color: "#0f172a", cursor: "pointer", fontWeight: 700, fontSize: 13, background: "#f1f5f9", padding: "4px 8px", borderRadius: "6px" }}
+                              title="Mark Officer Leave"
+                            >
+                              + Leave
+                            </span>
+                            <span 
+                              onClick={() => setResetTarget(o)} 
+                              style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+                            >
+                              Reset PW
+                            </span>
+                          </>
                         )}
                         <FiMoreVertical 
                           size={16} 
@@ -416,6 +430,18 @@ function UserManagement() {
           </div>
         </div>
       </div>
+
+      {/* ══ MARK OFFICER LEAVE MODAL ══ */}
+      {leaveModalOfficer !== null && (
+        <MarkOfficerLeaveModal
+          initialOfficer={leaveModalOfficer._id ? leaveModalOfficer : null}
+          officers={officers}
+          onClose={() => setLeaveModalOfficer(null)}
+          onSaveSuccess={() => {
+            fetchOfficers();
+          }}
+        />
+      )}
 
       {/* ══ REGISTER MODAL (IT Officer only) ══ */}
       {showRegister && (
@@ -755,9 +781,43 @@ function RegisterModal({ onClose, onSave }) {
 
 // ─── Officer Details Modal ───────────────────────────────────────
 function DetailsModal({ officer, onClose, onEdit, showEdit }) {
+  const [leaves, setLeaves] = useState([]);
+  const [loadingLeaves, setLoadingLeaves] = useState(true);
+
+  const fetchLeaves = async () => {
+    if (!officer || (!officer._id && !officer.id)) return;
+    try {
+      const data = await getLeavesByOfficer(officer._id || officer.id);
+      if (Array.isArray(data)) setLeaves(data);
+    } catch (err) {
+      console.error("Failed to load officer leave details:", err);
+    } finally {
+      setLoadingLeaves(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [officer]);
+
+  const handleDeleteLeave = async (leaveId) => {
+    if (!window.confirm("Are you sure you want to cancel this leave record?")) return;
+    try {
+      const res = await deleteOfficerLeave(leaveId);
+      if (res && !res.error) {
+        fetchLeaves();
+      } else {
+        alert(res.message || "Failed to delete leave record.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting leave record.");
+    }
+  };
+
   return (
     <div className="um-modal-overlay">
-      <div className="um-modal um-details-modal">
+      <div className="um-modal um-details-modal" style={{ maxWidth: 620 }}>
         <div className="um-details-header">
           <div>
             <h2 className="um-modal-title" style={{ color: "white" }}>Officer Details</h2>
@@ -800,6 +860,58 @@ function DetailsModal({ officer, onClose, onEdit, showEdit }) {
               <p className="um-details-value">📍 {officer.address}</p>
             </div>
           )}
+
+          {/* Officer Leave Records Section */}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <p className="um-details-label" style={{ margin: 0, fontSize: 12, color: "#1e3a8a", fontWeight: "700" }}>
+                🌴 OFFICER LEAVE HISTORY ({leaves.length})
+              </p>
+            </div>
+
+            {loadingLeaves ? (
+              <p style={{ fontSize: 12, color: "#94a3b8" }}>Loading leave records...</p>
+            ) : leaves.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 180, overflowY: "auto" }}>
+                {leaves.map((l) => (
+                  <div key={l._id} style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start"
+                  }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: "700", fontSize: "13px", color: "#0f172a" }}>
+                        {new Date(l.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} — {new Date(l.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        <span style={{ marginLeft: 8, padding: "2px 8px", background: "#dbeafe", color: "#1d4ed8", borderRadius: "4px", fontSize: "11px", fontWeight: "600" }}>
+                          {l.leaveType}
+                        </span>
+                      </p>
+                      {l.remarks && (
+                        <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#475569" }}>
+                          <strong>Remarks:</strong> {l.remarks}
+                        </p>
+                      )}
+                    </div>
+                    {showEdit && (
+                      <button
+                        onClick={() => handleDeleteLeave(l._id)}
+                        style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "4px" }}
+                        title="Delete leave record"
+                      >
+                        <FiTrash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>No leave records found for this officer.</p>
+            )}
+          </div>
         </div>
 
         <div className="um-modal-footer">
