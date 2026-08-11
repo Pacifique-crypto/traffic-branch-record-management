@@ -1,4 +1,9 @@
 {
+  "name": "traffic-branch-record-management",
+  "version": "1.0.0",
+  "scripts": {
+    "push-all": "git push-all"
+  },
   "dependencies": {
     "react-icons": "^5.7.0"
   }
