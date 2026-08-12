@@ -70,7 +70,7 @@ router.delete("/shifts/:id", verifyToken, authorizeRoles("admin", "it officer"),
 // ==========================================
 router.get("/rules", verifyToken, async (req, res) => {
   try {
-    const rules = await DutyRule.find({});
+    const rules = await DutyRule.find({}).populate("shift");
     res.json(rules);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -86,13 +86,14 @@ router.post("/rules", verifyToken, authorizeRoles("admin", "it officer"), async 
       requiredOfficers: Number(requiredOfficers),
       minRank,
       priority,
-      shift: shift || "Morning (06:00 - 14:00)",
+      shift: shift || null,
       requiresVehicle: Boolean(requiresVehicle),
       vehicleType: vehicleType || "",
       maxConsecutiveAssignments: Number(maxConsecutiveAssignments || 3)
     });
     await rule.save();
-    res.status(201).json(rule);
+    const populatedRule = await DutyRule.findById(rule._id).populate("shift");
+    res.status(201).json(populatedRule);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -109,13 +110,13 @@ router.put("/rules/:id", verifyToken, authorizeRoles("admin", "it officer"), asy
         requiredOfficers: Number(requiredOfficers),
         minRank,
         priority,
-        shift: shift || "Morning (06:00 - 14:00)",
+        shift: shift || null,
         requiresVehicle: Boolean(requiresVehicle),
         vehicleType: vehicleType || "",
         maxConsecutiveAssignments: Number(maxConsecutiveAssignments || 3)
       },
       { new: true }
-    );
+    ).populate("shift");
     res.json(rule);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -204,7 +205,7 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
     const { rosterType, date, shift, weekStart, weekEnd, enableAI } = req.body;
 
     const activeOfficers = await Officer.find({ status: { $ne: "Pending" } });
-    let rules = await DutyRule.find({});
+    let rules = await DutyRule.find({}).populate("shift");
     const activeShifts = await Shift.find({ isActive: true });
     
     if (rules.length === 0) {

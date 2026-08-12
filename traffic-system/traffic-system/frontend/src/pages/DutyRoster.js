@@ -121,15 +121,40 @@ function DutyRoster() {
   // ==========================================
   // RULES ACTIONS
   // ==========================================
+  const renderRuleShiftLabel = (ruleShift) => {
+    if (!ruleShift) return "Unassigned Shift";
+    if (typeof ruleShift === "object" && ruleShift.name) {
+      return `${ruleShift.name} (${ruleShift.startTime} - ${ruleShift.endTime})`;
+    }
+    const found = shifts.find(s => s._id === ruleShift || s.name === ruleShift);
+    if (found) {
+      return `${found.name} (${found.startTime} - ${found.endTime})`;
+    }
+    return String(ruleShift);
+  };
+
   const handleOpenRuleDialog = (rule = null) => {
     if (rule) {
+      let initialShiftId = "";
+      if (rule.shift) {
+        if (typeof rule.shift === "object" && rule.shift._id) {
+          initialShiftId = rule.shift._id;
+        } else {
+          const matched = shifts.find(s => s._id === rule.shift || s.name === rule.shift);
+          initialShiftId = matched ? matched._id : rule.shift;
+        }
+      }
+      if (!initialShiftId && shifts.length > 0) {
+        initialShiftId = shifts[0]._id;
+      }
+
       setRuleForm({
         location: rule.location,
         dutyType: rule.dutyType,
         requiredOfficers: rule.requiredOfficers,
         minRank: rule.minRank,
         priority: rule.priority,
-        shift: rule.shift || "Morning (06:00 - 14:00)",
+        shift: initialShiftId,
         requiresVehicle: Boolean(rule.requiresVehicle),
         vehicleType: rule.vehicleType || "",
         maxConsecutiveAssignments: rule.maxConsecutiveAssignments || 3
@@ -142,7 +167,7 @@ function DutyRoster() {
         requiredOfficers: 1,
         minRank: "Constable",
         priority: "Medium",
-        shift: "Morning (06:00 - 14:00)",
+        shift: shifts.length > 0 ? shifts[0]._id : "",
         requiresVehicle: false,
         vehicleType: "",
         maxConsecutiveAssignments: 3
@@ -612,7 +637,7 @@ function DutyRoster() {
                         <TableCell fontWeight="bold">{rule.location}</TableCell>
                         <TableCell>{rule.dutyType}</TableCell>
                         <TableCell>
-                          <Chip label={rule.shift || "Morning (06:00 - 14:00)"} size="small" variant="outlined" color="primary" />
+                          <Chip label={renderRuleShiftLabel(rule.shift)} size="small" variant="outlined" color="primary" />
                         </TableCell>
                         <TableCell>{rule.requiredOfficers}</TableCell>
                         <TableCell>
@@ -687,10 +712,15 @@ function DutyRoster() {
                     onChange={(e) => setRuleForm({ ...ruleForm, shift: e.target.value })}
                     label="Shift"
                   >
-                    <MenuItem value="Morning (06:00 - 14:00)">Morning (06:00 - 14:00)</MenuItem>
-                    <MenuItem value="Evening (14:00 - 22:00)">Evening (14:00 - 22:00)</MenuItem>
-                    <MenuItem value="Night (22:00 - 06:00)">Night (22:00 - 06:00)</MenuItem>
-                    <MenuItem value="Full Day (06:00 - 18:00)">Full Day (06:00 - 18:00)</MenuItem>
+                    {shifts.length === 0 ? (
+                      <MenuItem value="" disabled>No active shifts found in database</MenuItem>
+                    ) : (
+                      shifts.map((s) => (
+                        <MenuItem key={s._id} value={s._id}>
+                          {s.name} ({s.startTime} - {s.endTime})
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
                 </FormControl>
               </Grid>
