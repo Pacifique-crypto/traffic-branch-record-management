@@ -329,6 +329,21 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
       return count;
     };
 
+    const isRuleMatchingShift = (rule, targetShiftObj) => {
+      if (!rule || !rule.shift) {
+        return true; // Fallback rule without shift reference applies to all
+      }
+      const targetIdStr = targetShiftObj._id ? targetShiftObj._id.toString() : "";
+      const targetName = targetShiftObj.name || "";
+
+      if (typeof rule.shift === "object" && rule.shift._id) {
+        const ruleShiftIdStr = rule.shift._id.toString();
+        return ruleShiftIdStr === targetIdStr || rule.shift.name === targetName;
+      }
+      const ruleShiftStr = String(rule.shift);
+      return ruleShiftStr === targetIdStr || ruleShiftStr === targetName;
+    };
+
     // Sort rules by priority (High first) so we assign important slots first
     const sortedRules = [...rules].sort((a, b) => {
       const priorityMap = { High: 3, Medium: 2, Low: 1 };
@@ -338,13 +353,27 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
     // Generate assignments day by day
     for (const d of dateRange) {
       const dayStr = d.toDateString();
-      const shifts = rosterType === "Daily" ? [shift] : activeShifts.map(s => s.name);
 
-      for (const sh of shifts) {
+      // Determine shifts to process for this generator run
+      let shiftsToProcess = activeShifts;
+      if (rosterType === "Daily") {
+        const matched = activeShifts.filter(s => s.name === shift || s._id.toString() === shift);
+        if (matched.length > 0) {
+          shiftsToProcess = matched;
+        } else {
+          shiftsToProcess = [{ _id: "daily_custom", name: shift }];
+        }
+      }
+
+      for (const shObj of shiftsToProcess) {
+        const sh = shObj.name;
         // Track which officers are already assigned to a duty on this date and shift
         const shiftAssignedOfficers = new Set();
 
-        for (const rule of sortedRules) {
+        // Filter rules matching the current shift
+        const matchingRules = sortedRules.filter(rule => isRuleMatchingShift(rule, shObj));
+
+        for (const rule of matchingRules) {
           const required = rule.requiredOfficers || 1;
 
           for (let count = 0; count < required; count++) {
@@ -357,8 +386,14 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
             if (rule.requiresVehicle) {
               allocatedVehicle = availableVehicles.find(v =>
                 !assignedVehiclesPerShift.has(`${v._id.toString()}_${dayStr}_${sh}`) &&
-                (!rule.vehicleType || v.vehicleType === rule.vehicleType)
+                (!rule.vehicleType || (v.vehicleType || "").toLowerCase() === (rule.vehicleType || "").toLowerCase())
               ) || null;
+
+              // HARD CONSTRAINT: If requiresVehicle is true and NO matching vehicle is available,
+              // DO NOT assign an officer for this vehicle slot.
+              if (!allocatedVehicle) {
+                continue;
+              }
             }
 
             if (!enableAI) {
