@@ -25,9 +25,8 @@ const dutyRuleSchema = new mongoose.Schema({
     default: "Medium"
   },
   shift: {
-    type: String,
-    required: true,
-    default: "Morning (06:00 - 14:00)"
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Shift"
   },
   requiresVehicle: {
     type: Boolean,
