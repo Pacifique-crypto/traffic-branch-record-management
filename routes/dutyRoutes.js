@@ -270,19 +270,28 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
       endDate: { $gte: rangeStartDay }
     });
 
+    const getSriLankaDayBoundaries = (dateInput) => {
+      const d = new Date(dateInput);
+      const slDateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
+      const [year, month, day] = slDateStr.split("-").map(Number);
+
+      const startOfSLDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+      const endOfSLDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - (5.5 * 60 * 60 * 1000));
+
+      return { startOfSLDay, endOfSLDay };
+    };
+
     const isOfficerOnLeave = (officerId, targetDate) => {
       const offIdStr = officerId.toString();
-      const target = new Date(targetDate);
-      target.setHours(12, 0, 0, 0);
-      const tTime = target.getTime();
+      const { startOfSLDay, endOfSLDay } = getSriLankaDayBoundaries(targetDate);
 
       return leaves.some(l => {
-        if (!l.officer || l.officer.toString() !== offIdStr) return false;
+        if (!l || !l.officer) return false;
+        const leaveOffId = (l.officer._id || l.officer).toString();
+        if (leaveOffId !== offIdStr) return false;
         const s = new Date(l.startDate);
-        s.setHours(0, 0, 0, 0);
         const e = new Date(l.endDate);
-        e.setHours(23, 59, 59, 999);
-        return tTime >= s.getTime() && tTime <= e.getTime();
+        return s <= endOfSLDay && e >= startOfSLDay;
       });
     };
 
@@ -404,9 +413,6 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
                 });
               });
 
-              // Construct leaves array
-              const customLeaves = leaves.filter(l => new Date(l.date).toDateString() === dayStr);
-
               // Construct currentAssignments in this run + shiftAssignedOfficers
               const currentAssignments = assignments.map(asg => ({
                 officer: asg.officer,
@@ -432,7 +438,7 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
                   sh,
                   yesterdayAsgs,
                   currentAssignments,
-                  customLeaves,
+                  leaves,
                   consecutiveCount,
                   allocatedVehicle
                 );
