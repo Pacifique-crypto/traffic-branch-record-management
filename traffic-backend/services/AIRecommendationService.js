@@ -15,6 +15,17 @@ const getExperience = (officer) => {
   return (numId % 15) + 3;
 };
 
+const getSriLankaDayBoundaries = (dateInput) => {
+  const d = new Date(dateInput);
+  const slDateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
+  const [year, month, day] = slDateStr.split("-").map(Number);
+
+  const startOfSLDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+  const endOfSLDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - (5.5 * 60 * 60 * 1000));
+
+  return { startOfSLDay, endOfSLDay };
+};
+
 const recommendOfficer = (
   officer,
   rule,
@@ -36,15 +47,23 @@ const recommendOfficer = (
   let score = 0;
   const reasons = [];
 
-  // 1. Availability / Leave Check
-  const isOnLeave = Array.isArray(leaves) && leaves.some(l => 
-    l && l.officer && l.officer.toString() === offIdStr && 
-    new Date(l.date).toDateString() === dayStr && 
-    l.status === "On Leave"
-  );
+  // 1. Availability / Leave Check (Hard Constraint using Sri Lanka Time Boundaries)
+  const { startOfSLDay, endOfSLDay } = getSriLankaDayBoundaries(date);
 
-  if (isOnLeave) {
-    return { score: -9999, reason: "✗ On Approved Leave" };
+  const activeLeave = Array.isArray(leaves) && leaves.find(l => {
+    if (!l || !l.officer) return false;
+    const leaveOffId = (l.officer._id || l.officer).toString();
+    if (leaveOffId !== offIdStr) return false;
+
+    const leaveStart = new Date(l.startDate);
+    const leaveEnd = new Date(l.endDate);
+
+    return leaveStart <= endOfSLDay && leaveEnd >= startOfSLDay;
+  });
+
+  if (activeLeave) {
+    const typeStr = activeLeave.leaveType ? ` (${activeLeave.leaveType})` : "";
+    return { score: -9999, reason: `✗ On Approved Leave${typeStr}` };
   } else {
     score += 30;
     reasons.push("✓ Available");
