@@ -464,12 +464,12 @@ function VehicleManagement() {
                             <button
                               onClick={() => setChangeOfficerTarget(v)}
                               style={{
-                                background: "#334155", color: "#ffffff", border: "none", borderRadius: 8,
+                                background: "#526075", color: "#ffffff", border: "none", borderRadius: 8,
                                 padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
                                 transition: "all 0.15s", whiteSpace: "nowrap"
                               }}
-                              onMouseOver={e => e.currentTarget.style.background = "#1e293b"}
-                              onMouseOut={e => e.currentTarget.style.background = "#334155"}
+                              onMouseOver={e => e.currentTarget.style.background = "#334155"}
+                              onMouseOut={e => e.currentTarget.style.background = "#526075"}
                             >
                               Change Officer
                             </button>
