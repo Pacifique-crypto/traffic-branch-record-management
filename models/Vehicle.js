@@ -8,11 +8,6 @@ const vehicleSchema = new mongoose.Schema(
       unique: true,
     },
 
-    deptNo: {
-      type: String,
-      default: "",
-    },
-
     vehicleType: {
       type: String,
       required: true,
