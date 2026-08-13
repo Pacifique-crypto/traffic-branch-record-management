@@ -133,6 +133,7 @@ function VehicleManagement() {
       (v.registrationNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.chassisNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.assignedOfficer || "").toLowerCase().includes(search.toLowerCase()) ||
+      (v.branch || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.vehicleType || "").toLowerCase().includes(search.toLowerCase());
     const matchesType   = typeFilter === "All" || v.vehicleType === typeFilter;
     const matchesStatus = statusFilter === "All" || v.status === statusFilter;
@@ -365,6 +366,7 @@ function VehicleManagement() {
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>REG NO</th>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>VEHICLE TYPE</th>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>ASSIGNED OFFICER</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>ASSIGNED BRANCH</th>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>STATUS</th>
                 <th style={{ textAlign: "right", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>ACTION</th>
               </tr>
@@ -372,7 +374,7 @@ function VehicleManagement() {
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: "32px", color: "#64748b", fontWeight: 600 }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "#64748b", fontWeight: 600 }}>
                     No vehicles found in registry.
                   </td>
                 </tr>
@@ -425,6 +427,13 @@ function VehicleManagement() {
                         ) : (
                           <span style={{ fontStyle: "italic", color: "#94a3b8", fontSize: 13 }}>Not Assigned</span>
                         )}
+                      </td>
+
+                      {/* ASSIGNED BRANCH */}
+                      <td style={{ padding: "14px 16px" }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#475569" }}>
+                          {v.branch || "Negombo Traffic Div."}
+                        </span>
                       </td>
 
                       {/* STATUS */}
