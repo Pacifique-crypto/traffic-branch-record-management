@@ -444,10 +444,10 @@ function VehicleManagement() {
                       {/* ACTION */}
                       <td style={{ padding: "14px 16px", textAlign: "right" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
-                          {/* Eye Button -> Opens Technical Details Modal */}
+                          {/* 3 Dots Button -> Opens Technical Details Modal */}
                           <button
                             onClick={() => setDetailsVehicle(v)}
-                            title="View Vehicle Details"
+                            title="View Full Vehicle Details"
                             style={{
                               width: 36, height: 36, borderRadius: "50%", border: "none", background: "#f1f5f9",
                               color: "#334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
@@ -456,7 +456,7 @@ function VehicleManagement() {
                             onMouseOver={e => e.currentTarget.style.background = "#e2e8f0"}
                             onMouseOut={e => e.currentTarget.style.background = "#f1f5f9"}
                           >
-                            <FiEye size={17} />
+                            <FiMoreVertical size={18} />
                           </button>
 
                           {/* Change Officer or Assign Officer Button */}
