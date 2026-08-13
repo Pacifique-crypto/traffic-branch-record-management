@@ -58,6 +58,8 @@ const vehicleSchema = new mongoose.Schema(
     insuranceExpiry: Date,
     emissionTestExpiry: Date,
     remarks: String,
+    assignmentDate: Date,
+    transferDate: Date,
     branch: {
       type: String,
       default: "Negombo Traffic Div."
