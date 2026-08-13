@@ -25,6 +25,7 @@ router.post("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) =
 
     const newVehicle = new Vehicle({
       ...req.body,
+      deptNo: req.body.deptNo || req.body.registrationNo || "N/A",
       assignedOfficer: assignedOfficer || "Unassigned",
       status: status || "PENDING",
       submittedBy: submittedBy || "IT Officer"
