@@ -867,7 +867,6 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
 
   const handleSubmit = () => {
     if (!form.registrationNo.trim()) return setError("Registration Number is required.");
-    if (!form.deptNo.trim()) return setError("Department Number is required.");
     onSave(form);
   };
 
@@ -889,8 +888,15 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
               <input className="um-field-input" name="registrationNo" placeholder="e.g. WP KA-1234" value={form.registrationNo} onChange={handleChange} />
             </div>
             <div className="um-field">
-              <label className="um-field-label">DEPARTMENT NO *</label>
-              <input className="um-field-input" name="deptNo" placeholder="e.g. SLP-TRAF-2026" value={form.deptNo} onChange={handleChange} />
+              <label className="um-field-label">VEHICLE TYPE *</label>
+              <select className="um-field-input" name="vehicleType" value={form.vehicleType} onChange={handleChange}>
+                <option value="Patrol Car">Patrol Car</option>
+                <option value="Motorcycle">Motorcycle</option>
+                <option value="Recovery Truck">Recovery Truck</option>
+                <option value="Van">Van</option>
+                <option value="SUV">SUV</option>
+                <option value="Jeep">Jeep</option>
+              </select>
             </div>
           </div>
 
@@ -907,19 +913,12 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
 
           <div className="um-field-row">
             <div className="um-field">
-              <label className="um-field-label">VEHICLE TYPE *</label>
-              <select className="um-field-input" name="vehicleType" value={form.vehicleType} onChange={handleChange}>
-                <option value="Patrol Car">Patrol Car</option>
-                <option value="Motorcycle">Motorcycle</option>
-                <option value="Recovery Truck">Recovery Truck</option>
-                <option value="Van">Van</option>
-                <option value="SUV">SUV</option>
-                <option value="Jeep">Jeep</option>
-              </select>
-            </div>
-            <div className="um-field">
               <label className="um-field-label">MODEL / MAKE</label>
               <input className="um-field-input" name="makeModel" placeholder="e.g. Toyota Hilux 2022" value={form.makeModel} onChange={handleChange} />
+            </div>
+            <div className="um-field">
+              <label className="um-field-label">COLOR</label>
+              <input className="um-field-input" name="color" placeholder="e.g. Navy Blue / White" value={form.color} onChange={handleChange} />
             </div>
           </div>
 

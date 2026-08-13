@@ -10,7 +10,7 @@ const vehicleSchema = new mongoose.Schema(
 
     deptNo: {
       type: String,
-      required: true,
+      default: "",
     },
 
     vehicleType: {
