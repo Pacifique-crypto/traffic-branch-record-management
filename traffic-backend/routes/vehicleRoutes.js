@@ -16,7 +16,7 @@ router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) =>
 // REGISTER NEW VEHICLE
 router.post("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
-    const { registrationNo, deptNo, vehicleType, assignedOfficer, status, submittedBy } = req.body;
+    const { registrationNo, vehicleType, assignedOfficer, status, submittedBy } = req.body;
     
     const existing = await Vehicle.findOne({ registrationNo });
     if (existing) {

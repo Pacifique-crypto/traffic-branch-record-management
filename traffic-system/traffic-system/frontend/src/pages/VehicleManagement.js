@@ -131,7 +131,6 @@ function VehicleManagement() {
   const filtered = vehicles.filter(v => {
     const matchesSearch =
       (v.registrationNo || "").toLowerCase().includes(search.toLowerCase()) ||
-      (v.deptNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.chassisNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.assignedOfficer || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.vehicleType || "").toLowerCase().includes(search.toLowerCase());
@@ -261,7 +260,6 @@ function VehicleManagement() {
               <thead>
                 <tr>
                   <th>REGISTRATION NO</th>
-                  <th>DEPT NO</th>
                   <th>VEHICLE TYPE</th>
                   <th>ASSIGNED OFFICER</th>
                   <th>APPROVE / REJECT</th>
@@ -280,11 +278,6 @@ function VehicleManagement() {
                           {v.registrationNo}
                         </p>
                       </div>
-                    </td>
-                    <td>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", margin: 0 }}>
-                        {v.deptNo}
-                      </p>
                     </td>
                     <td>
                       <span className="um-role-badge">{v.vehicleType || "Patrol Car"}</span>
@@ -321,7 +314,7 @@ function VehicleManagement() {
         )}
 
         {/* ── Vehicle Registry Table (Image 1 Layout) ── */}
-        <div className="um-section-card" style={{ background: "#ffffff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+        <div className="um-section-card" style={{ background: "#ffffff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="um-section-header" style={{ marginBottom: 18 }}>
             <h3 className="um-section-title" style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Vehicle Registry</h3>
           </div>
@@ -332,7 +325,7 @@ function VehicleManagement() {
               <FiSearch size={15} color="#94a3b8" style={{ marginRight: 8 }} />
               <input
                 className="um-search-input"
-                placeholder="Search by reg no, dept no, vehicle type, officer..."
+                placeholder="Search by reg no, vehicle type, officer..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, width: "100%", color: "#0f172a" }}
@@ -393,7 +386,7 @@ function VehicleManagement() {
                   );
 
                   const initials = isAssigned ? getInitials(v.assignedOfficer) : "";
-                  const vinText  = v.chassisNo ? `VIN: ${v.chassisNo}` : (v.deptNo ? `VIN: ${v.deptNo}` : "VIN: SLP-00432-B");
+                  const vinText  = v.chassisNo ? `VIN: ${v.chassisNo}` : "VIN: SLP-00432-B";
 
                   const isMaintenance = v.status === "MAINTENANCE" || v.status === "Maintenance";
                   const isOutOfService = v.status === "OUT OF SERVICE" || v.status === "Out of Service";
@@ -836,7 +829,6 @@ function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
 function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
   const [form, setForm] = useState({
     registrationNo: "",
-    deptNo: "",
     chassisNo: "",
     engineNo: "",
     vehicleType: "Patrol Car",
@@ -1044,10 +1036,6 @@ function VehicleDetailsModal({ vehicle, onClose }) {
             <div>
               <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>REGISTRATION NUMBER</p>
               <p style={{ fontSize: 15, fontWeight: 800, color: "#1e3a8a", margin: "3px 0 0 0" }}>{vehicle.registrationNo}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>DEPARTMENT NUMBER</p>
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: "3px 0 0 0" }}>{vehicle.deptNo}</p>
             </div>
             <div>
               <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE TYPE</p>
