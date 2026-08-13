@@ -60,7 +60,7 @@ function OICDashboard() {
         const pendingAcc = (accs || []).filter(a => a.status && a.status.toLowerCase() === "pending").length;
         const pendingViol = (viols || []).filter(v => v.status && v.status.toLowerCase() === "pending").length;
         const pendingOff = (officers || []).filter(o => o.status && o.status.toLowerCase() === "pending").length;
-        const pendingVeh = (vehicles || []).filter(vh => vh.status && vh.status.toLowerCase() === "pending").length;
+        const pendingVeh = (vehicles || []).filter(vh => (vh.status && vh.status.toLowerCase() === "pending") || (vh.assignmentApprovalStatus === "PENDING" && vh.pendingAssignedOfficer)).length;
 
         setPendingAccCount(pendingAcc);
         setPendingViolCount(pendingViol);

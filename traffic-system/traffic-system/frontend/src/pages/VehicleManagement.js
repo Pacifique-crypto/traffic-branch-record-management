@@ -94,9 +94,15 @@ function VehicleManagement() {
           .filter(v => !isPending(v.status) && !isRejected(v.status))
           .map(v => ({ ...v, id: v._id }));
 
-        const pending = vData
+        const pendingRegistrations = vData
           .filter(v => isPending(v.status))
-          .map(v => ({ ...v, id: v._id }));
+          .map(v => ({ ...v, id: v._id, approvalCategory: "NEW_VEHICLE" }));
+
+        const pendingAssignments = vData
+          .filter(v => !isPending(v.status) && v.assignmentApprovalStatus === "PENDING" && v.pendingAssignedOfficer)
+          .map(v => ({ ...v, id: v._id, approvalCategory: "OFFICER_ASSIGNMENT" }));
+
+        const pending = [...pendingRegistrations, ...pendingAssignments];
 
         setVehicles(activeOrFleet);
         setApprovals(pending);
@@ -133,6 +139,7 @@ function VehicleManagement() {
       (v.registrationNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.chassisNo || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.assignedOfficer || "").toLowerCase().includes(search.toLowerCase()) ||
+      (v.pendingAssignedOfficer || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.branch || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.vehicleType || "").toLowerCase().includes(search.toLowerCase());
     const matchesType   = typeFilter === "All" || v.vehicleType === typeFilter;
@@ -143,13 +150,31 @@ function VehicleManagement() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handleApprove = async (id) => {
+  const handleApprove = async (targetVehicle) => {
     try {
-      const res = await updateVehicle(id, { status: "AVAILABLE" });
+      const v = typeof targetVehicle === "object" ? targetVehicle : approvals.find(a => a.id === targetVehicle || a._id === targetVehicle);
+      const id = v ? (v.id || v._id) : targetVehicle;
+
+      let payload = {};
+      if (v && (v.approvalCategory === "OFFICER_ASSIGNMENT" || v.assignmentApprovalStatus === "PENDING")) {
+        payload = {
+          assignedOfficer: v.pendingAssignedOfficer,
+          assignmentDate: v.pendingAssignmentDate || new Date(),
+          transferDate: v.pendingAssignmentDate || new Date(),
+          pendingAssignedOfficer: "",
+          pendingAssignmentType: "",
+          pendingAssignmentDate: null,
+          assignmentApprovalStatus: "APPROVED"
+        };
+      } else {
+        payload = { status: "AVAILABLE" };
+      }
+
+      const res = await updateVehicle(id, payload);
       if (res && !res.error) {
         fetchAllData();
       } else {
-        alert(res.error || "Failed to approve vehicle.");
+        alert(res.error || "Failed to approve request.");
       }
     } catch (err) {
       console.error(err);
@@ -159,12 +184,26 @@ function VehicleManagement() {
 
   const handleConfirmReject = async (id, remarks) => {
     try {
-      const res = await updateVehicle(id, { status: "Rejected", rejectionRemarks: remarks });
+      const v = approvals.find(a => a.id === id || a._id === id) || rejectTarget;
+      let payload = {};
+      if (v && (v.approvalCategory === "OFFICER_ASSIGNMENT" || v.assignmentApprovalStatus === "PENDING")) {
+        payload = {
+          pendingAssignedOfficer: "",
+          pendingAssignmentType: "",
+          pendingAssignmentDate: null,
+          assignmentApprovalStatus: "REJECTED",
+          rejectionRemarks: remarks
+        };
+      } else {
+        payload = { status: "Rejected", rejectionRemarks: remarks };
+      }
+
+      const res = await updateVehicle(id, payload);
       if (res && !res.error) {
         setRejectTarget(null);
         fetchAllData();
       } else {
-        alert(res.error || "Failed to reject vehicle.");
+        alert(res.error || "Failed to reject request.");
       }
     } catch (err) {
       console.error(err);
@@ -248,21 +287,21 @@ function VehicleManagement() {
           </div>
         </div>
 
-        {/* ── OIC: New Vehicle Approvals (Preserved Approval Flow) ── */}
+        {/* ── OIC: Vehicle & Officer Approvals ── */}
         {userRole === "OIC" && approvals.length > 0 && (
           <div className="um-section-card">
             <div className="um-section-header">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <FiTruck size={18} color="#1e3a5f" />
-                <h3 className="um-section-title">New Vehicle Approvals</h3>
+                <h3 className="um-section-title">Pending Vehicle & Officer Approvals</h3>
               </div>
             </div>
             <table className="um-table">
               <thead>
                 <tr>
                   <th>REGISTRATION NO</th>
-                  <th>VEHICLE TYPE</th>
-                  <th>ASSIGNED OFFICER</th>
+                  <th>REQUEST TYPE</th>
+                  <th>PROPOSED OFFICER / DETAILS</th>
                   <th>APPROVE / REJECT</th>
                   <th>DETAILS</th>
                 </tr>
@@ -281,19 +320,40 @@ function VehicleManagement() {
                       </div>
                     </td>
                     <td>
-                      <span className="um-role-badge">{v.vehicleType || "Patrol Car"}</span>
+                      <span
+                        className="um-role-badge"
+                        style={{
+                          background: v.approvalCategory === "OFFICER_ASSIGNMENT" ? "#fef3c7" : "#dbeafe",
+                          color: v.approvalCategory === "OFFICER_ASSIGNMENT" ? "#b45309" : "#1d4ed8"
+                        }}
+                      >
+                        {v.approvalCategory === "OFFICER_ASSIGNMENT"
+                          ? (v.pendingAssignmentType === "REASSIGNMENT" ? "Reassign Officer" : "Assign Officer")
+                          : "New Vehicle"}
+                      </span>
                     </td>
                     <td>
-                      <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>
-                        {v.assignedOfficer || "Unassigned"}
-                      </p>
+                      {v.approvalCategory === "OFFICER_ASSIGNMENT" ? (
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: 13, color: "#1e293b", margin: 0 }}>
+                            Proposed: <span style={{ color: "#2563eb" }}>{v.pendingAssignedOfficer}</span>
+                          </p>
+                          <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0 0 0" }}>
+                            Current: {v.assignedOfficer || "Unassigned"}
+                          </p>
+                        </div>
+                      ) : (
+                        <p style={{ fontWeight: 600, fontSize: 13, color: "#475569", margin: 0 }}>
+                          {v.vehicleType} - Initial Registration
+                        </p>
+                      )}
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <button className="um-approve-btn" onClick={() => handleApprove(v.id)} title="Approve">
+                        <button className="um-approve-btn" onClick={() => handleApprove(v)} title="Approve Request">
                           <FiCheck size={14} />
                         </button>
-                        <button className="um-reject-btn" onClick={() => setRejectTarget(v)} title="Reject">
+                        <button className="um-reject-btn" onClick={() => setRejectTarget(v)} title="Reject Request">
                           <FiX size={14} />
                         </button>
                       </div>
@@ -417,16 +477,23 @@ function VehicleManagement() {
 
                       {/* ASSIGNED OFFICER */}
                       <td style={{ padding: "14px 16px" }}>
-                        {isAssigned ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#0b1d3a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                              {initials}
+                        <div>
+                          {isAssigned ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#0b1d3a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                                {initials}
+                              </div>
+                              <span style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>{v.assignedOfficer}</span>
                             </div>
-                            <span style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>{v.assignedOfficer}</span>
-                          </div>
-                        ) : (
-                          <span style={{ fontStyle: "italic", color: "#94a3b8", fontSize: 13 }}>Not Assigned</span>
-                        )}
+                          ) : (
+                            <span style={{ fontStyle: "italic", color: "#94a3b8", fontSize: 13 }}>Not Assigned</span>
+                          )}
+                          {v.assignmentApprovalStatus === "PENDING" && v.pendingAssignedOfficer && (
+                            <span style={{ display: "inline-block", background: "#fef3c7", color: "#b45309", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 10, marginTop: 4 }}>
+                              Pending: {v.pendingAssignedOfficer}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* ASSIGNED BRANCH */}
@@ -591,15 +658,31 @@ function VehicleManagement() {
           onClose={() => setChangeOfficerTarget(null)}
           onSave={async (vehicleId, newOfficer, transferDate) => {
             try {
-              const res = await updateVehicle(vehicleId, {
-                assignedOfficer: newOfficer,
-                transferDate: transferDate
-              });
+              const isOIC = userRole === "OIC";
+              const payload = isOIC
+                ? {
+                    assignedOfficer: newOfficer,
+                    transferDate: transferDate,
+                    pendingAssignedOfficer: "",
+                    pendingAssignmentType: "",
+                    assignmentApprovalStatus: "APPROVED"
+                  }
+                : {
+                    pendingAssignedOfficer: newOfficer,
+                    pendingAssignmentType: "REASSIGNMENT",
+                    pendingAssignmentDate: transferDate,
+                    assignmentApprovalStatus: "PENDING"
+                  };
+
+              const res = await updateVehicle(vehicleId, payload);
               if (res && !res.error) {
                 fetchAllData();
                 setChangeOfficerTarget(null);
+                if (!isOIC) {
+                  alert("Vehicle reassignment request submitted for OIC approval.");
+                }
               } else {
-                alert(res.error || "Failed to change assigned officer.");
+                alert(res.error || "Failed to submit officer change request.");
               }
             } catch (err) {
               console.error(err);
@@ -617,15 +700,31 @@ function VehicleManagement() {
           onClose={() => setAssignOfficerTarget(null)}
           onSave={async (vehicleId, assignedOfficer, assignmentDate) => {
             try {
-              const res = await updateVehicle(vehicleId, {
-                assignedOfficer: assignedOfficer,
-                assignmentDate: assignmentDate
-              });
+              const isOIC = userRole === "OIC";
+              const payload = isOIC
+                ? {
+                    assignedOfficer: assignedOfficer,
+                    assignmentDate: assignmentDate,
+                    pendingAssignedOfficer: "",
+                    pendingAssignmentType: "",
+                    assignmentApprovalStatus: "APPROVED"
+                  }
+                : {
+                    pendingAssignedOfficer: assignedOfficer,
+                    pendingAssignmentType: "ASSIGNMENT",
+                    pendingAssignmentDate: assignmentDate,
+                    assignmentApprovalStatus: "PENDING"
+                  };
+
+              const res = await updateVehicle(vehicleId, payload);
               if (res && !res.error) {
                 fetchAllData();
                 setAssignOfficerTarget(null);
+                if (!isOIC) {
+                  alert("Officer assignment request submitted for OIC approval.");
+                }
               } else {
-                alert(res.error || "Failed to assign officer.");
+                alert(res.error || "Failed to submit officer assignment request.");
               }
             } catch (err) {
               console.error(err);
