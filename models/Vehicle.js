@@ -65,6 +65,19 @@ const vehicleSchema = new mongoose.Schema(
       type: String,
       default: "Negombo Traffic Div."
     },
+    pendingAssignedOfficer: {
+      type: String,
+      default: ""
+    },
+    pendingAssignmentType: {
+      type: String,
+      default: ""
+    },
+    pendingAssignmentDate: Date,
+    assignmentApprovalStatus: {
+      type: String,
+      default: "NONE"
+    },
   },
   {
     timestamps: true,
