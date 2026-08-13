@@ -909,23 +909,16 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
               <input className="um-field-input" name="makeModel" placeholder="e.g. Toyota Hilux 2022" value={form.makeModel} onChange={handleChange} />
             </div>
             <div className="um-field">
-              <label className="um-field-label">COLOR</label>
-              <input className="um-field-input" name="color" placeholder="e.g. Navy Blue / White" value={form.color} onChange={handleChange} />
-            </div>
-          </div>
-
-          <div className="um-field-row">
-            <div className="um-field">
               <label className="um-field-label">MANUFACTURING YEAR</label>
               <input className="um-field-input" name="year" type="number" value={form.year} onChange={handleChange} />
             </div>
+          </div>
+
+          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">COLOR</label>
               <input className="um-field-input" name="color" placeholder="e.g. Navy Blue / White" value={form.color} onChange={handleChange} />
             </div>
-          </div>
-
-          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">FUEL TYPE</label>
               <select className="um-field-input" name="fuelType" value={form.fuelType} onChange={handleChange}>
@@ -935,50 +928,53 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
                 <option value="Hybrid / Electric">Hybrid / Electric</option>
               </select>
             </div>
+          </div>
+
+          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">ENGINE CAPACITY</label>
               <input className="um-field-input" name="engineCapacity" placeholder="e.g. 2500 cc" value={form.engineCapacity} onChange={handleChange} />
             </div>
-          </div>
-
-          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">NO OF CYLINDERS</label>
               <input className="um-field-input" name="cylinders" type="number" value={form.cylinders} onChange={handleChange} />
             </div>
+          </div>
+
+          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">TYRE SIZE</label>
               <input className="um-field-input" name="tyreSize" placeholder="e.g. 215/65 R16" value={form.tyreSize} onChange={handleChange} />
             </div>
-          </div>
-
-          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">FUEL TANK CAPACITY</label>
               <input className="um-field-input" name="fuelTankCapacity" placeholder="e.g. 60 Liters" value={form.fuelTankCapacity} onChange={handleChange} />
             </div>
+          </div>
+
+          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">ENGINE OIL CAPACITY</label>
               <input className="um-field-input" name="oilCapacity" placeholder="e.g. 4.5 Liters" value={form.oilCapacity} onChange={handleChange} />
             </div>
-          </div>
-
-          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">REVENUE LICENSE EXPIRY</label>
               <input className="um-field-input" name="revenueLicenseExpiry" type="date" value={form.revenueLicenseExpiry} onChange={handleChange} />
             </div>
-            <div className="um-field">
-              <label className="um-field-label">INSURANCE EXPIRY</label>
-              <input className="um-field-input" name="insuranceExpiry" type="date" value={form.insuranceExpiry} onChange={handleChange} />
-            </div>
           </div>
 
           <div className="um-field-row">
             <div className="um-field">
+              <label className="um-field-label">INSURANCE EXPIRY</label>
+              <input className="um-field-input" name="insuranceExpiry" type="date" value={form.insuranceExpiry} onChange={handleChange} />
+            </div>
+            <div className="um-field">
               <label className="um-field-label">EMISSION TEST EXPIRY</label>
               <input className="um-field-input" name="emissionTestExpiry" type="date" value={form.emissionTestExpiry} onChange={handleChange} />
             </div>
+          </div>
+
+          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">ASSIGNED OFFICER</label>
               <select className="um-field-input" name="assignedOfficer" value={form.assignedOfficer} onChange={handleChange}>
@@ -988,9 +984,6 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">ASSIGNED BRANCH</label>
               <select className="um-field-input" name="branch" value={form.branch} onChange={handleChange}>
@@ -1000,13 +993,14 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
                 <option value="Katunayake Highway Div.">Katunayake Highway Div.</option>
               </select>
             </div>
-            <div className="um-field">
-              <label className="um-field-label">REMARKS / NOTES</label>
-              <input className="um-field-input" name="remarks" placeholder="Optional notes..." value={form.remarks} onChange={handleChange} />
-            </div>
           </div>
 
-          {error && <p className="um-error">{error}</p>}
+          <div className="um-field-full" style={{ marginTop: 14 }}>
+            <label className="um-field-label">REMARKS / NOTES</label>
+            <input className="um-field-input" name="remarks" placeholder="Optional notes..." value={form.remarks} onChange={handleChange} />
+          </div>
+
+          {error && <p className="um-error" style={{ marginTop: 12 }}>{error}</p>}
         </div>
 
         <div className="um-modal-footer">
