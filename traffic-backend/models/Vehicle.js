@@ -78,6 +78,16 @@ const vehicleSchema = new mongoose.Schema(
       type: String,
       default: "NONE"
     },
+    assignmentHistory: [
+      {
+        officerName: String,
+        rank: String,
+        policeId: String,
+        assignedDate: String,
+        returnDate: String,
+        status: String,
+      }
+    ],
   },
   {
     timestamps: true,

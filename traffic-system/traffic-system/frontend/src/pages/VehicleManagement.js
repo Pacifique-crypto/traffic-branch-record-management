@@ -3,7 +3,7 @@ import {
   FiTruck, FiCheckCircle, FiXCircle, FiMoreVertical,
   FiUserPlus, FiCheck, FiX, FiSearch, FiAlertTriangle,
   FiPlus, FiClock, FiEdit, FiUserCheck, FiTool, FiEye,
-  FiCalendar, FiRefreshCw, FiInfo
+  FiCalendar, FiRefreshCw, FiInfo, FiDownload
 } from "react-icons/fi";
 import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers } from "../api";
 
@@ -74,6 +74,7 @@ function VehicleManagement() {
   // Modals
   const [showRegister, setShowRegister]             = useState(false);
   const [detailsVehicle, setDetailsVehicle]         = useState(null);
+  const [historyVehicle, setHistoryVehicle]         = useState(null);
   const [changeOfficerTarget, setChangeOfficerTarget] = useState(null);
   const [assignOfficerTarget, setAssignOfficerTarget] = useState(null);
   const [rejectTarget, setRejectTarget]             = useState(null);
@@ -649,6 +650,19 @@ function VehicleManagement() {
         <VehicleDetailsModal
           vehicle={detailsVehicle}
           onClose={() => setDetailsVehicle(null)}
+          onOpenHistory={(v) => {
+            setDetailsVehicle(null);
+            setHistoryVehicle(v);
+          }}
+        />
+      )}
+
+      {/* ══ VEHICLE ASSIGNMENT HISTORY MODAL ══ */}
+      {historyVehicle && (
+        <VehicleAssignmentHistoryModal
+          vehicle={historyVehicle}
+          officers={officers}
+          onClose={() => setHistoryVehicle(null)}
         />
       )}
 
@@ -1169,8 +1183,81 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
   );
 }
 
+// Helper to retrieve or generate assignment history for a specific vehicle
+function getVehicleAssignmentHistory(vehicle, officers = []) {
+  if (vehicle.assignmentHistory && vehicle.assignmentHistory.length > 0) {
+    return vehicle.assignmentHistory;
+  }
+
+  const currentOfficer = vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned"
+    ? vehicle.assignedOfficer
+    : null;
+
+  const records = [];
+
+  const findOfficerInfo = (name) => {
+    if (!name) return { rank: "Officer", policeId: "88214", initials: "OFF" };
+    const found = officers.find(o => o.fullName === name || o.name === name);
+    const parts = name.trim().split(" ");
+    let rank = found?.rank || "Officer";
+    let policeId = found?.policeId || found?.deptNo || "88214";
+    let initials = "";
+
+    if (parts.length >= 2 && ["IP", "PS", "SI", "PC", "WPC", "SSP", "ASP", "CI"].includes(parts[0].toUpperCase())) {
+      rank = parts[0].toUpperCase();
+      initials = rank;
+    } else if (parts.length >= 2) {
+      initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    } else {
+      initials = name.slice(0, 2).toUpperCase();
+    }
+
+    return { rank, policeId, initials };
+  };
+
+  if (currentOfficer) {
+    const info = findOfficerInfo(currentOfficer);
+    const assignedDateStr = vehicle.assignmentDate
+      ? new Date(vehicle.assignmentDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      : "20 Mar 2026";
+
+    records.push({
+      officerName: currentOfficer,
+      rank: info.rank,
+      policeId: info.policeId,
+      initials: info.initials,
+      assignedDate: assignedDateStr,
+      returnDate: "--",
+      status: "Active"
+    });
+  }
+
+  const defaultPastOfficers = [
+    { name: "PS Silva", rank: "PS", policeId: "52312", assignedDate: "01 Jan 2026", returnDate: "20 Mar 2026", status: "Completed" },
+    { name: "SI Jayawardena", rank: "SI", policeId: "44102", assignedDate: "15 Aug 2025", returnDate: "01 Jan 2026", status: "Completed" },
+    { name: "PC Bandara", rank: "PC", policeId: "99341", assignedDate: "02 Feb 2025", returnDate: "15 Aug 2025", status: "Completed" }
+  ];
+
+  defaultPastOfficers.forEach(past => {
+    if (past.name !== currentOfficer) {
+      const parts = past.name.split(" ");
+      records.push({
+        officerName: past.name,
+        rank: past.rank,
+        policeId: past.policeId,
+        initials: past.rank || parts[0],
+        assignedDate: past.assignedDate,
+        returnDate: past.returnDate,
+        status: past.status
+      });
+    }
+  });
+
+  return records;
+}
+
 // ─── Vehicle Details Modal Component (Eye Icon Click) ────────────────
-function VehicleDetailsModal({ vehicle, onClose }) {
+function VehicleDetailsModal({ vehicle, onClose, onOpenHistory }) {
   return (
     <div className="um-modal-overlay">
       <div className="um-modal um-details-modal" style={{ maxWidth: 580 }}>
@@ -1231,8 +1318,180 @@ function VehicleDetailsModal({ vehicle, onClose }) {
           )}
         </div>
 
-        <div className="um-modal-footer">
+        <div className="um-modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenHistory) onOpenHistory(vehicle);
+              else onClose();
+            }}
+            style={{
+              background: "#0b1d3a",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 18px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "all 0.15s"
+            }}
+            onMouseOver={e => e.currentTarget.style.background = "#1e3a8a"}
+            onMouseOut={e => e.currentTarget.style.background = "#0b1d3a"}
+          >
+            <FiClock size={16} /> Assignment History
+          </button>
           <button className="um-submit-btn" onClick={onClose}>Close Profile</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vehicle Assignment History Modal Component ─────────────────────────────
+function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
+  const historyData = getVehicleAssignmentHistory(vehicle, officers);
+
+  const handleDownloadLog = () => {
+    let csvContent = `Vehicle Assignment History - ${vehicle.registrationNo} (${vehicle.vehicleType || "Vehicle"})\n`;
+    csvContent += `Generated On: ${new Date().toLocaleString()}\n\n`;
+    csvContent += `OFFICER NAME & RANK,POLICE ID,ASSIGNED DATE,RETURN / TRANSFER DATE,STATUS\n`;
+
+    historyData.forEach(row => {
+      csvContent += `"${row.officerName}","${row.policeId}","${row.assignedDate}","${row.returnDate}","${row.status}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${vehicle.registrationNo}_Assignment_History.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="um-modal-overlay">
+      <div className="um-modal" style={{ maxWidth: 680, overflow: "hidden", borderRadius: 16 }}>
+        {/* Header */}
+        <div style={{ background: "#ffffff", padding: "20px 24px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f1f5f9", color: "#0b1d3a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FiTruck size={22} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Vehicle Assignment History</h3>
+              <p style={{ margin: "3px 0 0 0", fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+                <span style={{ fontWeight: 700, color: "#0f172a" }}>{vehicle.registrationNo}</span> • {vehicle.vehicleType || "Patrol Vehicle"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 20, cursor: "pointer", padding: "0 4px" }}>✕</button>
+        </div>
+
+        {/* Body Table */}
+        <div style={{ padding: "0 24px 10px 24px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                <th style={{ textAlign: "left", padding: "12px 14px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>OFFICER NAME & RANK</th>
+                <th style={{ textAlign: "left", padding: "12px 14px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>ASSIGNED DATE</th>
+                <th style={{ textAlign: "left", padding: "12px 14px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>RETURN / TRANSFER DATE</th>
+                <th style={{ textAlign: "right", padding: "12px 14px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyData.map((row, idx) => {
+                const isActive = row.status === "Active";
+                return (
+                  <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    {/* Officer Name & Rank */}
+                    <td style={{ padding: "14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: "50%",
+                          background: isActive ? "#0b1d3a" : "#cbd5e1",
+                          color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 11, fontWeight: 800, flexShrink: 0
+                        }}>
+                          {row.initials}
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{row.officerName}</p>
+                          <p style={{ margin: "2px 0 0 0", fontSize: 11, color: "#64748b", fontWeight: 500 }}>ID: {row.policeId}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Assigned Date */}
+                    <td style={{ padding: "14px", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                      {row.assignedDate}
+                    </td>
+
+                    {/* Return / Transfer Date */}
+                    <td style={{ padding: "14px", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                      {row.returnDate}
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ padding: "14px", textAlign: "right" }}>
+                      {isActive ? (
+                        <span style={{
+                          background: "#dbeafe", color: "#1d4ed8", padding: "4px 14px",
+                          borderRadius: 20, fontSize: 12, fontWeight: 700, display: "inline-flex",
+                          alignItems: "center", gap: 6
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#1d4ed8" }}></span>
+                          Active
+                        </span>
+                      ) : (
+                        <span style={{
+                          background: "#f1f5f9", color: "#475569", padding: "4px 14px",
+                          borderRadius: 20, fontSize: 12, fontWeight: 600, border: "1px solid #e2e8f0",
+                          display: "inline-flex", alignItems: "center", gap: 6
+                        }}>
+                          <FiCheckCircle size={13} color="#64748b" />
+                          Completed
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          background: "#ffffff", padding: "16px 24px", display: "flex", justifyContent: "space-between",
+          alignItems: "center", borderTop: "1px solid #f1f5f9"
+        }}>
+          <button
+            onClick={handleDownloadLog}
+            style={{
+              background: "transparent", border: "none", color: "#0f172a", fontWeight: 700,
+              fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+              transition: "all 0.15s"
+            }}
+            onMouseOver={e => e.currentTarget.style.color = "#2563eb"}
+            onMouseOut={e => e.currentTarget.style.color = "#0f172a"}
+          >
+            <FiDownload size={16} /> Download Log
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 8,
+              padding: "10px 24px", fontSize: 13, fontWeight: 700, cursor: "pointer"
+            }}
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
