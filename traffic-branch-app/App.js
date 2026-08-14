@@ -123,7 +123,7 @@ export default function App() {
 
           {/* EXTRA SCREENS */}
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AddAccident" component={AddAccidentScreen} />
           <Stack.Screen name="AddViolation" component={AddViolationScreen} />
 

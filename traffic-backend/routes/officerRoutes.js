@@ -78,6 +78,9 @@ router.post("/login", async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    const officerProfile = officer.toObject();
+    delete officerProfile.password;
+
     res.json({
       message: "Login successful",
       token,
@@ -88,14 +91,41 @@ router.post("/login", async (req, res) => {
         policeId: officer.policeId,
         role: officer.role || "officer",
       },
-      // Keep officer object for backward compatibility
-      officer: {
-        id: officer._id,
-        fullName: officer.fullName,
-        policeId: officer.policeId
-      }
+      officer: officerProfile
     });
 
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET LOGGED-IN OFFICER PROFILE
+router.get("/me", verifyToken, async (req, res) => {
+  try {
+    const officer = await Officer.findById(req.user.id).select("-password");
+    if (!officer) {
+      return res.status(404).json({ message: "Officer profile not found" });
+    }
+    res.json(officer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE LOGGED-IN OFFICER PROFILE
+router.put("/me", verifyToken, async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    delete updateData.password;
+    delete updateData.role;
+
+    const updatedOfficer = await Officer.findByIdAndUpdate(
+      req.user.id,
+      updateData,
+      { new: true }
+    ).select("-password");
+
+    res.json(updatedOfficer);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
