@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { LanguageContext } from '../context/LanguageContext';
 import { BASE_URL } from '../config';
 
@@ -21,13 +23,19 @@ export default function ProfileScreen({ navigation }) {
   const [officer, setOfficer] = useState(global.loggedOfficer || {});
   const [loading, setLoading] = useState(true);
 
+  // Determine user role and IT Officer privileges
+  const userRole = (officer.role || global.loggedOfficerRole || global.loggedOfficer?.role || '').toLowerCase().trim();
+  const isITOfficer = ['admin', 'it officer', 'itofficer', 'it_officer', 'it', 'it officer/admin', 'it officer admin'].includes(userRole);
+
   // Edit Modal State
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editSection, setEditSection] = useState('personal'); // 'personal' or 'work'
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     contactNo: '',
     email: '',
     address: '',
+    rank: '',
     station: '',
     assignedArea: ''
   });
@@ -58,11 +66,26 @@ export default function ProfileScreen({ navigation }) {
     fetchProfile();
   }, []);
 
-  const openEditModal = () => {
+  const openPersonalEditModal = () => {
+    setEditSection('personal');
     setEditForm({
       contactNo: officer.contactNo || '071 234 5678',
       email: officer.email || 'kamal.perera@police.lk',
       address: officer.address || 'No. 15, Galle Road, Colombo 03',
+      rank: officer.rank || 'Traffic Officer',
+      station: officer.station || 'Traffic Branch - Negombo',
+      assignedArea: officer.assignedArea || 'Negombo City Area'
+    });
+    setShowEditModal(true);
+  };
+
+  const openWorkEditModal = () => {
+    setEditSection('work');
+    setEditForm({
+      contactNo: officer.contactNo || '071 234 5678',
+      email: officer.email || 'kamal.perera@police.lk',
+      address: officer.address || 'No. 15, Galle Road, Colombo 03',
+      rank: officer.rank || 'Traffic Officer',
       station: officer.station || 'Traffic Branch - Negombo',
       assignedArea: officer.assignedArea || 'Negombo City Area'
     });
@@ -77,10 +100,22 @@ export default function ProfileScreen({ navigation }) {
         headers['Authorization'] = `Bearer ${global.userToken}`;
       }
 
+      const payload = editSection === 'personal'
+        ? {
+            contactNo: editForm.contactNo,
+            email: editForm.email,
+            address: editForm.address
+          }
+        : {
+            rank: editForm.rank,
+            station: editForm.station,
+            assignedArea: editForm.assignedArea
+          };
+
       const response = await fetch(`${BASE_URL}/officers/me`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -99,6 +134,115 @@ export default function ProfileScreen({ navigation }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Convert image file URI to base64
+  const convertToBase64 = async (uri) => {
+    try {
+      const decodedUri = decodeURIComponent(uri);
+      const base64Data = await FileSystem.readAsStringAsync(decodedUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return `data:image/jpeg;base64,${base64Data}`;
+    } catch (err) {
+      console.log('Error converting profile photo to Base64:', err);
+      return null;
+    }
+  };
+
+  // Upload updated profile photo to backend
+  const uploadProfileImage = async (uri) => {
+    try {
+      setLoading(true);
+      const base64Data = await convertToBase64(uri);
+      if (!base64Data) {
+        Alert.alert('Upload Error', 'Failed to process image file.');
+        setLoading(false);
+        return;
+      }
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (global.userToken) {
+        headers['Authorization'] = `Bearer ${global.userToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/officers/me`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ profileImage: base64Data })
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setOfficer(updated);
+        global.loggedOfficer = updated;
+        Alert.alert('Success', 'Profile photo updated successfully!');
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.message || 'Failed to update profile photo.');
+      }
+    } catch (err) {
+      console.log('Error uploading profile photo:', err);
+      Alert.alert('Error', 'Connection error to server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Take photo with device camera
+  const handleTakePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Required', 'Camera access is required to take a profile photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.5,
+        allowsEditing: true,
+        aspect: [1, 1],
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadProfileImage(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.log('Error opening camera:', err);
+    }
+  };
+
+  // Select photo from photo gallery
+  const handleChooseGallery = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Required', 'Media library access is required to select a profile photo.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.5,
+        allowsEditing: true,
+        aspect: [1, 1],
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadProfileImage(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.log('Error opening gallery:', err);
+    }
+  };
+
+  // Options dialog when camera icon is tapped
+  const handleChoosePhotoOptions = () => {
+    Alert.alert(
+      'Change Profile Photo',
+      'Select how you would like to update your profile photo:',
+      [
+        { text: 'Take Photo', onPress: handleTakePhoto },
+        { text: 'Choose from Gallery', onPress: handleChooseGallery },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   // Format Display Values from Database
@@ -148,7 +292,7 @@ export default function ProfileScreen({ navigation }) {
               }}
               style={styles.avatarImage}
             />
-            <TouchableOpacity style={styles.cameraBadge} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.cameraBadge} activeOpacity={0.8} onPress={handleChoosePhotoOptions}>
               <Ionicons name="camera" size={15} color="#ffffff" />
             </TouchableOpacity>
           </View>
@@ -165,7 +309,13 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ── SECTION 1: PERSONAL INFORMATION ── */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <TouchableOpacity style={styles.sectionEditBtn} onPress={openPersonalEditModal} activeOpacity={0.7}>
+              <Ionicons name="pencil-sharp" size={13} color="#2563eb" style={{ marginRight: 4 }} />
+              <Text style={styles.sectionEditBtnText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconBox}>
@@ -218,7 +368,15 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ── SECTION 2: WORK INFORMATION ── */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Work Information</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Work Information</Text>
+            {isITOfficer && (
+              <TouchableOpacity style={styles.sectionEditBtn} onPress={openWorkEditModal} activeOpacity={0.7}>
+                <Ionicons name="pencil-sharp" size={13} color="#2563eb" style={{ marginRight: 4 }} />
+                <Text style={styles.sectionEditBtnText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconBox}>
@@ -258,12 +416,6 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.infoValue}>{assignedArea}</Text>
           </View>
         </View>
-
-        {/* ── EDIT PROFILE BUTTON ── */}
-        <TouchableOpacity style={styles.editProfileBtn} onPress={openEditModal} activeOpacity={0.85}>
-          <Ionicons name="create-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-          <Text style={styles.editProfileBtnText}>Edit Profile</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* ── EDIT PROFILE MODAL ── */}
@@ -271,51 +423,66 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Edit Profile Information</Text>
+              <Text style={styles.modalHeaderTitle}>
+                {editSection === 'personal' ? 'Edit Personal Information' : 'Edit Work Information'}
+              </Text>
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
                 <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={{ paddingHorizontal: 20, paddingTop: 10 }}>
-              <Text style={styles.fieldLabel}>CONTACT NUMBER</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={editForm.contactNo}
-                onChangeText={(val) => setEditForm({ ...editForm, contactNo: val })}
-                keyboardType="phone-pad"
-              />
+              {editSection === 'personal' ? (
+                <>
+                  <Text style={styles.fieldLabel}>CONTACT NUMBER</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editForm.contactNo}
+                    onChangeText={(val) => setEditForm({ ...editForm, contactNo: val })}
+                    keyboardType="phone-pad"
+                  />
 
-              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={editForm.email}
-                onChangeText={(val) => setEditForm({ ...editForm, email: val })}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
+                  <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editForm.email}
+                    onChangeText={(val) => setEditForm({ ...editForm, email: val })}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
 
-              <Text style={styles.fieldLabel}>RESIDENTIAL ADDRESS</Text>
-              <TextInput
-                style={[styles.fieldInput, { height: 70, textAlignVertical: 'top' }]}
-                value={editForm.address}
-                onChangeText={(val) => setEditForm({ ...editForm, address: val })}
-                multiline={true}
-              />
+                  <Text style={styles.fieldLabel}>RESIDENTIAL ADDRESS</Text>
+                  <TextInput
+                    style={[styles.fieldInput, { height: 70, textAlignVertical: 'top' }]}
+                    value={editForm.address}
+                    onChangeText={(val) => setEditForm({ ...editForm, address: val })}
+                    multiline={true}
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={styles.fieldLabel}>RANK</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editForm.rank}
+                    onChangeText={(val) => setEditForm({ ...editForm, rank: val })}
+                  />
 
-              <Text style={styles.fieldLabel}>STATION / BRANCH</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={editForm.station}
-                onChangeText={(val) => setEditForm({ ...editForm, station: val })}
-              />
+                  <Text style={styles.fieldLabel}>STATION / BRANCH</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editForm.station}
+                    onChangeText={(val) => setEditForm({ ...editForm, station: val })}
+                  />
 
-              <Text style={styles.fieldLabel}>ASSIGNED AREA</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={editForm.assignedArea}
-                onChangeText={(val) => setEditForm({ ...editForm, assignedArea: val })}
-              />
+                  <Text style={styles.fieldLabel}>ASSIGNED AREA</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editForm.assignedArea}
+                    onChangeText={(val) => setEditForm({ ...editForm, assignedArea: val })}
+                  />
+                </>
+              )}
 
               <TouchableOpacity
                 style={[styles.saveBtn, saving && { opacity: 0.7 }]}
@@ -325,7 +492,7 @@ export default function ProfileScreen({ navigation }) {
                 {saving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.saveBtnText}>Save Profile Changes</Text>
+                  <Text style={styles.saveBtnText}>Save Changes</Text>
                 )}
               </TouchableOpacity>
 
@@ -469,11 +636,32 @@ const styles = StyleSheet.create({
     elevation: 2
   },
 
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14
+  },
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 14
+    color: '#0f172a'
+  },
+
+  sectionEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#edf5ff',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8
+  },
+
+  sectionEditBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563eb'
   },
 
   infoRow: {
@@ -509,28 +697,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#f1f5f9',
     marginVertical: 4
-  },
-
-  // ── Edit Button ──
-  editProfileBtn: {
-    backgroundColor: '#0b1d3a',
-    height: 52,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    shadowColor: '#0b1d3a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4
-  },
-
-  editProfileBtnText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700'
   },
 
   // ── Modal Styles ──
