@@ -121,7 +121,7 @@ router.put("/me", verifyToken, async (req, res) => {
 
     // Check if user is an IT officer or admin
     const userRole = (req.user.role || "").toLowerCase().trim();
-    const isITOfficer = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin"].includes(userRole);
+    const isITOfficer = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin", "oic", "oic traffic branch"].some(r => userRole.includes(r));
 
     // Non-IT officers (regular traffic officers) cannot modify work information
     if (!isITOfficer) {
@@ -131,8 +131,21 @@ router.put("/me", verifyToken, async (req, res) => {
       delete updateData.joinedDate;
     }
 
+    const mongoose = require("mongoose");
+    let targetOfficer = null;
+    if (req.user && req.user.id && mongoose.Types.ObjectId.isValid(req.user.id)) {
+      targetOfficer = await Officer.findById(req.user.id);
+    }
+    if (!targetOfficer && req.user && req.user.username) {
+      targetOfficer = await Officer.findOne({ username: req.user.username });
+    }
+
+    if (!targetOfficer) {
+      return res.status(404).json({ message: "Officer profile not found" });
+    }
+
     const updatedOfficer = await Officer.findByIdAndUpdate(
-      req.user.id,
+      targetOfficer._id,
       updateData,
       { new: true }
     ).select("-password");
@@ -152,13 +165,50 @@ router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) =>
     res.status(500).json({ error: error.message });
   }
 });
-// UPDATE OFFICER
+
+// UPDATE OFFICER BY ID OR USERNAME OR POLICE ID
 router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const isSelf = req.params.id === req.user.id || req.params.id === "me";
     const userRole = (req.user.role || "").toLowerCase().trim();
     const adminRoles = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin", "oic", "oic traffic branch"];
     const isManager = adminRoles.some(r => userRole.includes(r));
+
+    const mongoose = require("mongoose");
+    const paramId = req.params.id;
+
+    let officerToUpdate = null;
+    if (paramId === "me" || String(paramId) === String(req.user.id)) {
+      if (req.user.id && mongoose.Types.ObjectId.isValid(req.user.id)) {
+        officerToUpdate = await Officer.findById(req.user.id);
+      }
+    }
+
+    if (!officerToUpdate) {
+      if (mongoose.Types.ObjectId.isValid(paramId)) {
+        officerToUpdate = await Officer.findById(paramId);
+      }
+    }
+
+    if (!officerToUpdate) {
+      officerToUpdate = await Officer.findOne({
+        $or: [
+          { policeId: paramId },
+          { username: paramId },
+          { nic: paramId },
+          ...(req.user.username ? [{ username: req.user.username }] : []),
+          ...(req.user.policeId ? [{ policeId: req.user.policeId }] : [])
+        ]
+      });
+    }
+
+    if (!officerToUpdate) {
+      return res.status(404).json({ message: "Officer profile not found" });
+    }
+
+    const isSelf = String(officerToUpdate._id) === String(req.user.id) ||
+                   (req.user.username && officerToUpdate.username === req.user.username) ||
+                   (req.user.policeId && officerToUpdate.policeId === req.user.policeId) ||
+                   paramId === "me";
 
     if (!isSelf && !isManager) {
       return res.status(403).json({ message: "Forbidden. You do not have permission." });
@@ -176,14 +226,13 @@ router.put("/:id", verifyToken, async (req, res) => {
       delete updateData.joinedDate;
     }
 
-    if (req.body.password) {
+    if (req.body.password && isManager) {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(req.body.password, salt);
     }
 
-    const targetId = req.params.id === "me" ? req.user.id : req.params.id;
     const updatedOfficer = await Officer.findByIdAndUpdate(
-      targetId,
+      officerToUpdate._id,
       updateData,
       { new: true }
     ).select("-password");

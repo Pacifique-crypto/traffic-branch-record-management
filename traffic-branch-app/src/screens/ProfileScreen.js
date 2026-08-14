@@ -118,8 +118,9 @@ export default function ProfileScreen({ navigation }) {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok && officer && officer._id) {
-        response = await fetch(`${BASE_URL}/officers/${officer._id}`, {
+      if (!response.ok) {
+        const targetId = officer._id || officer.policeId || officer.username || 'me';
+        response = await fetch(`${BASE_URL}/officers/${targetId}`, {
           method: 'PUT',
           headers,
           body: JSON.stringify(payload)
@@ -180,8 +181,9 @@ export default function ProfileScreen({ navigation }) {
         body: JSON.stringify({ profileImage: base64Data })
       });
 
-      if (!response.ok && officer && officer._id) {
-        response = await fetch(`${BASE_URL}/officers/${officer._id}`, {
+      if (!response.ok) {
+        const targetId = officer._id || officer.policeId || officer.username || 'me';
+        response = await fetch(`${BASE_URL}/officers/${targetId}`, {
           method: 'PUT',
           headers,
           body: JSON.stringify({ profileImage: base64Data })
