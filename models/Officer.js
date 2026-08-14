@@ -72,6 +72,26 @@ const officerSchema = new mongoose.Schema({
   rejectionRemarks: {
     type: String,
     default: ""
+  },
+
+  station: {
+    type: String,
+    default: "Traffic Branch - Negombo"
+  },
+
+  joinedDate: {
+    type: Date,
+    default: Date.now
+  },
+
+  assignedArea: {
+    type: String,
+    default: "Negombo City Area"
+  },
+
+  profileImage: {
+    type: String,
+    default: ""
   }
 
 }, { timestamps: true });
