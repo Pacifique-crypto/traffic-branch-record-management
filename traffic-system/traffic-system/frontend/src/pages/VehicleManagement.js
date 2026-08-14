@@ -936,8 +936,23 @@ function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
   );
 }
 
+const BRANCH_OPTIONS = [
+  "Administration Branch",
+  "Traffic Branch",
+  "Crime Branch",
+  "Women & Children's Bureau",
+  "Anti-Corruption Branch",
+  "Police Mess",
+  "Complaints Branch",
+  "Investigation Branch",
+  "Other"
+];
+
 // ─── Register Vehicle Modal Component (Preserved OIC approval submission) ───
 function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
+  const [selectedBranch, setSelectedBranch] = useState("Administration Branch");
+  const [customBranch, setCustomBranch] = useState("");
+
   const [form, setForm] = useState({
     registrationNo: "",
     chassisNo: "",
@@ -957,7 +972,7 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
     insuranceExpiry: "",
     emissionTestExpiry: "",
     assignedOfficer: "Unassigned",
-    branch: "Negombo Traffic Div.",
+    branch: "Administration Branch",
     remarks: ""
   });
 
@@ -970,6 +985,9 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
 
   const handleSubmit = () => {
     if (!form.registrationNo.trim()) return setError("Registration Number is required.");
+    if (selectedBranch === "Other" && !customBranch.trim()) {
+      return setError("Please specify the branch name.");
+    }
     onSave(form);
   };
 
@@ -1097,12 +1115,40 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
             </div>
             <div className="um-field">
               <label className="um-field-label">ASSIGNED BRANCH</label>
-              <select className="um-field-input" name="branch" value={form.branch} onChange={handleChange}>
-                <option value="Negombo Traffic Div.">Negombo Traffic Div.</option>
-                <option value="Negombo Central Div.">Negombo Central Div.</option>
-                <option value="Kochchikade Post">Kochchikade Post</option>
-                <option value="Katunayake Highway Div.">Katunayake Highway Div.</option>
+              <select
+                className="um-field-input"
+                value={selectedBranch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedBranch(val);
+                  if (val === "Other") {
+                    setForm({ ...form, branch: customBranch.trim() || "Other" });
+                  } else {
+                    setForm({ ...form, branch: val });
+                  }
+                  setError("");
+                }}
+              >
+                {BRANCH_OPTIONS.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
               </select>
+              {selectedBranch === "Other" && (
+                <input
+                  className="um-field-input"
+                  style={{ marginTop: 8 }}
+                  placeholder="Enter branch name..."
+                  value={customBranch}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomBranch(val);
+                    setForm({ ...form, branch: val.trim() || "Other" });
+                    setError("");
+                  }}
+                />
+              )}
             </div>
           </div>
 
