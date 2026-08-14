@@ -27,16 +27,16 @@ const authorizeRoles = (...allowedRoles) => {
     const userRole = (req.user.role || "").toLowerCase().trim();
     
     // Normalize role collections:
-    const adminRoles = ["admin", "it officer", "it officer/admin", "it officer admin"];
-    const oicRoles = ["oic", "oic traffic branch"];
-    const officerRoles = ["officer", "traffic officer"];
+    const adminRoles = ["admin", "it officer", "itofficer", "it_officer", "it officer/admin", "it officer admin", "it"];
+    const oicRoles = ["oic", "oic traffic branch", "oic_traffic_branch"];
+    const officerRoles = ["officer", "traffic officer", "traffic_officer", "constable", "wpc", "pc", "police officer", "user"];
 
     let rolesToCheck = [userRole];
-    if (adminRoles.includes(userRole)) {
+    if (adminRoles.some(r => userRole.includes(r))) {
       rolesToCheck = adminRoles;
-    } else if (oicRoles.includes(userRole)) {
+    } else if (oicRoles.some(r => userRole.includes(r))) {
       rolesToCheck = oicRoles;
-    } else if (officerRoles.includes(userRole)) {
+    } else if (officerRoles.some(r => userRole.includes(r)) || !userRole) {
       rolesToCheck = officerRoles;
     }
 
@@ -44,10 +44,8 @@ const authorizeRoles = (...allowedRoles) => {
     const normalizedAllowedRoles = allowedRoles.reduce((acc, r) => {
       const lower = r.toLowerCase().trim();
       acc.push(lower);
-      if (lower === "officer") acc.push(...officerRoles);
-      if (lower === "traffic officer") acc.push(...officerRoles);
-      if (lower === "admin") acc.push(...adminRoles);
-      if (lower === "it officer") acc.push(...adminRoles);
+      if (lower === "officer" || lower === "traffic officer") acc.push(...officerRoles);
+      if (lower === "admin" || lower === "it officer") acc.push(...adminRoles);
       if (lower === "oic") acc.push(...oicRoles);
       return acc;
     }, []);

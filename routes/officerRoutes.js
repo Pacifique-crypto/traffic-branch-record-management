@@ -153,16 +153,37 @@ router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) =>
   }
 });
 // UPDATE OFFICER
-router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
+router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const updateData = { ...req.body };
-    if (updateData.password) {
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(updateData.password, salt);
+    const isSelf = req.params.id === req.user.id || req.params.id === "me";
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const adminRoles = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin", "oic", "oic traffic branch"];
+    const isManager = adminRoles.some(r => userRole.includes(r));
+
+    if (!isSelf && !isManager) {
+      return res.status(403).json({ message: "Forbidden. You do not have permission." });
     }
 
+    const updateData = { ...req.body };
+    delete updateData.password;
+    delete updateData.role;
+
+    // Non-IT/non-manager officers cannot modify work information fields
+    if (!isManager) {
+      delete updateData.rank;
+      delete updateData.station;
+      delete updateData.assignedArea;
+      delete updateData.joinedDate;
+    }
+
+    if (req.body.password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(req.body.password, salt);
+    }
+
+    const targetId = req.params.id === "me" ? req.user.id : req.params.id;
     const updatedOfficer = await Officer.findByIdAndUpdate(
-      req.params.id,
+      targetId,
       updateData,
       { new: true }
     ).select("-password");
