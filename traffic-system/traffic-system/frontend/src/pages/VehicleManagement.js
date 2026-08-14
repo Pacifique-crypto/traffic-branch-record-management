@@ -528,33 +528,35 @@ function VehicleManagement() {
                             <FiMoreVertical size={18} />
                           </button>
 
-                          {/* Change Officer or Assign Officer Button */}
-                          {isAssigned ? (
-                            <button
-                              onClick={() => setChangeOfficerTarget(v)}
-                              style={{
-                                background: "#526075", color: "#ffffff", border: "none", borderRadius: 8,
-                                padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                                transition: "all 0.15s", whiteSpace: "nowrap"
-                              }}
-                              onMouseOver={e => e.currentTarget.style.background = "#334155"}
-                              onMouseOut={e => e.currentTarget.style.background = "#526075"}
-                            >
-                              Change Officer
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setAssignOfficerTarget(v)}
-                              style={{
-                                background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 8,
-                                padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                                transition: "all 0.15s", whiteSpace: "nowrap"
-                              }}
-                              onMouseOver={e => e.currentTarget.style.background = "#071326"}
-                              onMouseOut={e => e.currentTarget.style.background = "#0b1d3a"}
-                            >
-                              Assign Officer
-                            </button>
+                          {/* Change Officer or Assign Officer Button (Only for IT Officer) */}
+                          {userRole === "IT Officer" && (
+                            isAssigned ? (
+                              <button
+                                onClick={() => setChangeOfficerTarget(v)}
+                                style={{
+                                  background: "#526075", color: "#ffffff", border: "none", borderRadius: 8,
+                                  padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                                  transition: "all 0.15s", whiteSpace: "nowrap"
+                                }}
+                                onMouseOver={e => e.currentTarget.style.background = "#334155"}
+                                onMouseOut={e => e.currentTarget.style.background = "#526075"}
+                              >
+                                Change Officer
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setAssignOfficerTarget(v)}
+                                style={{
+                                  background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 8,
+                                  padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                                  transition: "all 0.15s", whiteSpace: "nowrap"
+                                }}
+                                onMouseOver={e => e.currentTarget.style.background = "#071326"}
+                                onMouseOut={e => e.currentTarget.style.background = "#0b1d3a"}
+                              >
+                                Assign Officer
+                              </button>
+                            )
                           )}
                         </div>
                       </td>
