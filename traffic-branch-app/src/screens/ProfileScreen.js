@@ -112,11 +112,19 @@ export default function ProfileScreen({ navigation }) {
             assignedArea: editForm.assignedArea
           };
 
-      const response = await fetch(`${BASE_URL}/officers/me`, {
+      let response = await fetch(`${BASE_URL}/officers/me`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(payload)
       });
+
+      if (!response.ok && officer && officer._id) {
+        response = await fetch(`${BASE_URL}/officers/${officer._id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (response.ok) {
         const updated = await response.json();
@@ -166,11 +174,19 @@ export default function ProfileScreen({ navigation }) {
         headers['Authorization'] = `Bearer ${global.userToken}`;
       }
 
-      const response = await fetch(`${BASE_URL}/officers/me`, {
+      let response = await fetch(`${BASE_URL}/officers/me`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ profileImage: base64Data })
       });
+
+      if (!response.ok && officer && officer._id) {
+        response = await fetch(`${BASE_URL}/officers/${officer._id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ profileImage: base64Data })
+        });
+      }
 
       if (response.ok) {
         const updated = await response.json();
