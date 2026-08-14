@@ -119,6 +119,18 @@ router.put("/me", verifyToken, async (req, res) => {
     delete updateData.password;
     delete updateData.role;
 
+    // Check if user is an IT officer or admin
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const isITOfficer = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin"].includes(userRole);
+
+    // Non-IT officers (regular traffic officers) cannot modify work information
+    if (!isITOfficer) {
+      delete updateData.rank;
+      delete updateData.station;
+      delete updateData.assignedArea;
+      delete updateData.joinedDate;
+    }
+
     const updatedOfficer = await Officer.findByIdAndUpdate(
       req.user.id,
       updateData,
