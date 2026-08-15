@@ -637,19 +637,30 @@ function VehicleManagement() {
           onClose={() => setChangeOfficerTarget(null)}
           onSave={async (vehicleId, newOfficer, transferDate) => {
             try {
-              const payload = {
-                assignedOfficer: newOfficer,
-                transferDate: transferDate,
-                assignmentDate: transferDate,
-                pendingAssignedOfficer: "",
-                pendingAssignmentType: "",
-                assignmentApprovalStatus: "APPROVED"
-              };
+              const isOIC = userRole === "OIC";
+              const payload = isOIC
+                ? {
+                    assignedOfficer: newOfficer,
+                    transferDate: transferDate,
+                    assignmentDate: transferDate,
+                    pendingAssignedOfficer: "",
+                    pendingAssignmentType: "",
+                    assignmentApprovalStatus: "APPROVED"
+                  }
+                : {
+                    pendingAssignedOfficer: newOfficer,
+                    pendingAssignmentType: "REASSIGNMENT",
+                    pendingAssignmentDate: transferDate,
+                    assignmentApprovalStatus: "PENDING"
+                  };
 
               const res = await updateVehicle(vehicleId, payload);
               if (res && !res.error) {
                 fetchAllData();
                 setChangeOfficerTarget(null);
+                if (!isOIC) {
+                  alert("Vehicle reassignment request submitted for OIC approval.");
+                }
               } else {
                 alert(res.error || "Failed to submit officer change request.");
               }
@@ -669,19 +680,30 @@ function VehicleManagement() {
           onClose={() => setAssignOfficerTarget(null)}
           onSave={async (vehicleId, assignedOfficer, assignmentDate) => {
             try {
-              const payload = {
-                assignedOfficer: assignedOfficer,
-                assignmentDate: assignmentDate,
-                transferDate: assignmentDate,
-                pendingAssignedOfficer: "",
-                pendingAssignmentType: "",
-                assignmentApprovalStatus: "APPROVED"
-              };
+              const isOIC = userRole === "OIC";
+              const payload = isOIC
+                ? {
+                    assignedOfficer: assignedOfficer,
+                    assignmentDate: assignmentDate,
+                    transferDate: assignmentDate,
+                    pendingAssignedOfficer: "",
+                    pendingAssignmentType: "",
+                    assignmentApprovalStatus: "APPROVED"
+                  }
+                : {
+                    pendingAssignedOfficer: assignedOfficer,
+                    pendingAssignmentType: "ASSIGNMENT",
+                    pendingAssignmentDate: assignmentDate,
+                    assignmentApprovalStatus: "PENDING"
+                  };
 
               const res = await updateVehicle(vehicleId, payload);
               if (res && !res.error) {
                 fetchAllData();
                 setAssignOfficerTarget(null);
+                if (!isOIC) {
+                  alert("Officer assignment request submitted for OIC approval.");
+                }
               } else {
                 alert(res.error || "Failed to submit officer assignment request.");
               }
