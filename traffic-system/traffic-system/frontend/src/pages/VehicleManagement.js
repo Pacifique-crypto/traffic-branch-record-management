@@ -1131,18 +1131,8 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
   );
 }
 
-// Helper to retrieve or generate assignment history for a specific vehicle
+// Helper to retrieve live assignment history for a specific vehicle from database
 function getVehicleAssignmentHistory(vehicle, officers = []) {
-  if (vehicle.assignmentHistory && vehicle.assignmentHistory.length > 0) {
-    return vehicle.assignmentHistory;
-  }
-
-  const currentOfficer = vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned"
-    ? vehicle.assignedOfficer
-    : null;
-
-  const records = [];
-
   const findOfficerInfo = (name) => {
     if (!name) return { rank: "Officer", policeId: "88214", initials: "OFF" };
     const found = officers.find(o => o.fullName === name || o.name === name);
@@ -1163,13 +1153,32 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
     return { rank, policeId, initials };
   };
 
+  if (Array.isArray(vehicle.assignmentHistory) && vehicle.assignmentHistory.length > 0) {
+    return vehicle.assignmentHistory.map(item => {
+      const info = findOfficerInfo(item.officerName);
+      return {
+        officerName: item.officerName,
+        rank: item.rank || info.rank,
+        policeId: item.policeId || info.policeId,
+        initials: info.initials,
+        assignedDate: item.assignedDate || "N/A",
+        returnDate: item.returnDate || "--",
+        status: item.status || (item.returnDate && item.returnDate !== "--" ? "Completed" : "Active")
+      };
+    });
+  }
+
+  const currentOfficer = vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned"
+    ? vehicle.assignedOfficer
+    : null;
+
   if (currentOfficer) {
     const info = findOfficerInfo(currentOfficer);
     const assignedDateStr = vehicle.assignmentDate
       ? new Date(vehicle.assignmentDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-      : "20 Mar 2026";
+      : (vehicle.createdAt ? new Date(vehicle.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Today");
 
-    records.push({
+    return [{
       officerName: currentOfficer,
       rank: info.rank,
       policeId: info.policeId,
@@ -1177,31 +1186,10 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
       assignedDate: assignedDateStr,
       returnDate: "--",
       status: "Active"
-    });
+    }];
   }
 
-  const defaultPastOfficers = [
-    { name: "PS Silva", rank: "PS", policeId: "52312", assignedDate: "01 Jan 2026", returnDate: "20 Mar 2026", status: "Completed" },
-    { name: "SI Jayawardena", rank: "SI", policeId: "44102", assignedDate: "15 Aug 2025", returnDate: "01 Jan 2026", status: "Completed" },
-    { name: "PC Bandara", rank: "PC", policeId: "99341", assignedDate: "02 Feb 2025", returnDate: "15 Aug 2025", status: "Completed" }
-  ];
-
-  defaultPastOfficers.forEach(past => {
-    if (past.name !== currentOfficer) {
-      const parts = past.name.split(" ");
-      records.push({
-        officerName: past.name,
-        rank: past.rank,
-        policeId: past.policeId,
-        initials: past.rank || parts[0],
-        assignedDate: past.assignedDate,
-        returnDate: past.returnDate,
-        status: past.status
-      });
-    }
-  });
-
-  return records;
+  return [];
 }
 
 // ─── Vehicle Details Modal Component (3-Dots Click) ────────────────
