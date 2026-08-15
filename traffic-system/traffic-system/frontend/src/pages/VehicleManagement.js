@@ -9,40 +9,6 @@ import { getVehicles, registerVehicle, updateVehicle, deleteVehicle, getOfficers
 
 const PAGE_SIZE = 5;
 
-// Helper to render vehicle type icon matching Image 1
-const VehicleTypeIcon = ({ type }) => {
-  const t = (type || "").toLowerCase();
-  if (t.includes("motorcycle") || t.includes("bike")) {
-    return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <circle cx="5.5" cy="17.5" r="3.5"/>
-        <circle cx="18.5" cy="17.5" r="3.5"/>
-        <path d="M15 6h1.5a2.5 2.5 0 0 1 2.5 2.5V11l-3 3h-3l-2.5-3.5L8 14H4.5"/>
-        <path d="M12 17.5V14l-3-4H6"/>
-      </svg>
-    );
-  }
-  if (t.includes("van")) {
-    return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <path d="M17 18h2a2 2 0 0 0 2-2v-5c0-.8-.3-1.5-.9-2l-2.6-2.6a2 2 0 0 0-1.4-.6H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2"/>
-        <circle cx="7" cy="18" r="2"/>
-        <path d="M9 18h6"/>
-        <circle cx="17" cy="18" r="2"/>
-      </svg>
-    );
-  }
-  // Default Car icon
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 1 12v4c0 .6.4 1 1 1h2"/>
-      <circle cx="7" cy="17" r="2"/>
-      <path d="M9 17h6"/>
-      <circle cx="17" cy="17" r="2"/>
-    </svg>
-  );
-};
-
 // Helper to calculate initials for Officer Avatar
 const getInitials = (name) => {
   if (!name || name === "Unassigned" || name === "Not Assigned") return "";
@@ -51,6 +17,18 @@ const getInitials = (name) => {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
   return name.slice(0, 2).toUpperCase();
+};
+
+// Helper to normalize vehicle status labels and colors
+const getStatusDetails = (statusStr) => {
+  const s = (statusStr || "").toUpperCase().trim();
+  if (s === "MAINTENANCE" || s === "UNDER MAINTENANCE") {
+    return { label: "Under Maintenance", bg: "#fff8e1", color: "#b45309" };
+  }
+  if (s === "OUT OF SERVICE" || s === "OUT OF STOCK") {
+    return { label: "Out of Stock", bg: "#fee2e2", color: "#dc2626" };
+  }
+  return { label: "Available", bg: "#e6f4ea", color: "#1e7e34" };
 };
 
 function VehicleManagement() {
@@ -130,8 +108,8 @@ function VehicleManagement() {
 
   // Stats
   const totalFleet       = vehicles.length;
-  const activeUnits      = vehicles.filter(v => v.status === "AVAILABLE" || v.status === "Active" || v.status === "Approved").length;
-  const maintenanceCount = vehicles.filter(v => v.status === "MAINTENANCE" || v.status === "Maintenance").length;
+  const activeUnits      = vehicles.filter(v => getStatusDetails(v.status).label === "Available").length;
+  const maintenanceCount = vehicles.filter(v => getStatusDetails(v.status).label === "Under Maintenance").length;
   const pendingCount     = approvals.length;
 
   // Filter + paginate
@@ -144,7 +122,7 @@ function VehicleManagement() {
       (v.branch || "").toLowerCase().includes(search.toLowerCase()) ||
       (v.vehicleType || "").toLowerCase().includes(search.toLowerCase());
     const matchesType   = typeFilter === "All" || v.vehicleType === typeFilter;
-    const matchesStatus = statusFilter === "All" || v.status === statusFilter;
+    const matchesStatus = statusFilter === "All" || getStatusDetails(v.status).label.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesType && matchesStatus;
   });
 
@@ -168,7 +146,7 @@ function VehicleManagement() {
           assignmentApprovalStatus: "APPROVED"
         };
       } else {
-        payload = { status: "AVAILABLE" };
+        payload = { status: "Available" };
       }
 
       const res = await updateVehicle(id, payload);
@@ -261,7 +239,7 @@ function VehicleManagement() {
           </div>
           <div className="um-stat-card">
             <div>
-              <p className="um-stat-label">ACTIVE UNITS</p>
+              <p className="um-stat-label">AVAILABLE UNITS</p>
               <p className="um-stat-value" style={{ color: "#16a34a" }}>{activeUnits}</p>
             </div>
             <div className="um-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
@@ -270,7 +248,7 @@ function VehicleManagement() {
           </div>
           <div className="um-stat-card">
             <div>
-              <p className="um-stat-label">MAINTENANCE</p>
+              <p className="um-stat-label">UNDER MAINTENANCE</p>
               <p className="um-stat-value" style={{ color: "#f59e0b" }}>{maintenanceCount}</p>
             </div>
             <div className="um-stat-icon" style={{ background: "#fef3c7", color: "#b45309" }}>
@@ -311,14 +289,9 @@ function VehicleManagement() {
                 {approvals.map(v => (
                   <tr key={v.id} className="um-tr">
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div className="um-avatar" style={{ background: "#0f172a", color: "#fff" }}>
-                          <VehicleTypeIcon type={v.vehicleType} />
-                        </div>
-                        <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold", margin: 0 }}>
-                          {v.registrationNo}
-                        </p>
-                      </div>
+                      <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold", margin: 0 }}>
+                        {v.registrationNo}
+                      </p>
                     </td>
                     <td>
                       <span
@@ -375,7 +348,7 @@ function VehicleManagement() {
           </div>
         )}
 
-        {/* ── Vehicle Registry Table (Image 1 Layout) ── */}
+        {/* ── Vehicle Registry Table ── */}
         <div className="um-section-card" style={{ background: "#ffffff", borderRadius: 16, padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="um-section-header" style={{ marginBottom: 18 }}>
             <h3 className="um-section-title" style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Vehicle Registry</h3>
@@ -414,9 +387,9 @@ function VehicleManagement() {
               style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#374151", outline: "none" }}
             >
               <option value="All">All Status</option>
-              <option value="AVAILABLE">Active / Available</option>
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="OUT OF SERVICE">Out of Service</option>
+              <option value="Available">Available</option>
+              <option value="Under Maintenance">Under Maintenance</option>
+              <option value="Out of Stock">Out of Stock</option>
             </select>
           </div>
 
@@ -449,31 +422,20 @@ function VehicleManagement() {
                   );
 
                   const initials = isAssigned ? getInitials(v.assignedOfficer) : "";
-                  const vinText  = v.chassisNo ? `VIN: ${v.chassisNo}` : "VIN: SLP-00432-B";
-
-                  const isMaintenance = v.status === "MAINTENANCE" || v.status === "Maintenance";
-                  const isOutOfService = v.status === "OUT OF SERVICE" || v.status === "Out of Service";
-
-                  const statusLabel = isMaintenance ? "Maintenance" : (isOutOfService ? "Out of Service" : "Active");
-                  const statusBg    = isMaintenance ? "#fff8e1" : (isOutOfService ? "#fee2e2" : "#e6f4ea");
-                  const statusColor = isMaintenance ? "#b45309" : (isOutOfService ? "#dc2626" : "#1e7e34");
+                  const statusInfo = getStatusDetails(v.status);
 
                   return (
                     <tr key={v.id} className="um-tr" style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      {/* REG NO */}
+                      {/* REG NO (Only registration number, no VIN underneath) */}
                       <td style={{ padding: "14px 16px" }}>
                         <p style={{ margin: 0, fontWeight: 800, fontSize: 14, color: "#0f172a" }}>{v.registrationNo}</p>
-                        <p style={{ margin: "2px 0 0 0", fontSize: 11, color: "#94a3b8" }}>{vinText}</p>
                       </td>
 
-                      {/* VEHICLE TYPE */}
+                      {/* VEHICLE TYPE (Clean text, no icon) */}
                       <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#334155" }}>
-                          <VehicleTypeIcon type={v.vehicleType} />
-                          <span style={{ fontWeight: 600, fontSize: 13, color: "#334155" }}>
-                            {v.vehicleType ? (v.vehicleType.includes("Car") ? "Car" : v.vehicleType) : "Car"}
-                          </span>
-                        </div>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#334155" }}>
+                          {v.vehicleType || "Car"}
+                        </span>
                       </td>
 
                       {/* ASSIGNED OFFICER */}
@@ -500,14 +462,14 @@ function VehicleManagement() {
                       {/* ASSIGNED BRANCH */}
                       <td style={{ padding: "14px 16px" }}>
                         <span style={{ fontWeight: 600, fontSize: 13, color: "#475569" }}>
-                          {v.branch || "Negombo Traffic Div."}
+                          {v.branch ? v.branch.replace(/\s*Div\.$|\s*Division$/, '') : "Traffic Branch"}
                         </span>
                       </td>
 
                       {/* STATUS */}
                       <td style={{ padding: "14px 16px" }}>
-                        <span style={{ background: statusBg, color: statusColor, padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, display: "inline-block" }}>
-                          {statusLabel}
+                        <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, display: "inline-block" }}>
+                          {statusInfo.label}
                         </span>
                       </td>
 
@@ -568,7 +530,7 @@ function VehicleManagement() {
             </tbody>
           </table>
 
-          {/* Pagination Matching Image 1 */}
+          {/* Pagination */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
             <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
               Showing {filtered.length === 0 ? 0 : ((page - 1) * PAGE_SIZE) + 1} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} vehicles
@@ -616,7 +578,7 @@ function VehicleManagement() {
 
       </div>
 
-      {/* ══ REGISTER VEHICLE MODAL (Preserved for OIC Approval Flow) ══ */}
+      {/* ══ REGISTER VEHICLE MODAL ══ */}
       {showRegister && (
         <RegisterVehicleModal
           officers={officers}
@@ -628,7 +590,7 @@ function VehicleManagement() {
               const res = await registerVehicle({
                 ...vehicleData,
                 deptNo: vehicleData.registrationNo || "N/A",
-                status: "PENDING",
+                status: "Pending",
                 submittedBy: submitterName
               });
               if (res && !res.error) {
@@ -645,7 +607,7 @@ function VehicleManagement() {
         />
       )}
 
-      {/* ══ VEHICLE DETAILS MODAL (Eye Icon Click) ══ */}
+      {/* ══ VEHICLE DETAILS MODAL (3-Dots Click) ══ */}
       {detailsVehicle && (
         <VehicleDetailsModal
           vehicle={detailsVehicle}
@@ -654,6 +616,7 @@ function VehicleManagement() {
             setDetailsVehicle(null);
             setHistoryVehicle(v);
           }}
+          onRefresh={fetchAllData}
         />
       )}
 
@@ -666,7 +629,7 @@ function VehicleManagement() {
         />
       )}
 
-      {/* ══ CHANGE ASSIGNED OFFICER MODAL (Image 2) ══ */}
+      {/* ══ CHANGE ASSIGNED OFFICER MODAL ══ */}
       {changeOfficerTarget && (
         <ChangeOfficerModal
           vehicle={changeOfficerTarget}
@@ -708,7 +671,7 @@ function VehicleManagement() {
         />
       )}
 
-      {/* ══ ASSIGN OFFICER MODAL (Image 3) ══ */}
+      {/* ══ ASSIGN OFFICER MODAL ══ */}
       {assignOfficerTarget && (
         <AssignOfficerModal
           vehicle={assignOfficerTarget}
@@ -762,7 +725,7 @@ function VehicleManagement() {
   );
 }
 
-// ─── Change Assigned Officer Modal (Image 2) ────────────────────────
+// ─── Change Assigned Officer Modal ────────────────────────
 function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
   const [selectedOfficer, setSelectedOfficer] = useState("");
   const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -770,7 +733,6 @@ function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
   return (
     <div className="um-modal-overlay">
       <div className="um-modal" style={{ maxWidth: 480, overflow: "hidden", borderRadius: 16 }}>
-        {/* Header - Dark Navy */}
         <div style={{ background: "#0b1d3a", padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "#fff" }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>Change Assigned Officer</h3>
@@ -779,18 +741,11 @@ function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer", padding: "0 4px" }}>✕</button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: "20px 24px" }}>
-          {/* Top Card Box */}
           <div style={{ background: "#f0f4f9", borderRadius: 12, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 10, background: "#0b1d3a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <VehicleTypeIcon type={vehicle.vehicleType} />
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em" }}>VEHICLE ID</p>
-                <p style={{ margin: "2px 0 0 0", fontSize: 16, fontWeight: 800, color: "#0f172a" }}>{vehicle.registrationNo}</p>
-              </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em" }}>VEHICLE ID</p>
+              <p style={{ margin: "2px 0 0 0", fontSize: 16, fontWeight: 800, color: "#0f172a" }}>{vehicle.registrationNo}</p>
             </div>
             <div style={{ textAlign: "right" }}>
               <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "#64748b", letterSpacing: "0.05em" }}>CURRENT STATE</p>
@@ -800,7 +755,6 @@ function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Info Banner */}
           <div style={{ background: "#f1f5f9", borderLeft: "4px solid #334155", borderRadius: "0 8px 8px 0", padding: "12px 14px", margin: "16px 0", display: "flex", gap: 10, alignItems: "flex-start" }}>
             <FiInfo size={18} color="#475569" style={{ flexShrink: 0, marginTop: 2 }} />
             <p style={{ margin: 0, fontSize: 12, color: "#475569", fontStyle: "italic", lineHeight: 1.5 }}>
@@ -808,7 +762,6 @@ function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
             </p>
           </div>
 
-          {/* Form Fields */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.05em", marginBottom: 6 }}>NEW OFFICER</label>
@@ -840,7 +793,6 @@ function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ background: "#f8fafc", padding: "14px 24px", display: "flex", justifyContent: "flex-end", gap: 12, borderTop: "1px solid #e2e8f0" }}>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 16px" }}>
             Cancel
@@ -860,7 +812,7 @@ function ChangeOfficerModal({ vehicle, officers, onClose, onSave }) {
   );
 }
 
-// ─── Assign Officer Modal (Image 3) ─────────────────────────────────
+// ─── Assign Officer Modal ─────────────────────────────────
 function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
   const [selectedOfficer, setSelectedOfficer] = useState("");
   const [assignmentDate, setAssignmentDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -868,7 +820,6 @@ function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
   return (
     <div className="um-modal-overlay">
       <div className="um-modal" style={{ maxWidth: 440, overflow: "hidden", borderRadius: 16 }}>
-        {/* Header - White header with Dark Officer Icon */}
         <div style={{ padding: "20px 24px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "#0b1d3a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -884,7 +835,6 @@ function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer", padding: "0 4px" }}>✕</button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: "20px 24px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
@@ -921,7 +871,6 @@ function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Info Box */}
           <div style={{ background: "#edf5ff", border: "1px solid #d0e1fd", borderRadius: 10, padding: "14px 16px", marginTop: 20, display: "flex", gap: 10, alignItems: "flex-start" }}>
             <FiInfo size={18} color="#2563eb" style={{ flexShrink: 0, marginTop: 2 }} />
             <p style={{ margin: 0, fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
@@ -930,7 +879,6 @@ function AssignOfficerModal({ vehicle, officers, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ padding: "14px 24px 20px", display: "flex", justifyContent: "flex-end", gap: 12, borderTop: "1px solid #f1f5f9" }}>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 16px" }}>
             Cancel
@@ -962,7 +910,7 @@ const BRANCH_OPTIONS = [
   "Other"
 ];
 
-// ─── Register Vehicle Modal Component (Preserved OIC approval submission) ───
+// ─── Register Vehicle Modal Component ───
 function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
   const [selectedBranch, setSelectedBranch] = useState("Administration Branch");
   const [customBranch, setCustomBranch] = useState("");
@@ -1256,8 +1204,45 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
   return records;
 }
 
-// ─── Vehicle Details Modal Component (Eye Icon Click) ────────────────
-function VehicleDetailsModal({ vehicle, onClose, onOpenHistory }) {
+// ─── Vehicle Details Modal Component (3-Dots Click) ────────────────
+function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
+  const userRole = localStorage.getItem("userRole") || "IT Officer";
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(() => {
+    const s = (vehicle.status || "").toUpperCase().trim();
+    if (s === "MAINTENANCE" || s === "UNDER MAINTENANCE") return "Under Maintenance";
+    if (s === "OUT OF SERVICE" || s === "OUT OF STOCK") return "Out of Stock";
+    return "Available";
+  });
+  const [selectedStatus, setSelectedStatus] = useState(() => {
+    const s = (vehicle.status || "").toUpperCase().trim();
+    if (s === "MAINTENANCE" || s === "UNDER MAINTENANCE") return "Under Maintenance";
+    if (s === "OUT OF SERVICE" || s === "OUT OF STOCK") return "Out of Stock";
+    return "Available";
+  });
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  const handleSaveStatus = async () => {
+    try {
+      setSavingStatus(true);
+      const res = await updateVehicle(vehicle.id || vehicle._id, { status: selectedStatus });
+      if (res && !res.error) {
+        setCurrentStatus(selectedStatus);
+        setEditingStatus(false);
+        if (onRefresh) onRefresh();
+      } else {
+        alert(res.error || "Failed to update vehicle status.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating vehicle status.");
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const statusInfo = getStatusDetails(currentStatus);
+
   return (
     <div className="um-modal-overlay">
       <div className="um-modal um-details-modal" style={{ maxWidth: 580 }}>
@@ -1287,19 +1272,62 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory }) {
               <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>ASSIGNED OFFICER</p>
               <p style={{ fontSize: 14, fontWeight: 600, color: "#2563eb", margin: "3px 0 0 0" }}>{vehicle.assignedOfficer || "Unassigned"}</p>
             </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>APPROVAL STATUS</p>
-              <p style={{ fontSize: 14, fontWeight: 700, color: vehicle.status === "Pending" ? "#b45309" : "#16a34a", margin: "3px 0 0 0" }}>
-                {vehicle.status || "AVAILABLE"}
+
+            {/* VEHICLE STATUS ROW (With Edit Option for IT Officer Only) */}
+            <div style={{ gridColumn: "span 2" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE STATUS</p>
+                {userRole === "IT Officer" && !editingStatus && (
+                  <button
+                    onClick={() => setEditingStatus(true)}
+                    style={{
+                      background: "#edf5ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 6,
+                      padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+                    }}
+                  >
+                    <FiEdit size={12} /> Edit Status
+                  </button>
+                )}
+              </div>
+
+              {editingStatus ? (
+                <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                  <select
+                    value={selectedStatus}
+                    onChange={e => setSelectedStatus(e.target.value)}
+                    style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#0f172a", outline: "none" }}
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Under Maintenance">Under Maintenance</option>
+                    <option value="Out of Stock">Out of Stock</option>
+                  </select>
+                  <button
+                    onClick={handleSaveStatus}
+                    disabled={savingStatus}
+                    style={{ background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    {savingStatus ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    onClick={() => setEditingStatus(false)}
+                    style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, display: "inline-block", marginTop: 4 }}>
+                  {statusInfo.label}
+                </span>
+              )}
+            </div>
+
+            {/* BRANCH ROW (Division removed, Submitted By removed) */}
+            <div style={{ gridColumn: "span 2" }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>BRANCH</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#475569", margin: "3px 0 0 0" }}>
+                {vehicle.branch ? vehicle.branch.replace(/\s*Div\.$|\s*Division$/, '') : "Traffic Branch"}
               </p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>SUBMITTED BY</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#475569", margin: "3px 0 0 0" }}>{vehicle.submittedBy || "IT Officer"}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>BRANCH / DIVISION</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#475569", margin: "3px 0 0 0" }}>{vehicle.branch || "Negombo Traffic Div."}</p>
             </div>
           </div>
 
@@ -1377,7 +1405,6 @@ function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
   return (
     <div className="um-modal-overlay">
       <div className="um-modal" style={{ maxWidth: 680, overflow: "hidden", borderRadius: 16 }}>
-        {/* Header */}
         <div style={{ background: "#ffffff", padding: "20px 24px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #f1f5f9" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "#f1f5f9", color: "#0b1d3a", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1393,7 +1420,6 @@ function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#64748b", fontSize: 20, cursor: "pointer", padding: "0 4px" }}>✕</button>
         </div>
 
-        {/* Body Table */}
         <div style={{ padding: "0 24px 10px 24px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
             <thead>
@@ -1409,7 +1435,6 @@ function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
                 const isActive = row.status === "Active";
                 return (
                   <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    {/* Officer Name & Rank */}
                     <td style={{ padding: "14px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{
@@ -1427,17 +1452,14 @@ function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
                       </div>
                     </td>
 
-                    {/* Assigned Date */}
                     <td style={{ padding: "14px", fontSize: 13, color: "#334155", fontWeight: 500 }}>
                       {row.assignedDate}
                     </td>
 
-                    {/* Return / Transfer Date */}
                     <td style={{ padding: "14px", fontSize: 13, color: "#334155", fontWeight: 500 }}>
                       {row.returnDate}
                     </td>
 
-                    {/* Status */}
                     <td style={{ padding: "14px", textAlign: "right" }}>
                       {isActive ? (
                         <span style={{
@@ -1466,7 +1488,6 @@ function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
           </table>
         </div>
 
-        {/* Footer */}
         <div style={{
           background: "#ffffff", padding: "16px 24px", display: "flex", justifyContent: "space-between",
           alignItems: "center", borderTop: "1px solid #f1f5f9"
@@ -1551,4 +1572,3 @@ function RejectConfirmModal({ vehicle, onClose, onConfirm }) {
 }
 
 export default VehicleManagement;
-
