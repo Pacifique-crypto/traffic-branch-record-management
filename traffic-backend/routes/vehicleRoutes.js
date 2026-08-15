@@ -3,6 +3,18 @@ const router = express.Router();
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const Vehicle = require("../models/Vehicle");
 
+// Helper to safely format dates without throwing RangeError
+const formatDateSafe = (dateVal) => {
+  if (!dateVal) return new Date().toISOString().split("T")[0];
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toISOString().split("T")[0];
+  } catch (e) {
+    return String(dateVal);
+  }
+};
+
 // GET ALL VEHICLES
 router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
@@ -31,7 +43,7 @@ router.post("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) =
       ? [
           {
             officerName: assignedOfficer,
-            assignedDate: req.body.registrationDate || new Date().toISOString().split("T")[0],
+            assignedDate: formatDateSafe(req.body.registrationDate || new Date()),
             returnDate: "--",
             status: "Active"
           }
@@ -64,24 +76,24 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
 
     let updateData = { ...req.body };
 
-    // Auto-update assignmentHistory array if assignedOfficer changes and assignmentHistory not explicitly provided
+    // Auto-update assignmentHistory array if assignedOfficer changes and assignmentHistory is not explicitly passed
     if (
       req.body.assignedOfficer !== undefined &&
       req.body.assignedOfficer !== existing.assignedOfficer &&
       !req.body.assignmentHistory
     ) {
       let history = Array.isArray(existing.assignmentHistory) ? [...existing.assignmentHistory] : [];
-      const nowStr = req.body.transferDate || req.body.assignmentDate || new Date().toISOString().split("T")[0];
+      const nowStr = formatDateSafe(req.body.transferDate || req.body.assignmentDate || new Date());
 
-      // Mark current active assignment in history as completed
+      // Mark any existing Active item as Completed with returnDate
       history = history.map(item => {
-        if (item.status === "Active") {
+        if (item.status === "Active" || item.returnDate === "--") {
           return { ...item, returnDate: nowStr, status: "Completed" };
         }
         return item;
       });
 
-      // If previous assignedOfficer existed but wasn't recorded in history, record as completed
+      // If previous assignedOfficer existed on document but wasn't in history array, record as Completed
       if (
         existing.assignedOfficer &&
         existing.assignedOfficer !== "Unassigned" &&
@@ -89,9 +101,7 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
       ) {
         const alreadyInHistory = history.some(h => h.officerName === existing.assignedOfficer);
         if (!alreadyInHistory) {
-          const assignDate = existing.assignmentDate
-            ? new Date(existing.assignmentDate).toISOString().split("T")[0]
-            : (existing.createdAt ? new Date(existing.createdAt).toISOString().split("T")[0] : nowStr);
+          const assignDate = formatDateSafe(existing.assignmentDate || existing.createdAt || new Date());
           history.push({
             officerName: existing.assignedOfficer,
             assignedDate: assignDate,
@@ -101,7 +111,7 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
         }
       }
 
-      // Append new active assignment if assignedOfficer is not Unassigned
+      // Add new assigned officer as Active
       if (
         req.body.assignedOfficer &&
         req.body.assignedOfficer !== "Unassigned" &&
@@ -125,6 +135,7 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
     );
     res.json(updatedVehicle);
   } catch (err) {
+    console.error("Error updating vehicle:", err);
     res.status(500).json({ error: err.message });
   }
 });

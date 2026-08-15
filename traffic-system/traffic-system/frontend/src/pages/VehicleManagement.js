@@ -637,29 +637,19 @@ function VehicleManagement() {
           onClose={() => setChangeOfficerTarget(null)}
           onSave={async (vehicleId, newOfficer, transferDate) => {
             try {
-              const isOIC = userRole === "OIC";
-              const payload = isOIC
-                ? {
-                    assignedOfficer: newOfficer,
-                    transferDate: transferDate,
-                    pendingAssignedOfficer: "",
-                    pendingAssignmentType: "",
-                    assignmentApprovalStatus: "APPROVED"
-                  }
-                : {
-                    pendingAssignedOfficer: newOfficer,
-                    pendingAssignmentType: "REASSIGNMENT",
-                    pendingAssignmentDate: transferDate,
-                    assignmentApprovalStatus: "PENDING"
-                  };
+              const payload = {
+                assignedOfficer: newOfficer,
+                transferDate: transferDate,
+                assignmentDate: transferDate,
+                pendingAssignedOfficer: "",
+                pendingAssignmentType: "",
+                assignmentApprovalStatus: "APPROVED"
+              };
 
               const res = await updateVehicle(vehicleId, payload);
               if (res && !res.error) {
                 fetchAllData();
                 setChangeOfficerTarget(null);
-                if (!isOIC) {
-                  alert("Vehicle reassignment request submitted for OIC approval.");
-                }
               } else {
                 alert(res.error || "Failed to submit officer change request.");
               }
@@ -679,29 +669,19 @@ function VehicleManagement() {
           onClose={() => setAssignOfficerTarget(null)}
           onSave={async (vehicleId, assignedOfficer, assignmentDate) => {
             try {
-              const isOIC = userRole === "OIC";
-              const payload = isOIC
-                ? {
-                    assignedOfficer: assignedOfficer,
-                    assignmentDate: assignmentDate,
-                    pendingAssignedOfficer: "",
-                    pendingAssignmentType: "",
-                    assignmentApprovalStatus: "APPROVED"
-                  }
-                : {
-                    pendingAssignedOfficer: assignedOfficer,
-                    pendingAssignmentType: "ASSIGNMENT",
-                    pendingAssignmentDate: assignmentDate,
-                    assignmentApprovalStatus: "PENDING"
-                  };
+              const payload = {
+                assignedOfficer: assignedOfficer,
+                assignmentDate: assignmentDate,
+                transferDate: assignmentDate,
+                pendingAssignedOfficer: "",
+                pendingAssignmentType: "",
+                assignmentApprovalStatus: "APPROVED"
+              };
 
               const res = await updateVehicle(vehicleId, payload);
               if (res && !res.error) {
                 fetchAllData();
                 setAssignOfficerTarget(null);
-                if (!isOIC) {
-                  alert("Officer assignment request submitted for OIC approval.");
-                }
               } else {
                 alert(res.error || "Failed to submit officer assignment request.");
               }
@@ -1153,6 +1133,17 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
     return { rank, policeId, initials };
   };
 
+  const formatDateDisplay = (dateVal) => {
+    if (!dateVal || dateVal === "--") return "--";
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return dateVal;
+      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    } catch (e) {
+      return dateVal;
+    }
+  };
+
   if (Array.isArray(vehicle.assignmentHistory) && vehicle.assignmentHistory.length > 0) {
     return vehicle.assignmentHistory.map(item => {
       const info = findOfficerInfo(item.officerName);
@@ -1161,8 +1152,8 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
         rank: item.rank || info.rank,
         policeId: item.policeId || info.policeId,
         initials: info.initials,
-        assignedDate: item.assignedDate || "N/A",
-        returnDate: item.returnDate || "--",
+        assignedDate: formatDateDisplay(item.assignedDate),
+        returnDate: formatDateDisplay(item.returnDate),
         status: item.status || (item.returnDate && item.returnDate !== "--" ? "Completed" : "Active")
       };
     });
@@ -1174,9 +1165,7 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
 
   if (currentOfficer) {
     const info = findOfficerInfo(currentOfficer);
-    const assignedDateStr = vehicle.assignmentDate
-      ? new Date(vehicle.assignmentDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-      : (vehicle.createdAt ? new Date(vehicle.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Today");
+    const assignedDateStr = formatDateDisplay(vehicle.assignmentDate || vehicle.createdAt);
 
     return [{
       officerName: currentOfficer,
