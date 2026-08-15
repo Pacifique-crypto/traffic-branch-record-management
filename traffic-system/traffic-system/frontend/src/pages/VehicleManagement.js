@@ -1168,65 +1168,33 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
 
   let rawHistory = [];
 
+  // Strictly real assignmentHistory from MongoDB document
   if (Array.isArray(vehicle.assignmentHistory) && vehicle.assignmentHistory.length > 0) {
     rawHistory = [...vehicle.assignmentHistory];
+  } else if (vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned") {
+    rawHistory = [{
+      officerName: vehicle.assignedOfficer,
+      assignedDate: vehicle.assignmentDate || vehicle.createdAt || new Date(),
+      returnDate: "--",
+      status: "Active"
+    }];
   }
 
-  const currentOfficer = vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned"
-    ? vehicle.assignedOfficer
-    : null;
-
-  // 1. Ensure current active officer is in rawHistory
-  if (currentOfficer) {
-    const hasActive = rawHistory.some(h => h.officerName === currentOfficer && (h.status === "Active" || h.returnDate === "--"));
-    if (!hasActive) {
-      rawHistory.unshift({
-        officerName: currentOfficer,
-        assignedDate: vehicle.assignmentDate || vehicle.createdAt || "2026-08-15",
-        returnDate: "--",
-        status: "Active"
-      });
-    }
-  }
-
-  // 2. Ensure past completed officer assignments exist in rawHistory for fleet completeness
-  const hasCompleted = rawHistory.some(h => h.status === "Completed" || (h.returnDate && h.returnDate !== "--"));
-  if (!hasCompleted) {
-    const defaultPastRecords = [
-      {
-        officerName: "PS Silva",
-        rank: "PS",
-        policeId: "52312",
-        assignedDate: "01 Jan 2026",
-        returnDate: "15 Aug 2026",
-        status: "Completed"
-      },
-      {
-        officerName: "SI Jayawardena",
-        rank: "SI",
-        policeId: "44102",
-        assignedDate: "15 Aug 2025",
-        returnDate: "01 Jan 2026",
-        status: "Completed"
-      },
-      {
-        officerName: "PC Bandara",
-        rank: "PC",
-        policeId: "99341",
-        assignedDate: "02 Feb 2025",
-        returnDate: "15 Aug 2025",
-        status: "Completed"
-      }
-    ];
-
-    defaultPastRecords.forEach(past => {
-      if (!rawHistory.some(h => h.officerName === past.officerName)) {
-        rawHistory.push(past);
-      }
+  // Ensure current active assigned officer is recorded in rawHistory
+  if (
+    vehicle.assignedOfficer &&
+    vehicle.assignedOfficer !== "Unassigned" &&
+    vehicle.assignedOfficer !== "Not Assigned" &&
+    !rawHistory.some(h => h.officerName === vehicle.assignedOfficer)
+  ) {
+    rawHistory.unshift({
+      officerName: vehicle.assignedOfficer,
+      assignedDate: vehicle.assignmentDate || vehicle.createdAt || new Date(),
+      returnDate: "--",
+      status: "Active"
     });
   }
 
-  // 3. Map all records cleanly
   const records = rawHistory.map(item => {
     const info = findOfficerInfo(item.officerName);
     return {
