@@ -76,16 +76,15 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
 
     let updateData = { ...req.body };
 
-    // Auto-update assignmentHistory array if assignedOfficer changes and assignmentHistory is not explicitly passed
-    if (
-      req.body.assignedOfficer !== undefined &&
-      req.body.assignedOfficer !== existing.assignedOfficer &&
-      !req.body.assignmentHistory
-    ) {
-      let history = Array.isArray(existing.assignmentHistory) ? [...existing.assignmentHistory] : [];
-      const nowStr = formatDateSafe(req.body.transferDate || req.body.assignmentDate || new Date());
+    const newOfficer = req.body.assignedOfficer;
+    const oldOfficer = existing.assignedOfficer;
+    const nowStr = formatDateSafe(req.body.transferDate || req.body.assignmentDate || new Date());
 
-      // Mark any existing Active item as Completed with returnDate
+    // Auto-update assignmentHistory array if assignedOfficer changes
+    if (newOfficer !== undefined && newOfficer !== oldOfficer && !req.body.assignmentHistory) {
+      let history = Array.isArray(existing.assignmentHistory) ? [...existing.assignmentHistory] : [];
+
+      // 1. Mark any existing Active item as Completed
       history = history.map(item => {
         if (item.status === "Active" || item.returnDate === "--") {
           return { ...item, returnDate: nowStr, status: "Completed" };
@@ -93,17 +92,13 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
         return item;
       });
 
-      // If previous assignedOfficer existed on document but wasn't in history array, record as Completed
-      if (
-        existing.assignedOfficer &&
-        existing.assignedOfficer !== "Unassigned" &&
-        existing.assignedOfficer !== "Not Assigned"
-      ) {
-        const alreadyInHistory = history.some(h => h.officerName === existing.assignedOfficer);
-        if (!alreadyInHistory) {
+      // 2. Archive previous assigned officer if not already recorded in history as Completed
+      if (oldOfficer && oldOfficer !== "Unassigned" && oldOfficer !== "Not Assigned") {
+        const existsAsCompleted = history.some(h => h.officerName === oldOfficer && h.status === "Completed");
+        if (!existsAsCompleted) {
           const assignDate = formatDateSafe(existing.assignmentDate || existing.createdAt || new Date());
           history.push({
-            officerName: existing.assignedOfficer,
+            officerName: oldOfficer,
             assignedDate: assignDate,
             returnDate: nowStr,
             status: "Completed"
@@ -111,14 +106,10 @@ router.put("/:id", verifyToken, authorizeRoles("oic", "admin"), async (req, res)
         }
       }
 
-      // Add new assigned officer as Active
-      if (
-        req.body.assignedOfficer &&
-        req.body.assignedOfficer !== "Unassigned" &&
-        req.body.assignedOfficer !== "Not Assigned"
-      ) {
+      // 3. Add new assigned officer as Active
+      if (newOfficer && newOfficer !== "Unassigned" && newOfficer !== "Not Assigned") {
         history.push({
-          officerName: req.body.assignedOfficer,
+          officerName: newOfficer,
           assignedDate: nowStr,
           returnDate: "--",
           status: "Active"
