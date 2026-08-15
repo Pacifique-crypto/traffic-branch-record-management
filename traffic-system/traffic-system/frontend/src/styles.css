@@ -954,8 +954,11 @@ body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #1e293b; }
 .um-submit-btn:hover { background: #16304f; }
 
 /* Details modal */
-.um-details-modal .um-modal-header { background: #1e3a5f; border-radius: 16px 16px 0 0; border-bottom: none; }
-.um-details-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 22px 24px 18px; background: #1e3a5f; border-radius: 16px 16px 0 0; }
+.um-details-modal .um-modal-header { background: #0b1d3a; border-radius: 16px 16px 0 0; border-bottom: none; }
+.um-details-modal .um-modal-title { color: #ffffff !important; }
+.um-details-modal .um-modal-sub { color: #94a3b8 !important; }
+.um-details-modal .um-close-btn { color: #ffffff !important; }
+.um-details-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 22px 24px 18px; background: #0b1d3a; border-radius: 16px 16px 0 0; }
 
 .um-details-body { padding: 22px 24px; }
 .um-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; }

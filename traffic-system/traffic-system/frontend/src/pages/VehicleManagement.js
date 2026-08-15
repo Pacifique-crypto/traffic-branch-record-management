@@ -1207,172 +1207,290 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
 // ─── Vehicle Details Modal Component (3-Dots Click) ────────────────
 function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
   const userRole = localStorage.getItem("userRole") || "IT Officer";
-  const [editingStatus, setEditingStatus] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState(() => {
-    const s = (vehicle.status || "").toUpperCase().trim();
-    if (s === "MAINTENANCE" || s === "UNDER MAINTENANCE") return "Under Maintenance";
-    if (s === "OUT OF SERVICE" || s === "OUT OF STOCK") return "Out of Stock";
-    return "Available";
-  });
-  const [selectedStatus, setSelectedStatus] = useState(() => {
-    const s = (vehicle.status || "").toUpperCase().trim();
-    if (s === "MAINTENANCE" || s === "UNDER MAINTENANCE") return "Under Maintenance";
-    if (s === "OUT OF SERVICE" || s === "OUT OF STOCK") return "Out of Stock";
-    return "Available";
-  });
-  const [savingStatus, setSavingStatus] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSaveStatus = async () => {
+  const [currentVehicle, setCurrentVehicle] = useState(vehicle);
+
+  const [editForm, setEditForm] = useState({
+    registrationNo: vehicle.registrationNo || "",
+    vehicleType: vehicle.vehicleType || "Patrol Car",
+    status: (() => {
+      const s = (vehicle.status || "").toUpperCase().trim();
+      if (s === "MAINTENANCE" || s === "UNDER MAINTENANCE") return "Under Maintenance";
+      if (s === "OUT OF SERVICE" || s === "OUT OF STOCK") return "Out of Stock";
+      return "Available";
+    })(),
+    makeModel: vehicle.makeModel || "",
+    branch: vehicle.branch || "Administration Branch",
+    chassisNo: vehicle.chassisNo || "",
+    engineNo: vehicle.engineNo || "",
+    fuelType: vehicle.fuelType || "Diesel (Super)",
+    color: vehicle.color || ""
+  });
+
+  const handleSaveDetails = async () => {
     try {
-      setSavingStatus(true);
-      const res = await updateVehicle(vehicle.id || vehicle._id, { status: selectedStatus });
+      setSaving(true);
+      const res = await updateVehicle(currentVehicle.id || currentVehicle._id, editForm);
       if (res && !res.error) {
-        setCurrentStatus(selectedStatus);
-        setEditingStatus(false);
+        setCurrentVehicle({ ...currentVehicle, ...editForm });
+        setIsEditing(false);
         if (onRefresh) onRefresh();
       } else {
-        alert(res.error || "Failed to update vehicle status.");
+        alert(res.error || "Failed to update vehicle details.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error updating vehicle status.");
+      alert("Error updating vehicle details.");
     } finally {
-      setSavingStatus(false);
+      setSaving(false);
     }
   };
 
-  const statusInfo = getStatusDetails(currentStatus);
+  const statusInfo = getStatusDetails(currentVehicle.status);
 
   return (
     <div className="um-modal-overlay">
-      <div className="um-modal um-details-modal" style={{ maxWidth: 580 }}>
-        <div className="um-modal-header">
+      <div className="um-modal um-details-modal" style={{ maxWidth: 580, overflow: "hidden", borderRadius: 16 }}>
+        {/* Header - Navy with forced white text */}
+        <div style={{ background: "#0b1d3a", padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", color: "#ffffff" }}>
           <div>
-            <h3 className="um-modal-title">Vehicle Technical Profile</h3>
-            <p className="um-modal-sub">Reg No: {vehicle.registrationNo}</p>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#ffffff" }}>
+              {isEditing ? "Edit Vehicle Technical Profile" : "Vehicle Technical Profile"}
+            </h3>
+            <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
+              Reg No: {currentVehicle.registrationNo}
+            </p>
           </div>
-          <button className="um-close-btn" onClick={onClose}>✕</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#ffffff", fontSize: 20, cursor: "pointer", padding: "0 4px" }}>✕</button>
         </div>
 
+        {/* Modal Body */}
         <div className="um-modal-body" style={{ padding: "20px 24px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>REGISTRATION NUMBER</p>
-              <p style={{ fontSize: 15, fontWeight: 800, color: "#1e3a8a", margin: "3px 0 0 0" }}>{vehicle.registrationNo}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE TYPE</p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: "3px 0 0 0" }}>{vehicle.vehicleType}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>MAKE & MODEL</p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: "3px 0 0 0" }}>{vehicle.makeModel || "N/A"}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>ASSIGNED OFFICER</p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#2563eb", margin: "3px 0 0 0" }}>{vehicle.assignedOfficer || "Unassigned"}</p>
-            </div>
-
-            {/* VEHICLE STATUS ROW (With Edit Option for IT Officer Only) */}
-            <div style={{ gridColumn: "span 2" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE STATUS</p>
-                {userRole === "IT Officer" && !editingStatus && (
-                  <button
-                    onClick={() => setEditingStatus(true)}
-                    style={{
-                      background: "#edf5ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 6,
-                      padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
-                    }}
+          {isEditing ? (
+            /* EDIT FORM MODE (IT Officer Only) */
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>REGISTRATION NO *</label>
+                  <input
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.registrationNo}
+                    onChange={e => setEditForm({ ...editForm, registrationNo: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>VEHICLE TYPE</label>
+                  <select
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.vehicleType}
+                    onChange={e => setEditForm({ ...editForm, vehicleType: e.target.value })}
                   >
-                    <FiEdit size={12} /> Edit Status
-                  </button>
-                )}
+                    <option value="Patrol Car">Patrol Car</option>
+                    <option value="Motorcycle">Motorcycle</option>
+                    <option value="Recovery Truck">Recovery Truck</option>
+                    <option value="Van">Van</option>
+                    <option value="SUV">SUV</option>
+                    <option value="Jeep">Jeep</option>
+                  </select>
+                </div>
               </div>
 
-              {editingStatus ? (
-                <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>VEHICLE STATUS</label>
                   <select
-                    value={selectedStatus}
-                    onChange={e => setSelectedStatus(e.target.value)}
-                    style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: "#0f172a", outline: "none" }}
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.status}
+                    onChange={e => setEditForm({ ...editForm, status: e.target.value })}
                   >
                     <option value="Available">Available</option>
                     <option value="Under Maintenance">Under Maintenance</option>
                     <option value="Out of Stock">Out of Stock</option>
                   </select>
-                  <button
-                    onClick={handleSaveStatus}
-                    disabled={savingStatus}
-                    style={{ background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    {savingStatus ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={() => setEditingStatus(false)}
-                    style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
                 </div>
-              ) : (
-                <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, display: "inline-block", marginTop: 4 }}>
-                  {statusInfo.label}
-                </span>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>BRANCH</label>
+                  <select
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.branch}
+                    onChange={e => setEditForm({ ...editForm, branch: e.target.value })}
+                  >
+                    {BRANCH_OPTIONS.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>MAKE & MODEL</label>
+                  <input
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.makeModel}
+                    onChange={e => setEditForm({ ...editForm, makeModel: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>COLOR</label>
+                  <input
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.color}
+                    onChange={e => setEditForm({ ...editForm, color: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>CHASSIS NO (VIN)</label>
+                  <input
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.chassisNo}
+                    onChange={e => setEditForm({ ...editForm, chassisNo: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>ENGINE NO</label>
+                  <input
+                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                    value={editForm.engineNo}
+                    onChange={e => setEditForm({ ...editForm, engineNo: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>FUEL TYPE</label>
+                <select
+                  style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
+                  value={editForm.fuelType}
+                  onChange={e => setEditForm({ ...editForm, fuelType: e.target.value })}
+                >
+                  <option value="Diesel (Super)">Diesel (Super)</option>
+                  <option value="Petrol (Octane 95)">Petrol (Octane 95)</option>
+                  <option value="Octane 92">Octane 92</option>
+                  <option value="Hybrid / Electric">Hybrid / Electric</option>
+                </select>
+              </div>
+            </div>
+          ) : (
+            /* READ ONLY VIEW MODE */
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>REGISTRATION NUMBER</p>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "#1e3a8a", margin: "3px 0 0 0" }}>{currentVehicle.registrationNo}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE TYPE</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: "3px 0 0 0" }}>{currentVehicle.vehicleType}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>MAKE & MODEL</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: "3px 0 0 0" }}>{currentVehicle.makeModel || "N/A"}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>ASSIGNED OFFICER</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#2563eb", margin: "3px 0 0 0" }}>{currentVehicle.assignedOfficer || "Unassigned"}</p>
+                </div>
+
+                {/* VEHICLE STATUS ROW (No inline Edit button) */}
+                <div style={{ gridColumn: "span 2" }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE STATUS</p>
+                  <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: "4px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, display: "inline-block", marginTop: 4 }}>
+                    {statusInfo.label}
+                  </span>
+                </div>
+
+                {/* BRANCH ROW */}
+                <div style={{ gridColumn: "span 2" }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>BRANCH</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#475569", margin: "3px 0 0 0" }}>
+                    {currentVehicle.branch ? currentVehicle.branch.replace(/\s*Div\.$|\s*Division$/, '') : "Traffic Branch"}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>CHASSIS NO (VIN)</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{currentVehicle.chassisNo || "N/A"}</p></div>
+                <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>ENGINE NO</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{currentVehicle.engineNo || "N/A"}</p></div>
+                <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>FUEL TYPE</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{currentVehicle.fuelType || "Diesel"}</p></div>
+                <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>COLOR</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{currentVehicle.color || "N/A"}</p></div>
+              </div>
+
+              {currentVehicle.rejectionRemarks && (
+                <div style={{ marginTop: 16, padding: 12, background: "#fee2e2", borderRadius: 10, border: "1px solid #fca5a5" }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", margin: 0 }}>OIC REJECTION REMARKS</p>
+                  <p style={{ fontSize: 13, color: "#7f1d1d", margin: "4px 0 0 0" }}>"{currentVehicle.rejectionRemarks}"</p>
+                </div>
               )}
-            </div>
-
-            {/* BRANCH ROW (Division removed, Submitted By removed) */}
-            <div style={{ gridColumn: "span 2" }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>BRANCH</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#475569", margin: "3px 0 0 0" }}>
-                {vehicle.branch ? vehicle.branch.replace(/\s*Div\.$|\s*Division$/, '') : "Traffic Branch"}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>CHASSIS NO (VIN)</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{vehicle.chassisNo || "N/A"}</p></div>
-            <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>ENGINE NO</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{vehicle.engineNo || "N/A"}</p></div>
-            <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>FUEL TYPE</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{vehicle.fuelType || "Diesel"}</p></div>
-            <div><p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>COLOR</p><p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{vehicle.color || "N/A"}</p></div>
-          </div>
-
-          {vehicle.rejectionRemarks && (
-            <div style={{ marginTop: 16, padding: 12, background: "#fee2e2", borderRadius: 10, border: "1px solid #fca5a5" }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", margin: 0 }}>OIC REJECTION REMARKS</p>
-              <p style={{ fontSize: 13, color: "#7f1d1d", margin: "4px 0 0 0" }}>"{vehicle.rejectionRemarks}"</p>
-            </div>
+            </>
           )}
         </div>
 
-        <div className="um-modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenHistory) onOpenHistory(vehicle);
-              else onClose();
-            }}
-            style={{
-              background: "#0b1d3a",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 18px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              transition: "all 0.15s"
-            }}
-            onMouseOver={e => e.currentTarget.style.background = "#1e3a8a"}
-            onMouseOut={e => e.currentTarget.style.background = "#0b1d3a"}
-          >
-            <FiClock size={16} /> Assignment History
-          </button>
-          <button className="um-submit-btn" onClick={onClose}>Close Profile</button>
+        {/* Modal Footer */}
+        <div className="um-modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px" }}>
+          {isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                style={{ background: "none", border: "none", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 16px" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDetails}
+                disabled={saving}
+                style={{
+                  background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 8,
+                  padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 8
+                }}
+              >
+                <FiRefreshCw size={14} /> {saving ? "Saving Changes..." : "Save Vehicle Changes"}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenHistory) onOpenHistory(currentVehicle);
+                  else onClose();
+                }}
+                style={{
+                  background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 8,
+                  padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s"
+                }}
+                onMouseOver={e => e.currentTarget.style.background = "#1e3a8a"}
+                onMouseOut={e => e.currentTarget.style.background = "#0b1d3a"}
+              >
+                <FiClock size={16} /> Assignment History
+              </button>
+
+              {userRole === "IT Officer" ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  style={{
+                    background: "#0b1d3a", color: "#ffffff", border: "none", borderRadius: 8,
+                    padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 8
+                  }}
+                >
+                  <FiEdit size={15} /> Edit Details
+                </button>
+              ) : (
+                <button className="um-submit-btn" onClick={onClose}>Close Profile</button>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
