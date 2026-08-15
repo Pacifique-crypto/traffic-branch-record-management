@@ -377,21 +377,12 @@ function UserManagement() {
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         {userRole === "IT Officer" && (
-                          <>
-                            <span 
-                              onClick={() => setLeaveModalOfficer(o)} 
-                              style={{ color: "#0f172a", cursor: "pointer", fontWeight: 700, fontSize: 13, background: "#f1f5f9", padding: "4px 8px", borderRadius: "6px" }}
-                              title="Mark Officer Leave"
-                            >
-                              + Leave
-                            </span>
-                            <span 
-                              onClick={() => setResetTarget(o)} 
-                              style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
-                            >
-                              Reset PW
-                            </span>
-                          </>
+                          <span 
+                            onClick={() => setResetTarget(o)} 
+                            style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+                          >
+                            Reset PW
+                          </span>
                         )}
                         <FiMoreVertical 
                           size={16} 
