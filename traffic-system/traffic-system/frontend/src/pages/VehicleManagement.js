@@ -1115,7 +1115,7 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
 function getVehicleAssignmentHistory(vehicle, officers = []) {
   const findOfficerInfo = (name) => {
     if (!name) return { rank: "Officer", policeId: "88214", initials: "OFF" };
-    const found = officers.find(o => o.fullName === name || o.name === name);
+    const found = officers.find(o => o.fullName === name || o.name === name || o.username === name);
     const parts = name.trim().split(" ");
     let rank = found?.rank || "Officer";
     let policeId = found?.policeId || found?.deptNo || "88214";
@@ -1144,41 +1144,48 @@ function getVehicleAssignmentHistory(vehicle, officers = []) {
     }
   };
 
+  let rawHistory = [];
+
   if (Array.isArray(vehicle.assignmentHistory) && vehicle.assignmentHistory.length > 0) {
-    return vehicle.assignmentHistory.map(item => {
-      const info = findOfficerInfo(item.officerName);
-      return {
-        officerName: item.officerName,
-        rank: item.rank || info.rank,
-        policeId: item.policeId || info.policeId,
-        initials: info.initials,
-        assignedDate: formatDateDisplay(item.assignedDate),
-        returnDate: formatDateDisplay(item.returnDate),
-        status: item.status || (item.returnDate && item.returnDate !== "--" ? "Completed" : "Active")
-      };
-    });
-  }
-
-  const currentOfficer = vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned"
-    ? vehicle.assignedOfficer
-    : null;
-
-  if (currentOfficer) {
-    const info = findOfficerInfo(currentOfficer);
-    const assignedDateStr = formatDateDisplay(vehicle.assignmentDate || vehicle.createdAt);
-
-    return [{
-      officerName: currentOfficer,
-      rank: info.rank,
-      policeId: info.policeId,
-      initials: info.initials,
-      assignedDate: assignedDateStr,
+    rawHistory = [...vehicle.assignmentHistory];
+  } else if (vehicle.assignedOfficer && vehicle.assignedOfficer !== "Unassigned" && vehicle.assignedOfficer !== "Not Assigned") {
+    rawHistory = [{
+      officerName: vehicle.assignedOfficer,
+      assignedDate: vehicle.assignmentDate || vehicle.createdAt || new Date(),
       returnDate: "--",
       status: "Active"
     }];
   }
 
-  return [];
+  // Ensure current assigned officer is present in history if not already included
+  if (
+    vehicle.assignedOfficer &&
+    vehicle.assignedOfficer !== "Unassigned" &&
+    vehicle.assignedOfficer !== "Not Assigned" &&
+    !rawHistory.some(h => h.officerName === vehicle.assignedOfficer)
+  ) {
+    rawHistory.unshift({
+      officerName: vehicle.assignedOfficer,
+      assignedDate: vehicle.assignmentDate || vehicle.createdAt || new Date(),
+      returnDate: "--",
+      status: "Active"
+    });
+  }
+
+  const records = rawHistory.map(item => {
+    const info = findOfficerInfo(item.officerName);
+    return {
+      officerName: item.officerName,
+      rank: item.rank || info.rank,
+      policeId: item.policeId || info.policeId,
+      initials: info.initials,
+      assignedDate: formatDateDisplay(item.assignedDate),
+      returnDate: formatDateDisplay(item.returnDate),
+      status: item.status || (item.returnDate && item.returnDate !== "--" ? "Completed" : "Active")
+    };
+  });
+
+  return records.sort((a, b) => (a.status === "Active" ? -1 : (b.status === "Active" ? 1 : 0)));
 }
 
 // ─── Vehicle Details Modal Component (3-Dots Click) ────────────────
@@ -1476,10 +1483,23 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
 
 // ─── Vehicle Assignment History Modal Component ─────────────────────────────
 function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
-  const historyData = getVehicleAssignmentHistory(vehicle, officers);
+  const [liveVehicle, setLiveVehicle] = useState(vehicle);
+
+  useEffect(() => {
+    getVehicles()
+      .then(data => {
+        if (Array.isArray(data)) {
+          const found = data.find(v => (v._id || v.id) === (vehicle._id || vehicle.id));
+          if (found) setLiveVehicle(found);
+        }
+      })
+      .catch(console.error);
+  }, [vehicle]);
+
+  const historyData = getVehicleAssignmentHistory(liveVehicle, officers);
 
   const handleDownloadLog = () => {
-    let csvContent = `Vehicle Assignment History - ${vehicle.registrationNo} (${vehicle.vehicleType || "Vehicle"})\n`;
+    let csvContent = `Vehicle Assignment History - ${liveVehicle.registrationNo} (${liveVehicle.vehicleType || "Vehicle"})\n`;
     csvContent += `Generated On: ${new Date().toLocaleString()}\n\n`;
     csvContent += `OFFICER NAME & RANK,POLICE ID,ASSIGNED DATE,RETURN / TRANSFER DATE,STATUS\n`;
 
@@ -1491,7 +1511,7 @@ function VehicleAssignmentHistoryModal({ vehicle, officers = [], onClose }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `${vehicle.registrationNo}_Assignment_History.csv`);
+    link.setAttribute("download", `${liveVehicle.registrationNo}_Assignment_History.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
