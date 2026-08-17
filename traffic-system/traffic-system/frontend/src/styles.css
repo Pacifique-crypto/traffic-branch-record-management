@@ -1638,3 +1638,342 @@ body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #1e293b; }
   border-radius: 10px;
   padding: 12px 14px;
 }
+
+/* =============================================
+   NEW MODERN SETTINGS PAGE STYLES
+   ============================================= */
+.settings-header {
+  margin-bottom: 24px;
+}
+.settings-main-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.settings-sub-title {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.settings-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .settings-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-card-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.settings-card-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.settings-card-title-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Profile Section Inner */
+.settings-profile-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.settings-profile-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 130px;
+  flex-shrink: 0;
+}
+
+.settings-avatar-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.settings-avatar-circle {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #1e3a5f;
+  color: white;
+  font-size: 32px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(30, 58, 95, 0.2);
+}
+
+.settings-avatar-cam-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s;
+}
+
+.settings-avatar-cam-btn:hover {
+  background: #f1f5f9;
+  color: #1e3a5f;
+}
+
+.settings-profile-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.settings-role-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 3px 12px;
+  border-radius: 20px;
+}
+
+.settings-profile-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-info-icon {
+  font-size: 16px;
+  color: #64748b;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.settings-info-label {
+  font-size: 12px;
+  color: #64748b;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.settings-info-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.settings-edit-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  align-self: flex-end;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+}
+
+.settings-edit-profile-btn:hover {
+  background: #eff6ff;
+}
+
+/* App Preferences Items */
+.pref-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.pref-item-row:last-child {
+  border-bottom: none;
+}
+
+.pref-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.pref-item-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pref-item-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pref-item-desc {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.pref-dropdown-select {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+  transition: border-color 0.2s;
+}
+
+.pref-dropdown-select:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+/* System & Account Section */
+.system-account-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.system-account-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.sys-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sys-account-row:last-child {
+  border-bottom: none;
+}
+
+.sys-account-row:hover {
+  background: #f8fafc;
+}
+
+.sys-account-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sys-account-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.sys-account-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sys-account-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.sys-account-chevron {
+  font-size: 18px;
+  color: #94a3b8;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.sys-account-row:hover .sys-account-chevron {
+  color: #2563eb;
+  transform: translateX(3px);
+}
