@@ -62,9 +62,6 @@ function ITDashboard() {
           <h1 className="pro-greeting">{getGreeting()}, {name} 👋</h1>
           <p className="pro-greeting-sub">IT Officer Workspace — Traffic Branch Management System</p>
         </div>
-        <button className="pro-btn-primary" onClick={() => navigate("/user-management")}>
-          + Add New User
-        </button>
       </div>
 
       {/* Rejection Notifications Banner for IT Officer */}
