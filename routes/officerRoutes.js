@@ -50,10 +50,51 @@ const jwt = require("jsonwebtoken");
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password are required." });
+    }
 
-    const officer = await Officer.findOne({ $or: [{ username }, { policeId: username }] });
+    let officer = await Officer.findOne({
+      $or: [
+        { username: username.trim() },
+        { policeId: username.trim() },
+        { nic: username.trim() }
+      ]
+    });
 
     if (!officer) {
+      // Fallback check Admin collection for OIC / IT Admin
+      const Admin = require("../models/Admin");
+      const admin = await Admin.findOne({ username: username.trim() });
+      if (admin) {
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (!isMatch) {
+          return res.status(400).json({ message: "Invalid password" });
+        }
+        const token = jwt.sign(
+          { id: admin._id, _id: admin._id, role: admin.role, username: admin.username },
+          process.env.JWT_SECRET,
+          { expiresIn: "24h" }
+        );
+        return res.json({
+          message: "Login successful",
+          token,
+          user: {
+            id: admin._id,
+            fullName: admin.fullName,
+            username: admin.username,
+            role: admin.role
+          },
+          officer: {
+            _id: admin._id,
+            fullName: admin.fullName,
+            username: admin.username,
+            role: admin.role,
+            email: admin.email || ""
+          }
+        });
+      }
+
       return res.status(400).json({ message: "User not found" });
     }
 
