@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   },
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.45)'
   },
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     backgroundColor: '#1e293b',
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center'
   },
   demoBtn: {
