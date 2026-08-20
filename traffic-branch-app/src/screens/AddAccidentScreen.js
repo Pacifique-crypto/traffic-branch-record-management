@@ -41,6 +41,17 @@ const convertToBase64 = async (uri, mimeType) => {
   }
 };
 
+const getCurrentFormattedDateTime = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 export default function AddAccidentScreen({ navigation }) {
 
   const { language } = useContext(LanguageContext);
@@ -56,7 +67,7 @@ export default function AddAccidentScreen({ navigation }) {
   // STEP 1
   // ============================
 
-  const [dateTime, setDateTime] = useState("");
+  const [dateTime, setDateTime] = useState(() => getCurrentFormattedDateTime());
 
   const [station, setStation] = useState("");
 
@@ -464,9 +475,18 @@ step>item && styles.activeLine
 
 <View style={styles.card}>
 
-<Text style={styles.label}>
-Date & Time
-</Text>
+<View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+  <Text style={styles.label}>
+    Date & Time
+  </Text>
+  <TouchableOpacity
+    onPress={() => setDateTime(getCurrentFormattedDateTime())}
+    style={{ flexDirection: "row", alignItems: "center", paddingVertical: 2, paddingHorizontal: 8, backgroundColor: "#eff6ff", borderRadius: 6, borderWidth: 1, borderColor: "#bfdbfe" }}
+  >
+    <Ionicons name="time-outline" size={14} color="#1e3a8a" style={{ marginRight: 4 }} />
+    <Text style={{ fontSize: 12, color: "#1e3a8a", fontWeight: "600" }}>Set Current Time</Text>
+  </TouchableOpacity>
+</View>
 
 <TextInput
 style={styles.input}

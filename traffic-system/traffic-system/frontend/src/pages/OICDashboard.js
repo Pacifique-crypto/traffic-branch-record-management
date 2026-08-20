@@ -3,6 +3,7 @@ import OICLayout from "../layouts/OICLayout";
 import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck } from "react-icons/fi";
 import { getAccidents, getViolations, getOfficers, getVehicles } from "../api";
 import { useNavigate } from "react-router-dom";
+import LiveDateTime from "../components/LiveDateTime";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -221,11 +222,12 @@ function OICDashboard() {
   return (
     <OICLayout>
       {/* Greeting */}
-      <div className="pro-greeting-row">
+      <div className="pro-greeting-row" style={{ alignItems: "center" }}>
         <div>
           <h1 className="pro-greeting">{getGreeting()}, {name} 👋</h1>
           <p className="pro-greeting-sub">Here's what's happening at Negombo Traffic Branch today.</p>
         </div>
+        <LiveDateTime />
       </div>
 
       {/* Stat cards */}

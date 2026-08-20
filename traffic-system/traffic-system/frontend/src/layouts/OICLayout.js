@@ -24,6 +24,8 @@ function OICLayout({ children }) {
   const initial   = name.charAt(0).toUpperCase();
 
   const handleLogout = () => {
+    const confirmed = window.confirm("Are you sure you want to log out?");
+    if (!confirmed) return;
     localStorage.clear();
     navigate("/login");
   };

@@ -1481,7 +1481,7 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
                 <FiClock size={16} /> Assignment History
               </button>
 
-              {userRole === "IT Officer" ? (
+              {userRole === "IT Officer" && (
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
@@ -1493,8 +1493,6 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
                 >
                   <FiEdit size={15} /> Edit Details
                 </button>
-              ) : (
-                <button className="um-submit-btn" onClick={onClose}>Close Profile</button>
               )}
             </>
           )}

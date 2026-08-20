@@ -119,6 +119,14 @@ export default function ProfileScreen({ navigation }) {
       });
 
       if (!response.ok) {
+        response = await fetch(`${BASE_URL}/admin/me`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (!response.ok) {
         const targetId = officer._id || officer.policeId || officer.username || 'me';
         response = await fetch(`${BASE_URL}/officers/${targetId}`, {
           method: 'PUT',
@@ -180,6 +188,14 @@ export default function ProfileScreen({ navigation }) {
         headers,
         body: JSON.stringify({ profileImage: base64Data })
       });
+
+      if (!response.ok) {
+        response = await fetch(`${BASE_URL}/admin/me`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ profileImage: base64Data })
+        });
+      }
 
       if (!response.ok) {
         const targetId = officer._id || officer.policeId || officer.username || 'me';
@@ -288,8 +304,8 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>My Profile</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#ffffff" />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Settings')}>
+          <Ionicons name="settings-outline" size={22} color="#ffffff" />
         </TouchableOpacity>
       </View>
 

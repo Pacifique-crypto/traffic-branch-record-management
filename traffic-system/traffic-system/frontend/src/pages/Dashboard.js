@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Layout from "../components/Layout";
 import UserRegistration from "./UserRegistration";
+import LiveDateTime from "../components/LiveDateTime";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -49,14 +50,17 @@ function Dashboard() {
   return (
     <Layout>
       {/* Greeting */}
-      <div className="pro-greeting-row">
+      <div className="pro-greeting-row" style={{ alignItems: "center" }}>
         <div>
           <h1 className="pro-greeting">{getGreeting()}, {name} </h1>
           <p className="pro-greeting-sub">Here's what's happening at Negombo Traffic Branch today.</p>
         </div>
-        <button className="pro-btn-primary" onClick={() => setShowRegister(true)}>
-          + Register Officer
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <LiveDateTime />
+          <button className="pro-btn-primary" onClick={() => setShowRegister(true)}>
+            + Register Officer
+          </button>
+        </div>
       </div>
 
       {/* Stat cards */}

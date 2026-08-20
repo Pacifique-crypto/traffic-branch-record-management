@@ -345,3 +345,76 @@ export const deleteOfficerLeave = async (id) => {
   });
   return res.json();
 };
+
+export const getMyProfile = async () => {
+  try {
+    let res = await fetch(`${BASE_URL}/officers/me`, { headers: getHeaders() });
+    if (!res.ok) {
+      res = await fetch(`${BASE_URL}/admin/me`, { headers: getHeaders() });
+    }
+    if (res.ok) {
+      return res.json();
+    }
+  } catch (err) {
+    console.error("Error fetching my profile:", err);
+  }
+  return null;
+};
+
+export const updateMyProfile = async (data) => {
+  try {
+    let res = await fetch(`${BASE_URL}/officers/me`, {
+      method: "PUT",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      res = await fetch(`${BASE_URL}/admin/me`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+    }
+
+    if (!res.ok) {
+      const officer = JSON.parse(localStorage.getItem("officer") || "{}");
+      const targetId = officer._id || officer.id || officer.policeId || officer.username || "me";
+      res = await fetch(`${BASE_URL}/officers/${targetId}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+    }
+
+    const resData = await res.json();
+    return { ok: res.ok, data: resData };
+  } catch (err) {
+    console.error("Error updating profile:", err);
+    return { ok: false, error: err.message };
+  }
+};
+
+export const updateMyPassword = async (data) => {
+  try {
+    let res = await fetch(`${BASE_URL}/officers/me`, {
+      method: "PUT",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      res = await fetch(`${BASE_URL}/admin/me`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+    }
+
+    const resData = await res.json();
+    return { ok: res.ok, data: resData };
+  } catch (err) {
+    console.error("Error updating password:", err);
+    return { ok: false, error: err.message };
+  }
+};

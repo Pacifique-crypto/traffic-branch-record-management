@@ -1976,4 +1976,92 @@ body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #1e293b; }
 .sys-account-row:hover .sys-account-chevron {
   color: #2563eb;
   transform: translateX(3px);
+}
+
+/* =============================================
+   PRINT MEDIA STYLES
+   ============================================= */
+@media print {
+  /* 1. Hide UI Navigation, Sidebars, Topbars, Breadcrumbs, and Buttons */
+  .pro-sidebar,
+  .pro-topbar,
+  .acd-breadcrumb,
+  .acd-print-btn,
+  .acd-verify-btn,
+  .pro-topbar-bell,
+  .signout-container,
+  .pro-signout-btn,
+  .pro-ra-toolbar,
+  .acd-back-btn svg {
+    display: none !important;
+  }
+
+  /* 2. Reset Page Layout & Backgrounds for Full Width Print */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .pro-layout {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .pro-main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  .pro-content,
+  .acd-page {
+    padding: 10px 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  /* 3. Clean Header & Title Formatting */
+  .acd-header {
+    margin-bottom: 20px !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding-bottom: 12px !important;
+  }
+
+  .acd-back-btn {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    color: #0b1d3a !important;
+    pointer-events: none !important;
+  }
+
+  /* 4. Section Card Styling for Clean Paper Printing */
+  .acd-section,
+  .acd-card,
+  .pro-dash-card {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* 5. Page Setup */
+  @page {
+    size: auto;
+    margin: 15mm 15mm 15mm 15mm;
+  }
 }

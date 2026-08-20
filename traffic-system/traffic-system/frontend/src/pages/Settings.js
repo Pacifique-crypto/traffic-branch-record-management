@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiUser,
   FiSettings,
@@ -19,6 +19,7 @@ import {
   FiKey,
   FiActivity
 } from "react-icons/fi";
+import { getMyProfile, updateMyProfile, updateMyPassword } from "../api";
 
 function Settings() {
   const userRole = localStorage.getItem("userRole") || "OIC";
@@ -77,6 +78,29 @@ function Settings() {
   // Account security toggle
   const [twoFactor, setTwoFactor] = useState(false);
 
+  // Fetch live officer profile from backend on mount
+  useEffect(() => {
+    const fetchLiveProfile = async () => {
+      const liveData = await getMyProfile();
+      if (liveData) {
+        const updatedOfficer = {
+          ...officer,
+          ...liveData,
+          name: liveData.fullName || liveData.name || officer.name,
+          role: liveData.role || officer.role
+        };
+        localStorage.setItem("officer", JSON.stringify(updatedOfficer));
+        setProfile({
+          name: liveData.fullName || liveData.name || defaultName,
+          role: liveData.role || defaultRole,
+          contactNo: liveData.contactNo || officer.contactNo || "+94 712 345 678",
+          email: liveData.email || officer.email || "officer@slpolice.lk",
+        });
+      }
+    };
+    fetchLiveProfile();
+  }, []);
+
   // Handlers
   const handleOpenEditProfile = () => {
     setEditForm({ ...profile });
@@ -84,27 +108,52 @@ function Settings() {
     setActiveModal("edit_profile");
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setProfile({ ...editForm });
-    localStorage.setItem(
-      "officer",
-      JSON.stringify({
-        ...officer,
+    setSaveMessage("Saving changes to database...");
+    try {
+      const payload = {
+        fullName: editForm.name,
         name: editForm.name,
-        role: editForm.role,
-        contactNo: editForm.contactNo,
         email: editForm.email,
-      })
-    );
-    setSaveMessage("Profile updated successfully!");
-    setTimeout(() => {
-      setActiveModal(null);
-      setSaveMessage("");
-    }, 1200);
+        contactNo: editForm.contactNo,
+      };
+
+      const result = await updateMyProfile(payload);
+      if (result.ok) {
+        const updatedDoc = result.data || {};
+        const updatedOfficer = {
+          ...officer,
+          ...updatedDoc,
+          name: updatedDoc.fullName || editForm.name,
+          fullName: updatedDoc.fullName || editForm.name,
+          contactNo: updatedDoc.contactNo || editForm.contactNo,
+          email: updatedDoc.email || editForm.email,
+        };
+
+        setProfile({
+          name: updatedOfficer.fullName || updatedOfficer.name || editForm.name,
+          role: editForm.role,
+          contactNo: updatedOfficer.contactNo || editForm.contactNo,
+          email: updatedOfficer.email || editForm.email,
+        });
+
+        localStorage.setItem("officer", JSON.stringify(updatedOfficer));
+        setSaveMessage("Profile updated successfully in database!");
+        setTimeout(() => {
+          setActiveModal(null);
+          setSaveMessage("");
+        }, 1200);
+      } else {
+        setSaveMessage(result.data?.message || result.error || "Failed to update profile on server.");
+      }
+    } catch (err) {
+      console.error("Error in handleSaveProfile:", err);
+      setSaveMessage("Error updating profile on server.");
+    }
   };
 
-  const handleSavePassword = (e) => {
+  const handleSavePassword = async (e) => {
     e.preventDefault();
     if (!passwordForm.currentPassword) {
       setPasswordMessage("Please enter your current password.");
@@ -119,12 +168,28 @@ function Settings() {
       return;
     }
 
-    setPasswordMessage("Password changed successfully!");
-    setTimeout(() => {
-      setActiveModal(null);
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setPasswordMessage("");
-    }, 1200);
+    setPasswordMessage("Updating password in database...");
+    try {
+      const result = await updateMyPassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        password: passwordForm.newPassword,
+      });
+
+      if (result.ok) {
+        setPasswordMessage("Password changed successfully in database!");
+        setTimeout(() => {
+          setActiveModal(null);
+          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+          setPasswordMessage("");
+        }, 1200);
+      } else {
+        setPasswordMessage(result.data?.message || result.error || "Failed to update password.");
+      }
+    } catch (err) {
+      console.error("Error in handleSavePassword:", err);
+      setPasswordMessage("Error updating password on server.");
+    }
   };
 
   const handleToggleDarkMode = () => {
@@ -264,7 +329,6 @@ function Settings() {
                 <select className="pref-dropdown-select" value={language} onChange={handleLanguageChange}>
                   <option value="English">English</option>
                   <option value="Sinhala">Sinhala (සිංහල)</option>
-                  <option value="Tamil">Tamil (தமிழ்)</option>
                 </select>
               </div>
 

@@ -3,6 +3,7 @@ import ITLayout from "../layouts/ITLayout";
 import { FiUsers, FiFileText, FiBarChart2, FiActivity, FiAlertTriangle } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { getAccidents, getViolations, getOfficers } from "../api";
+import LiveDateTime from "../components/LiveDateTime";
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -57,11 +58,12 @@ function ITDashboard() {
 
   return (
     <ITLayout>
-      <div className="pro-greeting-row">
+      <div className="pro-greeting-row" style={{ alignItems: "center" }}>
         <div>
           <h1 className="pro-greeting">{getGreeting()}, {name} 👋</h1>
           <p className="pro-greeting-sub">IT Officer Workspace — Traffic Branch Management System</p>
         </div>
+        <LiveDateTime />
       </div>
 
       {/* Rejection Notifications Banner for IT Officer */}
