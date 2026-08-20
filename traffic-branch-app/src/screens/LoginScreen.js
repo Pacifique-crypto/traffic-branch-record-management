@@ -52,54 +52,64 @@ export default function LoginScreen({ navigation }) {
 
   // 🔐 LOGIN FUNCTION CONNECTED TO BACKEND
  const handleLogin = async () => {
-  try {
-    console.log("Trying login...");
-
-    const response = await fetch(`${BASE_URL}/officers/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    });
-
-    const data = await response.json();
-
-    console.log("Response:", data);
-
-    if (response.ok) {
-      console.log("LOGIN SUCCESS");
-      if (data.officer) {
-        global.loggedOfficer = data.officer;
-        if (data.officer.fullName) {
-          global.loggedOfficerName = data.officer.fullName;
-        }
-        if (data.officer.username) {
-          global.loggedOfficerUsername = data.officer.username;
-        } else {
-          global.loggedOfficerUsername = username;
-        }
-        if (data.officer.policeId) {
-          global.loggedOfficerPoliceId = data.officer.policeId;
-        }
-      } else {
-        global.loggedOfficerUsername = username;
-      }
-      if (data.token) {
-        global.userToken = data.token;
-      }
-      navigation.replace("Main");
-    } else {
-      Alert.alert("Error", data.message);
+    if (!username.trim() || !password.trim()) {
+      Alert.alert("Missing Input", "Please enter both username and password.");
+      return;
     }
-  } catch (error) {
-    console.log("LOGIN ERROR:", error);
-    Alert.alert("Error", error.message);
-  }
-};
+
+    try {
+      console.log("Trying login for:", username.trim());
+
+      const response = await fetch(`${BASE_URL}/officers/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
+      });
+
+      const responseText = await response.text();
+      console.log("Server login response status:", response.status);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        console.log("Non-JSON response from server:", responseText);
+        Alert.alert(
+          "Connection / Server Error",
+          `Server returned an invalid response (${response.status}). Please check server status or backend URL.`
+        );
+        return;
+      }
+
+      if (response.ok) {
+        console.log("LOGIN SUCCESS");
+        if (data.officer) {
+          global.loggedOfficer = data.officer;
+          global.loggedOfficerName = data.officer.fullName || username.trim();
+          global.loggedOfficerUsername = data.officer.username || username.trim();
+          if (data.officer.policeId) {
+            global.loggedOfficerPoliceId = data.officer.policeId;
+          }
+        } else {
+          global.loggedOfficerUsername = username.trim();
+        }
+        if (data.token) {
+          global.userToken = data.token;
+        }
+        navigation.replace("Main");
+      } else {
+        Alert.alert("Login Failed", data.message || data.error || "Invalid username or password.");
+      }
+    } catch (error) {
+      console.log("LOGIN ERROR:", error);
+      Alert.alert("Connection Error", `Unable to connect to backend server. (${error.message || "Network request failed"})`);
+    }
+  };
 
   return (
     <View style={styles.container}>
