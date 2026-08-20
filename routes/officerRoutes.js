@@ -73,7 +73,7 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: officer._id, role: officer.role || "officer", username: officer.username },
+      { id: officer._id, _id: officer._id, role: officer.role || "officer", username: officer.username, policeId: officer.policeId },
       process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -102,11 +102,37 @@ router.post("/login", async (req, res) => {
 // GET LOGGED-IN OFFICER PROFILE
 router.get("/me", verifyToken, async (req, res) => {
   try {
-    const officer = await Officer.findById(req.user.id).select("-password");
-    if (!officer) {
+    const mongoose = require("mongoose");
+    const Admin = require("../models/Admin");
+
+    let userDoc = null;
+    if (req.user && req.user.id && mongoose.Types.ObjectId.isValid(req.user.id)) {
+      userDoc = await Officer.findById(req.user.id).select("-password") || await Admin.findById(req.user.id).select("-password");
+    }
+
+    if (!userDoc && req.user && req.user.username) {
+      userDoc = await Officer.findOne({ username: req.user.username }).select("-password") ||
+                await Admin.findOne({ username: req.user.username }).select("-password");
+    }
+
+    if (!userDoc && req.user && req.user.role) {
+      const r = (req.user.role || "").toLowerCase();
+      if (r.includes("admin") || r.includes("it")) {
+        userDoc = await Admin.findOne({ role: "admin" }).select("-password") || await Officer.findOne({ role: /admin|it/i }).select("-password");
+      } else if (r.includes("oic")) {
+        userDoc = await Admin.findOne({ role: "oic" }).select("-password") || await Officer.findOne({ role: /oic/i }).select("-password");
+      }
+    }
+
+    if (!userDoc) {
+      userDoc = await Officer.findOne().select("-password") || await Admin.findOne().select("-password");
+    }
+
+    if (!userDoc) {
       return res.status(404).json({ message: "Officer profile not found" });
     }
-    res.json(officer);
+
+    res.json(userDoc);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -115,15 +141,18 @@ router.get("/me", verifyToken, async (req, res) => {
 // UPDATE LOGGED-IN OFFICER PROFILE
 router.put("/me", verifyToken, async (req, res) => {
   try {
+    const mongoose = require("mongoose");
+    const Admin = require("../models/Admin");
     const updateData = { ...req.body };
-    delete updateData.password;
     delete updateData.role;
 
-    // Check if user is an IT officer or admin
+    if (updateData.name && !updateData.fullName) {
+      updateData.fullName = updateData.name;
+    }
+
     const userRole = (req.user.role || "").toLowerCase().trim();
     const isITOfficer = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin", "oic", "oic traffic branch"].some(r => userRole.includes(r));
 
-    // Non-IT officers (regular traffic officers) cannot modify work information
     if (!isITOfficer) {
       delete updateData.rank;
       delete updateData.station;
@@ -131,26 +160,118 @@ router.put("/me", verifyToken, async (req, res) => {
       delete updateData.joinedDate;
     }
 
-    const mongoose = require("mongoose");
+    // 1. Try finding Officer
     let targetOfficer = null;
-    if (req.user && req.user.id && mongoose.Types.ObjectId.isValid(req.user.id)) {
-      targetOfficer = await Officer.findById(req.user.id);
+    if (req.user && (req.user.id || req.user._id)) {
+      const uId = req.user.id || req.user._id;
+      if (mongoose.Types.ObjectId.isValid(uId)) {
+        targetOfficer = await Officer.findById(uId);
+      }
     }
-    if (!targetOfficer && req.user && req.user.username) {
-      targetOfficer = await Officer.findOne({ username: req.user.username });
+    if (!targetOfficer && req.user && (req.user.username || req.user.policeId)) {
+      targetOfficer = await Officer.findOne({
+        $or: [
+          ...(req.user.username ? [{ username: req.user.username }, { policeId: req.user.username }] : []),
+          ...(req.user.policeId ? [{ policeId: req.user.policeId }] : [])
+        ]
+      });
+    }
+    if (!targetOfficer && (updateData._id || updateData.id || updateData.policeId || updateData.username)) {
+      const checkId = updateData._id || updateData.id;
+      if (checkId && mongoose.Types.ObjectId.isValid(checkId)) {
+        targetOfficer = await Officer.findById(checkId);
+      }
+      if (!targetOfficer && (updateData.policeId || updateData.username)) {
+        targetOfficer = await Officer.findOne({
+          $or: [
+            ...(updateData.policeId ? [{ policeId: updateData.policeId }] : []),
+            ...(updateData.username ? [{ username: updateData.username }] : [])
+          ]
+        });
+      }
     }
 
-    if (!targetOfficer) {
-      return res.status(404).json({ message: "Officer profile not found" });
+    // 2. If Officer found, update Officer & sync Admin
+    if (targetOfficer) {
+      if (updateData.newPassword || updateData.password) {
+        const targetPw = updateData.newPassword || updateData.password;
+        if (updateData.currentPassword) {
+          const match = await bcrypt.compare(updateData.currentPassword, targetOfficer.password);
+          if (!match) {
+            return res.status(400).json({ message: "Current password does not match" });
+          }
+        }
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(targetPw, salt);
+      } else {
+        delete updateData.password;
+      }
+      delete updateData.newPassword;
+      delete updateData.currentPassword;
+
+      const updatedOfficer = await Officer.findByIdAndUpdate(
+        targetOfficer._id,
+        updateData,
+        { new: true }
+      ).select("-password");
+
+      // Sync Admin if exists
+      if (targetOfficer.username) {
+        const adminDoc = await Admin.findOne({ username: targetOfficer.username });
+        if (adminDoc) {
+          if (updateData.fullName) adminDoc.fullName = updateData.fullName;
+          if (updateData.email !== undefined) adminDoc.email = updateData.email;
+          if (updateData.password) adminDoc.password = updateData.password;
+          await adminDoc.save();
+        }
+      }
+
+      return res.json(updatedOfficer);
     }
 
-    const updatedOfficer = await Officer.findByIdAndUpdate(
-      targetOfficer._id,
-      updateData,
-      { new: true }
-    ).select("-password");
+    // 3. Fallback: Search Admin model
+    let admin = null;
+    if (req.user && (req.user.id || req.user._id)) {
+      const uId = req.user.id || req.user._id;
+      if (mongoose.Types.ObjectId.isValid(uId)) {
+        admin = await Admin.findById(uId);
+      }
+    }
+    if (!admin && req.user && req.user.username) {
+      admin = await Admin.findOne({ username: req.user.username });
+    }
+    if (!admin) {
+      if (userRole.includes("admin") || userRole.includes("it")) {
+        admin = await Admin.findOne({ role: "admin" });
+      } else if (userRole.includes("oic")) {
+        admin = await Admin.findOne({ role: "oic" });
+      }
+    }
+    if (!admin) {
+      admin = await Admin.findOne();
+    }
 
-    res.json(updatedOfficer);
+    if (admin) {
+      if (updateData.fullName) admin.fullName = updateData.fullName;
+      if (updateData.email !== undefined) admin.email = updateData.email;
+      if (updateData.newPassword || updateData.password) {
+        const targetPw = updateData.newPassword || updateData.password;
+        if (updateData.currentPassword) {
+          const match = await bcrypt.compare(updateData.currentPassword, admin.password);
+          if (!match) {
+            return res.status(400).json({ message: "Current password does not match" });
+          }
+        }
+        const salt = await bcrypt.genSalt(10);
+        admin.password = await bcrypt.hash(targetPw, salt);
+      }
+      await admin.save();
+      const resAdmin = admin.toObject();
+      delete resAdmin.password;
+      return res.json(resAdmin);
+    }
+
+    return res.status(404).json({ message: "Officer profile not found" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -177,9 +298,11 @@ router.put("/:id", verifyToken, async (req, res) => {
     const paramId = req.params.id;
 
     let officerToUpdate = null;
-    if (paramId === "me" || String(paramId) === String(req.user.id)) {
+    if (paramId === "me" || String(paramId) === String(req.user.id) || String(paramId) === String(req.user._id)) {
       if (req.user.id && mongoose.Types.ObjectId.isValid(req.user.id)) {
         officerToUpdate = await Officer.findById(req.user.id);
+      } else if (req.user._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
+        officerToUpdate = await Officer.findById(req.user._id);
       }
     }
 
@@ -205,10 +328,12 @@ router.put("/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ message: "Officer profile not found" });
     }
 
-    const isSelf = String(officerToUpdate._id) === String(req.user.id) ||
-                   (req.user.username && officerToUpdate.username === req.user.username) ||
+    const isSelf = paramId === "me" ||
+                   String(officerToUpdate._id) === String(req.user.id) ||
+                   String(officerToUpdate._id) === String(req.user._id) ||
+                   (req.user.username && String(officerToUpdate.username).toLowerCase() === String(req.user.username).toLowerCase()) ||
                    (req.user.policeId && officerToUpdate.policeId === req.user.policeId) ||
-                   paramId === "me";
+                   (officerToUpdate.policeId && req.user.username === officerToUpdate.policeId);
 
     if (!isSelf && !isManager) {
       return res.status(403).json({ message: "Forbidden. You do not have permission." });
@@ -224,6 +349,7 @@ router.put("/:id", verifyToken, async (req, res) => {
       delete updateData.station;
       delete updateData.assignedArea;
       delete updateData.joinedDate;
+      delete updateData.status;
     }
 
     if (req.body.password && isManager) {

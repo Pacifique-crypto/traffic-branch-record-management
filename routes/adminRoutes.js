@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 
 const Admin = require("../models/Admin");
+const Officer = require("../models/Officer");
 
 // ===========================
 // REGISTER ADMIN / OIC
@@ -96,6 +97,91 @@ router.post("/login", async (req, res) => {
     res.status(500).json({
       error: err.message,
     });
+  }
+});
+
+// ===========================
+// GET LOGGED-IN ADMIN/OIC PROFILE
+// ===========================
+router.get("/me", verifyToken, async (req, res) => {
+  try {
+    let userDoc = await Admin.findById(req.user.id).select("-password");
+    if (!userDoc) {
+      userDoc = await Officer.findById(req.user.id).select("-password");
+    }
+    if (!userDoc && req.user.username) {
+      userDoc = await Admin.findOne({ username: req.user.username }).select("-password") ||
+                await Officer.findOne({ username: req.user.username }).select("-password");
+    }
+    if (!userDoc) {
+      return res.status(404).json({ message: "Admin profile not found" });
+    }
+    res.json(userDoc);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===========================
+// UPDATE LOGGED-IN ADMIN/OIC PROFILE
+// ===========================
+router.put("/me", verifyToken, async (req, res) => {
+  try {
+    const { fullName, name, email, contactNo, currentPassword, newPassword, password } = req.body;
+    const targetName = fullName || name;
+    
+    let admin = await Admin.findById(req.user.id);
+    if (!admin && req.user.username) {
+      admin = await Admin.findOne({ username: req.user.username });
+    }
+
+    if (admin) {
+      if (targetName) admin.fullName = targetName;
+      if (email !== undefined) admin.email = email;
+      
+      const targetPw = newPassword || password;
+      if (targetPw) {
+        if (currentPassword) {
+          const match = await bcrypt.compare(currentPassword, admin.password);
+          if (!match) {
+            return res.status(400).json({ message: "Current password does not match" });
+          }
+        }
+        const salt = await bcrypt.genSalt(10);
+        admin.password = await bcrypt.hash(targetPw, salt);
+      }
+      await admin.save();
+    }
+
+    // Sync to Officer collection if matching officer exists
+    let officer = await Officer.findById(req.user.id);
+    if (!officer && req.user.username) {
+      officer = await Officer.findOne({ username: req.user.username });
+    }
+
+    if (officer) {
+      if (targetName) officer.fullName = targetName;
+      if (email !== undefined) officer.email = email;
+      if (contactNo !== undefined) officer.contactNo = contactNo;
+      
+      const targetPw = newPassword || password;
+      if (targetPw) {
+        const salt = await bcrypt.genSalt(10);
+        officer.password = await bcrypt.hash(targetPw, salt);
+      }
+      await officer.save();
+    }
+
+    if (!admin && !officer) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    const updatedResult = (admin || officer).toObject();
+    delete updatedResult.password;
+    res.json(updatedResult);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
