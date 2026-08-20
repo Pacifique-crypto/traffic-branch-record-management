@@ -25,6 +25,7 @@ import axios from "axios";
 
 import { LanguageContext } from "../context/LanguageContext"; 
 import { BASE_URL } from "../config";
+import DriverQRScanner from "../components/DriverQRScanner";
 
 const convertToBase64 = async (uri, mimeType) => {
   if (!uri) return "";
@@ -116,6 +117,14 @@ const [driverName, setDriverName] = useState("");
 const [driverAddress, setDriverAddress] = useState("");
 const [driverNIC, setDriverNIC] = useState("");
 const [drivingLicence, setDrivingLicence] = useState("");
+const [showQRScanner, setShowQRScanner] = useState(false);
+
+const handleQRScanSuccess = (data) => {
+  if (data.name) setDriverName(data.name);
+  if (data.address) setDriverAddress(data.address);
+  if (data.licenseNo) setDrivingLicence(data.licenseNo);
+  if (data.nic) setDriverNIC(data.nic);
+};
 
 // ================================
 // VEHICLE DETAILS
@@ -684,6 +693,26 @@ Continue →
 
 <View style={styles.card}>
 
+<View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+  <Text style={{ fontSize: 16, fontWeight: "700", color: "#1e293b" }}>Driver Details</Text>
+  <TouchableOpacity
+    style={{
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#0284c7",
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      elevation: 2,
+    }}
+    onPress={() => setShowQRScanner(true)}
+    activeOpacity={0.8}
+  >
+    <Ionicons name="qr-code-outline" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+    <Text style={{ color: "#ffffff", fontSize: 13, fontWeight: "600" }}>Scan License QR</Text>
+  </TouchableOpacity>
+</View>
+
 <Text style={styles.label}>
 Driver Full Name
 </Text>
@@ -1037,6 +1066,12 @@ Submit
 )}
 
 </ScrollView>
+
+<DriverQRScanner
+  visible={showQRScanner}
+  onClose={() => setShowQRScanner(false)}
+  onScanSuccess={handleQRScanSuccess}
+/>
 
 </SafeAreaView>
 
