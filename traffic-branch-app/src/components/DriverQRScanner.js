@@ -9,36 +9,14 @@ import {
   Dimensions,
   SafeAreaView
 } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-
-let CameraViewComponent = null;
-let useCameraPermissionsHook = null;
-
-try {
-  const expoCamera = require('expo-camera');
-  CameraViewComponent = expoCamera.CameraView || expoCamera.Camera;
-  useCameraPermissionsHook = expoCamera.useCameraPermissions;
-} catch (e) {
-  console.log('expo-camera require notice:', e.message);
-}
 
 const { width } = Dimensions.get('window');
 const SCANNER_SIZE = width * 0.72;
 
 export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
-  let permission = null;
-  let requestPermission = () => {};
-
-  if (useCameraPermissionsHook) {
-    try {
-      const [perm, reqPerm] = useCameraPermissionsHook();
-      permission = perm;
-      requestPermission = reqPerm;
-    } catch (e) {
-      console.log('Permission hook notice:', e);
-    }
-  }
-
+  const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [enableTorch, setEnableTorch] = useState(false);
 
@@ -46,7 +24,7 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
     if (visible) {
       setScanned(false);
       setEnableTorch(false);
-      if (requestPermission && (!permission || !permission.granted)) {
+      if (!permission?.granted) {
         requestPermission();
       }
     }
@@ -64,6 +42,7 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
       age: ''
     };
 
+    // 1. Try parsing JSON format
     try {
       if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
         const parsed = JSON.parse(trimmed);
@@ -80,6 +59,7 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
       console.log('JSON QR parse fallback');
     }
 
+    // 2. Multiline key-value text format (e.g. License: B1234567\nName: John Doe\nNIC: 901234567V\nAddress: Negombo)
     const lines = trimmed.split(/\r?\n/);
     lines.forEach(line => {
       const parts = line.split(/[:=]/);
@@ -98,6 +78,7 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
       return extracted;
     }
 
+    // 3. Pipe or Comma separated values (e.g. B9876543|K. L. Perera|912345678V|Negombo Main St)
     const delimiter = trimmed.includes('|') ? '|' : trimmed.includes(',') ? ',' : null;
     if (delimiter) {
       const tokens = trimmed.split(delimiter).map(t => t.trim());
@@ -110,6 +91,7 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
       }
     }
 
+    // 4. Raw text string fallback (assume it's the license number or NIC)
     if (trimmed.length > 3) {
       if (/^[A-Za-z0-9]+$/.test(trimmed)) {
         extracted.licenseNo = trimmed;
@@ -182,8 +164,8 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
 
         {/* Camera Scanner View */}
         <View style={styles.cameraContainer}>
-          {CameraViewComponent ? (
-            <CameraViewComponent
+          {permission?.granted ? (
+            <CameraView
               style={StyleSheet.absoluteFillObject}
               enableTorch={enableTorch}
               barcodeScannerSettings={{
@@ -193,18 +175,18 @@ export default function DriverQRScanner({ visible, onClose, onScanSuccess }) {
             />
           ) : (
             <View style={styles.permissionWrap}>
-              <Ionicons name="qr-code-outline" size={64} color="#38bdf8" />
+              <Ionicons name="camera-outline" size={64} color="#38bdf8" />
               <Text style={styles.permissionText}>
-                Camera scanner ready. Tap below to test auto-filling driver details or scan directly.
+                Camera permission is required to scan QR codes on driver's licenses.
               </Text>
-              <TouchableOpacity style={styles.grantBtn} onPress={handleDemoScan}>
-                <Text style={styles.grantBtnText}>Auto-Fill Sample Driver QR</Text>
+              <TouchableOpacity style={styles.grantBtn} onPress={requestPermission}>
+                <Text style={styles.grantBtnText}>Grant Camera Permission</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {/* Scanner Viewfinder Box Overlay */}
-          {CameraViewComponent && (
+          {permission?.granted && (
             <View style={styles.overlayContainer}>
               <View style={styles.scanBox}>
                 <View style={[styles.corner, styles.topLeft]} />
