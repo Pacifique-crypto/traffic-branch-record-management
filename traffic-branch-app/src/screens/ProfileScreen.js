@@ -92,9 +92,21 @@ export default function ProfileScreen({ navigation }) {
     setShowEditModal(true);
   };
 
+  const getErrorMessage = (status, dataMessage) => {
+    if (status === 401) return "Your session has expired. Please log in again.";
+    if (status === 403) return "You are not authorized to update this profile.";
+    if (status === 404) return "Your officer profile could not be found.";
+    if (status === 500) return "Server error while updating your profile.";
+    return dataMessage || "Failed to update profile.";
+  };
+
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
+      console.log("PROFILE UPDATE");
+      console.log("BASE_URL:", BASE_URL);
+      console.log("Has token:", !!global.userToken);
+
       const headers = { 'Content-Type': 'application/json' };
       if (global.userToken) {
         headers['Authorization'] = `Bearer ${global.userToken}`;
@@ -112,38 +124,29 @@ export default function ProfileScreen({ navigation }) {
             assignedArea: editForm.assignedArea
           };
 
-      let response = await fetch(`${BASE_URL}/officers/me`, {
+      const response = await fetch(`${BASE_URL}/officers/me`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        response = await fetch(`${BASE_URL}/admin/me`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(payload)
-        });
-      }
+      const responseText = await response.text();
+      console.log("[PROFILE UPDATE RES STATUS]:", response.status);
+      console.log("[PROFILE UPDATE RES BODY]:", responseText);
 
-      if (!response.ok) {
-        const targetId = officer._id || officer.policeId || officer.username || 'me';
-        response = await fetch(`${BASE_URL}/officers/${targetId}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(payload)
-        });
-      }
+      let data = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {}
 
       if (response.ok) {
-        const updated = await response.json();
-        setOfficer(updated);
-        global.loggedOfficer = updated;
+        setOfficer(data);
+        global.loggedOfficer = data;
         setShowEditModal(false);
         Alert.alert('Success', 'Profile information updated successfully!');
       } else {
-        const errData = await response.json();
-        Alert.alert('Error', errData.message || 'Failed to update profile.');
+        const msg = getErrorMessage(response.status, data.message || data.error);
+        Alert.alert('Error', msg);
       }
     } catch (err) {
       console.log('Error saving profile:', err);
@@ -171,6 +174,10 @@ export default function ProfileScreen({ navigation }) {
   const uploadProfileImage = async (uri) => {
     try {
       setLoading(true);
+      console.log("PROFILE UPDATE");
+      console.log("BASE_URL:", BASE_URL);
+      console.log("Has token:", !!global.userToken);
+
       const base64Data = await convertToBase64(uri);
       if (!base64Data) {
         Alert.alert('Upload Error', 'Failed to process image file.');
@@ -183,37 +190,28 @@ export default function ProfileScreen({ navigation }) {
         headers['Authorization'] = `Bearer ${global.userToken}`;
       }
 
-      let response = await fetch(`${BASE_URL}/officers/me`, {
+      const response = await fetch(`${BASE_URL}/officers/me`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ profileImage: base64Data })
       });
 
-      if (!response.ok) {
-        response = await fetch(`${BASE_URL}/admin/me`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify({ profileImage: base64Data })
-        });
-      }
+      const responseText = await response.text();
+      console.log("[PHOTO UPDATE RES STATUS]:", response.status);
+      console.log("[PHOTO UPDATE RES BODY]:", responseText.substring(0, 200));
 
-      if (!response.ok) {
-        const targetId = officer._id || officer.policeId || officer.username || 'me';
-        response = await fetch(`${BASE_URL}/officers/${targetId}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify({ profileImage: base64Data })
-        });
-      }
+      let data = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {}
 
       if (response.ok) {
-        const updated = await response.json();
-        setOfficer(updated);
-        global.loggedOfficer = updated;
+        setOfficer(data);
+        global.loggedOfficer = data;
         Alert.alert('Success', 'Profile photo updated successfully!');
       } else {
-        const errData = await response.json();
-        Alert.alert('Error', errData.message || 'Failed to update profile photo.');
+        const msg = getErrorMessage(response.status, data.message || data.error);
+        Alert.alert('Error', msg);
       }
     } catch (err) {
       console.log('Error uploading profile photo:', err);

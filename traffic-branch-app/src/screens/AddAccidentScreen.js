@@ -97,10 +97,10 @@ export default function AddAccidentScreen({ navigation }) {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   const handleQRScanSuccess = (data) => {
-    if (data.name) setDriverName(data.name);
-    if (data.address) setDriverAddress(data.address);
-    if (data.licenseNo) setDrivingLicence(data.licenseNo);
-    if (data.age) setDriverAge(String(data.age));
+    const value = typeof data === "string" ? data : (data?.licenseNo || data?.raw || "");
+    if (value) {
+      setDrivingLicence(value);
+    }
   };
 
   // ============================
@@ -702,7 +702,7 @@ Driving Licence No.
     onPress={() => setShowQRScanner(true)}
     activeOpacity={0.8}
   >
-    <Ionicons name="qr-code-outline" size={20} color="#ffffff" style={{ marginRight: 4 }} />
+    <Ionicons name="camera-outline" size={20} color="#ffffff" style={{ marginRight: 4 }} />
     <Text style={{ color: "#ffffff", fontSize: 13, fontWeight: "600" }}>Scan</Text>
   </TouchableOpacity>
 </View>
