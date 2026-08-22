@@ -93,11 +93,12 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const getErrorMessage = (status, dataMessage) => {
+    if (dataMessage) return dataMessage;
     if (status === 401) return "Your session has expired. Please log in again.";
     if (status === 403) return "You are not authorized to update this profile.";
     if (status === 404) return "Your officer profile could not be found.";
     if (status === 500) return "Server error while updating your profile.";
-    return dataMessage || "Failed to update profile.";
+    return "Failed to update profile.";
   };
 
   const handleSaveProfile = async () => {

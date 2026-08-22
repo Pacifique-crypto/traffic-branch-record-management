@@ -349,15 +349,19 @@ router.put("/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ message: "Officer profile not found" });
     }
 
+    const reqUserId = req.user?.id || req.user?._id;
+    const reqUsername = (req.user?.username || "").toLowerCase().trim();
+    const reqPoliceId = (req.user?.policeId || "").toLowerCase().trim();
+
     const isSelf = paramId === "me" ||
-                   String(officerToUpdate._id) === String(req.user.id) ||
-                   String(officerToUpdate._id) === String(req.user._id) ||
-                   (req.user.username && String(officerToUpdate.username).toLowerCase() === String(req.user.username).toLowerCase()) ||
-                   (req.user.policeId && officerToUpdate.policeId === req.user.policeId) ||
-                   (officerToUpdate.policeId && req.user.username === officerToUpdate.policeId);
+                   (reqUserId && String(officerToUpdate._id) === String(reqUserId)) ||
+                   (reqUsername && String(officerToUpdate.username || "").toLowerCase().trim() === reqUsername) ||
+                   (reqPoliceId && String(officerToUpdate.policeId || "").toLowerCase().trim() === reqPoliceId) ||
+                   (reqUsername && String(officerToUpdate.policeId || "").toLowerCase().trim() === reqUsername) ||
+                   (reqPoliceId && String(officerToUpdate.username || "").toLowerCase().trim() === reqPoliceId);
 
     if (!isSelf && !isManager) {
-      return res.status(403).json({ message: "Forbidden. You do not have permission." });
+      return res.status(403).json({ message: "You are not authorized to update this profile." });
     }
 
     const updateData = { ...req.body };
