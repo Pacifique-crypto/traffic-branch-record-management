@@ -596,6 +596,7 @@ export default function ManualDutyRoster() {
                       />
                     </Tooltip>
                     {idx < 3 && <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 700 }}>→</Typography>}
+                  </React.Fragment>
                 );
               })}
             </Box>
