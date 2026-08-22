@@ -29,22 +29,22 @@ const authorizeRoles = (...allowedRoles) => {
     // Normalize role collections:
     const adminRoles = ["admin", "it officer", "itofficer", "it_officer", "it officer/admin", "it officer admin", "it"];
     const oicRoles = ["oic", "oic traffic branch", "oic_traffic_branch"];
-    const officerRoles = ["officer", "traffic officer", "traffic_officer", "constable", "wpc", "pc", "police officer", "user"];
+    const officerRoles = ["officer", "traffic officer", "traffic_officer", "constable", "wpc", "pc", "police officer", "user", "sub inspector", "inspector", "sergeant", "police"];
 
     let rolesToCheck = [userRole];
     if (adminRoles.some(r => userRole.includes(r))) {
-      rolesToCheck = adminRoles;
+      rolesToCheck = [...adminRoles, userRole];
     } else if (oicRoles.some(r => userRole.includes(r))) {
-      rolesToCheck = oicRoles;
-    } else if (officerRoles.some(r => userRole.includes(r)) || !userRole) {
-      rolesToCheck = officerRoles;
+      rolesToCheck = [...oicRoles, userRole];
+    } else {
+      rolesToCheck = [...officerRoles, userRole];
     }
 
     // Normalize allowed roles as well:
     const normalizedAllowedRoles = allowedRoles.reduce((acc, r) => {
       const lower = r.toLowerCase().trim();
       acc.push(lower);
-      if (lower === "officer" || lower === "traffic officer") acc.push(...officerRoles);
+      if (lower === "officer" || lower === "traffic officer" || lower === "user") acc.push(...officerRoles);
       if (lower === "admin" || lower === "it officer") acc.push(...adminRoles);
       if (lower === "oic") acc.push(...oicRoles);
       return acc;
@@ -52,9 +52,10 @@ const authorizeRoles = (...allowedRoles) => {
 
     const hasRole = rolesToCheck.some(r => normalizedAllowedRoles.includes(r));
 
-    console.log(`[AUTH DEBUG] User: ${req.user.username}, Role in token: ${req.user.role}, Checked: ${JSON.stringify(rolesToCheck)}, Allowed for route: ${JSON.stringify(allowedRoles)} (Normalized: ${JSON.stringify(normalizedAllowedRoles)}), Has Permission: ${hasRole}`);
+    console.log(`[AUTH DEBUG] Method: ${req.method}, URL: ${req.originalUrl}, User: ${req.user.username}, Role in token: ${req.user.role}, Checked: ${JSON.stringify(rolesToCheck)}, Allowed for route: ${JSON.stringify(allowedRoles)} (Normalized: ${JSON.stringify(normalizedAllowedRoles)}), Has Permission: ${hasRole}`);
 
     if (!hasRole) {
+      console.log(`[AUTH REJECT 403] Method: ${req.method}, URL: ${req.originalUrl}, User: ${req.user.username}, Role: ${req.user.role}`);
       return res.status(403).json({ message: "Forbidden. You do not have permission." });
     }
 
