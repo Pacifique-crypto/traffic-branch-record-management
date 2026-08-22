@@ -7,7 +7,7 @@ import {
   TableContainer, TableHead, TableRow, Button, Grid, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel,
   FormControl, Radio, RadioGroup, FormControlLabel, Chip, CircularProgress,
-  IconButton, Alert, Snackbar, Tabs, Tab, Checkbox, ListItemText, FormLabel
+  IconButton, Alert, Snackbar, Tabs, Tab, Checkbox, ListItemText, FormLabel, Menu
 } from "@mui/material";
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -336,6 +336,8 @@ function DutyRoster() {
     }
   };
 
+  const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
+
   return (
     <Layout>
       <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
@@ -349,6 +351,40 @@ function DutyRoster() {
               Configure rules, generate AI recommendations, and publish personnel assignments.
             </Typography>
           </Box>
+
+          {!isOIC && (
+            <Box>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: "#f59e0b",
+                  color: "#ffffff",
+                  fontWeight: "bold",
+                  px: 3,
+                  py: 1,
+                  borderRadius: 2,
+                  boxShadow: "0 4px 12px rgba(245, 158, 11, 0.3)",
+                  "&:hover": { backgroundColor: "#d97706" }
+                }}
+                startIcon={<AddIcon />}
+                onClick={(e) => setCreateMenuAnchor(e.currentTarget)}
+              >
+                + Create New Duty Roster
+              </Button>
+              <Menu
+                anchorEl={createMenuAnchor}
+                open={Boolean(createMenuAnchor)}
+                onClose={() => setCreateMenuAnchor(null)}
+              >
+                <MenuItem onClick={() => { setCreateMenuAnchor(null); setTabIndex(0); }}>
+                  Generate with AI
+                </MenuItem>
+                <MenuItem onClick={() => { setCreateMenuAnchor(null); navigate("/duty-roster/manual"); }}>
+                  Create Manually
+                </MenuItem>
+              </Menu>
+            </Box>
+          )}
         </Box>
 
         {/* Navigation Tabs */}

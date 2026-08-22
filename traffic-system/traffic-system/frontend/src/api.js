@@ -258,6 +258,15 @@ export const generateAIDutyRoster = async (data) => {
   return res.json();
 };
 
+export const validateDutyRoster = async (data) => {
+  const res = await fetch(`${BASE_URL}/duties/rosters/validate`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
 export const createDutyRoster = async (data) => {
   const res = await fetch(`${BASE_URL}/duties/rosters`, {
     method: "POST",

@@ -15,6 +15,7 @@ import SFR              from "./pages/SFR";
 import DLR              from "./pages/DLR";
 import DutyRoster       from "./pages/DutyRoster";
 import DutyRosterSchedule from "./pages/DutyRosterSchedule";
+import ManualDutyRoster from "./pages/ManualDutyRoster";
 import Reports          from "./pages/Reports";
 import Analytics        from "./pages/Analytics";
 import Notifications    from "./pages/Notifications";
@@ -56,6 +57,7 @@ function App() {
         <Route path="/sfr"                element={<PrivateRoute allowedRoles={["OIC"]}><SFR /></PrivateRoute>} />
         <Route path="/dlr"                element={<PrivateRoute allowedRoles={["OIC"]}><DLR /></PrivateRoute>} />
         <Route path="/duty-roster"        element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><DutyRoster /></PrivateRoute>} />
+        <Route path="/duty-roster/manual" element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><ManualDutyRoster /></PrivateRoute>} />
         <Route path="/duty-roster/schedule" element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><DutyRosterSchedule /></PrivateRoute>} />
         <Route path="/reports"            element={<PrivateRoute><Reports /></PrivateRoute>} />
         <Route path="/analytics"          element={<PrivateRoute><Analytics /></PrivateRoute>} />
