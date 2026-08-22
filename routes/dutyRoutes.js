@@ -528,6 +528,126 @@ router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it office
   }
 });
 
+// Validate Manual / AI Roster
+router.post("/rosters/validate", verifyToken, async (req, res) => {
+  try {
+    const { assignments, weekStart, weekEnd } = req.body;
+    const errors = [];
+    const warnings = [];
+
+    if (!Array.isArray(assignments) || assignments.length === 0) {
+      return res.json({ isValid: true, errors: [], warnings: ["No assignments to validate."] });
+    }
+
+    const rangeStart = weekStart ? new Date(weekStart) : new Date();
+    const rangeEnd = weekEnd ? new Date(weekEnd) : new Date();
+
+    const getSriLankaDayBoundaries = (dateInput) => {
+      const d = new Date(dateInput);
+      const slDateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
+      const [year, month, day] = slDateStr.split("-").map(Number);
+      const startOfSLDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+      const endOfSLDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - (5.5 * 60 * 60 * 1000));
+      return { startOfSLDay, endOfSLDay };
+    };
+
+    // Fetch leaves
+    const leaves = await OfficerAvailability.find({
+      startDate: { $lte: rangeEnd },
+      endDate: { $gte: rangeStart }
+    }).populate("officer");
+
+    // Fetch rules & officers
+    const rules = await DutyRule.find({});
+    const officers = await Officer.find({});
+    const officerMap = new Map();
+    officers.forEach(o => officerMap.set(o._id.toString(), o));
+
+    const RANK_HIERARCHY = {
+      "Constable": 1,
+      "Sergeant": 2,
+      "Sub-Inspector": 3,
+      "Inspector": 4
+    };
+
+    // Map officer-date assignments to detect double booking
+    const officerDateShiftMap = new Map();
+
+    for (let i = 0; i < assignments.length; i++) {
+      const asg = assignments[i];
+      if (!asg || !asg.officer) continue;
+
+      const offIdStr = (asg.officer._id || asg.officer).toString();
+      const officerObj = officerMap.get(offIdStr);
+      const offName = asg.officerName || (officerObj ? officerObj.fullName : "Officer");
+      const asgDate = new Date(asg.date);
+      const dateStr = asgDate.toDateString();
+
+      // 1. Leave Check
+      const { startOfSLDay, endOfSLDay } = getSriLankaDayBoundaries(asgDate);
+      const activeLeave = leaves.find(l => {
+        if (!l || !l.officer) return false;
+        const leaveOffId = (l.officer._id || l.officer).toString();
+        if (leaveOffId !== offIdStr) return false;
+        const s = new Date(l.startDate);
+        const e = new Date(l.endDate);
+        return s <= endOfSLDay && e >= startOfSLDay;
+      });
+
+      if (activeLeave) {
+        errors.push({
+          assignmentIndex: i,
+          officerId: offIdStr,
+          officerName: offName,
+          date: dateStr,
+          type: "LEAVE_CONFLICT",
+          message: `Cannot assign duty: ${offName} is on approved leave (${activeLeave.leaveType || "Leave"}).`
+        });
+      }
+
+      // 2. Rank Check
+      if (asg.dutyType && asg.location) {
+        const matchingRule = rules.find(r => r.dutyType === asg.dutyType && r.location === asg.location);
+        if (matchingRule && matchingRule.minRank) {
+          const offRank = asg.officerRank || (officerObj ? officerObj.rank : "Constable");
+          const offRankVal = RANK_HIERARCHY[offRank] || 1;
+          const reqRankVal = RANK_HIERARCHY[matchingRule.minRank] || 1;
+          if (offRankVal < reqRankVal) {
+            errors.push({
+              assignmentIndex: i,
+              officerId: offIdStr,
+              officerName: offName,
+              date: dateStr,
+              type: "RANK_INSUFFICIENT",
+              message: `${offName} (${offRank}) does not meet minimum rank requirement (${matchingRule.minRank}) for ${asg.dutyType}.`
+            });
+          }
+        }
+      }
+
+      // 3. Double Booking Check
+      const key = `${offIdStr}_${dateStr}_${asg.shift}`;
+      if (officerDateShiftMap.has(key)) {
+        errors.push({
+          assignmentIndex: i,
+          officerId: offIdStr,
+          officerName: offName,
+          date: dateStr,
+          type: "DOUBLE_BOOKING",
+          message: `${offName} is assigned to multiple duties on ${dateStr} for ${asg.shift}.`
+        });
+      } else {
+        officerDateShiftMap.set(key, true);
+      }
+    }
+
+    const isValid = errors.length === 0;
+    res.json({ isValid, errors, warnings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create/save Roster (Draft or Submit)
 router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
   try {
