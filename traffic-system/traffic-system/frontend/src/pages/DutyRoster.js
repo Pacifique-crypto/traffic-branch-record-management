@@ -369,7 +369,7 @@ function DutyRoster() {
                 startIcon={<AddIcon />}
                 onClick={(e) => setCreateMenuAnchor(e.currentTarget)}
               >
-                + Create New Duty Roster
+                Create New Duty Roster
               </Button>
               <Menu
                 anchorEl={createMenuAnchor}

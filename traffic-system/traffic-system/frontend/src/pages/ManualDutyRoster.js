@@ -121,6 +121,71 @@ export default function ManualDutyRoster() {
     setSnackbar({ open: true, message: msg, severity: sev });
   };
 
+  // Active selected status tab
+  const [selectedStatusTab, setSelectedStatusTab] = useState("Draft");
+  const [activeRosterDoc, setActiveRosterDoc] = useState(null);
+
+  // Helper to load roster for a specific status & week
+  const loadRosterForStatus = (targetStatus, allRostersList = rosters) => {
+    const matching = (allRostersList || []).find(r => {
+      if (r.rosterType !== "Weekly") return false;
+      const rStart = formatDateStr(r.weekStart);
+      const isWeekMatch = rStart === weekStartStr;
+      const isStatusMatch = (r.status || "").toLowerCase().trim() === targetStatus.toLowerCase().trim();
+      return isWeekMatch && isStatusMatch;
+    });
+
+    const anyRoster = (allRostersList || []).find(r => {
+      if (r.rosterType !== "Weekly") return false;
+      return formatDateStr(r.weekStart) === weekStartStr;
+    });
+
+    const activeRoster = matching || (targetStatus === "Draft" ? anyRoster : null);
+
+    if (activeRoster) {
+      setCurrentRosterId(activeRoster._id);
+      setRosterStatus(activeRoster.status || targetStatus);
+      setActiveRosterDoc(activeRoster);
+
+      const map = {};
+      (activeRoster.assignments || []).forEach(asg => {
+        if (asg && asg.officer) {
+          const offId = (asg.officer._id || asg.officer).toString();
+          const dStr = formatDateStr(asg.date);
+          map[`${offId}_${dStr}`] = asg;
+        }
+      });
+      setAssignmentsMap(map);
+    } else {
+      setCurrentRosterId(null);
+      setRosterStatus(targetStatus);
+      setActiveRosterDoc(null);
+      setAssignmentsMap({});
+    }
+  };
+
+  const handleSelectStatusTab = (statusName) => {
+    setSelectedStatusTab(statusName);
+    loadRosterForStatus(statusName, rosters);
+    const matching = (rosters || []).find(r => {
+      if (r.rosterType !== "Weekly") return false;
+      return formatDateStr(r.weekStart) === weekStartStr && (r.status || "").toLowerCase().trim() === statusName.toLowerCase().trim();
+    });
+    if (matching) {
+      showMsg(`Viewing ${statusName} Roster (#${matching._id.slice(-6).toUpperCase()}) containing ${matching.assignments?.length || 0} assignments.`);
+    } else {
+      showMsg(`No ${statusName} roster found for this week. Showing empty grid.`, "info");
+    }
+  };
+
+  const getStatusCount = (statusName) => {
+    const matching = (rosters || []).find(r => {
+      if (r.rosterType !== "Weekly") return false;
+      return formatDateStr(r.weekStart) === weekStartStr && (r.status || "").toLowerCase().trim() === statusName.toLowerCase().trim();
+    });
+    return matching ? (matching.assignments?.length || 0) : 0;
+  };
+
   // Load initial data from backend
   const loadData = async () => {
     try {
@@ -146,30 +211,7 @@ export default function ManualDutyRoster() {
         setCellShift(allShifts[0].name);
       }
 
-      // Check if a weekly roster exists for the selected week
-      const matchingRoster = (allRosters || []).find(r => {
-        if (r.rosterType !== "Weekly") return false;
-        const rStart = formatDateStr(r.weekStart);
-        return rStart === weekStartStr;
-      });
-
-      if (matchingRoster) {
-        setCurrentRosterId(matchingRoster._id);
-        setRosterStatus(matchingRoster.status || "Draft");
-        const map = {};
-        (matchingRoster.assignments || []).forEach(asg => {
-          if (asg && asg.officer) {
-            const offId = (asg.officer._id || asg.officer).toString();
-            const dStr = formatDateStr(asg.date);
-            map[`${offId}_${dStr}`] = asg;
-          }
-        });
-        setAssignmentsMap(map);
-      } else {
-        setCurrentRosterId(null);
-        setRosterStatus("Draft");
-        setAssignmentsMap({});
-      }
+      loadRosterForStatus(selectedStatusTab, allRosters || []);
 
     } catch (err) {
       showMsg("Failed to load records from backend database", "error");
@@ -464,7 +506,7 @@ export default function ManualDutyRoster() {
                   startIcon={<AddIcon />}
                   onClick={(e) => setCreateMenuAnchor(e.currentTarget)}
                 >
-                  + Create New Duty Roster
+                  Create New Duty Roster
                 </Button>
                 <Menu
                   anchorEl={createMenuAnchor}
@@ -502,25 +544,58 @@ export default function ManualDutyRoster() {
               </IconButton>
             </Box>
 
-            {/* Workflow Status Stepper */}
+            {/* Workflow Status Stepper - CLICKABLE BUTTONS */}
             <Box display="flex" alignItems="center" gap={1.5}>
               {["Draft", "Pending Approval", "Approved", "Published"].map((st, idx) => {
-                const isActive = rosterStatus.toLowerCase() === st.toLowerCase();
+                const isActive = (selectedStatusTab || rosterStatus || "").toLowerCase() === st.toLowerCase();
+                const count = getStatusCount(st);
                 return (
                   <React.Fragment key={st}>
-                    <Chip
-                      label={`● ${st.toUpperCase()}`}
-                      size="small"
-                      sx={{
-                        fontWeight: "700",
-                        fontSize: 11,
-                        backgroundColor: isActive ? "#eff6ff" : "#f1f5f9",
-                        color: isActive ? "#2563eb" : "#64748b",
-                        border: isActive ? "1.5px solid #3b82f6" : "1px solid #e2e8f0"
-                      }}
-                    />
-                    {idx < 3 && <Typography variant="caption" sx={{ color: "#94a3b8" }}>→</Typography>}
-                  </React.Fragment>
+                    <Tooltip title={`Click to view ${st} Roster assignments for this week`} arrow>
+                      <Chip
+                        label={
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <span>● {st.toUpperCase()}</span>
+                            {count > 0 && (
+                              <Chip
+                                label={count}
+                                size="small"
+                                sx={{
+                                  height: 16,
+                                  minWidth: 16,
+                                  fontSize: 9,
+                                  fontWeight: 800,
+                                  backgroundColor: isActive ? "#2563eb" : "#94a3b8",
+                                  color: "#ffffff",
+                                  px: 0.5
+                                }}
+                              />
+                            )}
+                          </Box>
+                        }
+                        onClick={() => handleSelectStatusTab(st)}
+                        clickable
+                        size="small"
+                        sx={{
+                          fontWeight: "800",
+                          fontSize: 11,
+                          py: 1.8,
+                          px: 1,
+                          cursor: "pointer",
+                          backgroundColor: isActive ? "#eff6ff" : "#ffffff",
+                          color: isActive ? "#1d4ed8" : "#475569",
+                          border: isActive ? "2px solid #2563eb" : "1px solid #cbd5e1",
+                          boxShadow: isActive ? "0 2px 8px rgba(37, 99, 235, 0.25)" : "none",
+                          "&:hover": {
+                            backgroundColor: "#e0e7ff",
+                            borderColor: "#2563eb",
+                            transform: "translateY(-1px)"
+                          },
+                          transition: "all 0.15s ease-in-out"
+                        }}
+                      />
+                    </Tooltip>
+                    {idx < 3 && <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 700 }}>→</Typography>}
                 );
               })}
             </Box>
