@@ -144,7 +144,7 @@ export default function AccidentsScreen({ navigation }) {
 
       const offName = (global.loggedOfficerName || "").toLowerCase();
       const offUser = (global.loggedOfficerUsername || "").toLowerCase();
-      const offId   = (global.loggedOfficerPoliceId || "").toLowerCase();
+      const offId   = (global.loggedOfficerPoliceId || "").toLowerCase();    
 
       // Check if this accident was submitted by the logged-in officer
       const isMine = Boolean(
