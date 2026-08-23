@@ -64,6 +64,58 @@ app.use("/api/duties", dutyRoutes);
 const leaveRoutes = require("./routes/leaveRoutes");
 app.use("/api/leaves", leaveRoutes);
 
+const demoDriverLicenceRoutes = require("./routes/demoDriverLicenceRoutes");
+app.use("/api/demo-driver-licences", demoDriverLicenceRoutes);
+
+// Auto-seed initial demo driver licences
+const DemoDriverLicence = require("./models/DemoDriverLicence");
+const seedDemoDriverLicences = async () => {
+  try {
+    const demoRecords = [
+      {
+        licenceNumber: "DL-B1234567",
+        fullName: "Kasun Perera",
+        address: "No. 45, Main Street, Negombo",
+        age: 27,
+        licenceStatus: "Valid"
+      },
+      {
+        licenceNumber: "DL-B7654321",
+        fullName: "Nimal Fernando",
+        address: "No. 12, Beach Road, Negombo",
+        age: 35,
+        licenceStatus: "Valid"
+      },
+      {
+        licenceNumber: "DL-B2468135",
+        fullName: "Amal Silva",
+        address: "No. 78, Station Road, Kochchikade",
+        age: 31,
+        licenceStatus: "Valid"
+      },
+      {
+        licenceNumber: "DL-B9753186",
+        fullName: "Dilshan Jayawardena",
+        address: "No. 24, Main Road, Colombo",
+        age: 42,
+        licenceStatus: "Valid"
+      }
+    ];
+
+    for (const record of demoRecords) {
+      await DemoDriverLicence.findOneAndUpdate(
+        { licenceNumber: record.licenceNumber },
+        { $setOnInsert: record },
+        { upsert: true, new: true }
+      );
+    }
+    console.log("Demo driver licences auto-seeded successfully! ✅");
+  } catch (err) {
+    console.error("Failed to seed demo driver licences:", err);
+  }
+};
+seedDemoDriverLicences();
+
 // Auto-seed initial vehicle fleet
 const Vehicle = require("./models/Vehicle");
 const seedVehicles = async () => {
