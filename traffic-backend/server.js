@@ -169,6 +169,10 @@ app.get("/", (req, res) => {
   res.send("API Running...");
 });
 
+app.get("/api/version", (req, res) => {
+  res.json({ version: "stage-2-v2", timestamp: Date.now() });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
