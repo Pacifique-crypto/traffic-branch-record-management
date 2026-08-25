@@ -4,9 +4,67 @@ const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware")
 
 const Accident = require("../models/Accident");
 const Violation = require("../models/Violation");
-const demoDriverLicenceRoutes = require("./demoDriverLicenceRoutes");
+const DemoDriverLicence = require("../models/DemoDriverLicence");
 
-router.use("/demo-driver-licences", demoDriverLicenceRoutes);
+// ==========================================
+// ✅ DEMO DRIVING LICENCE VERIFICATION API
+// ==========================================
+router.get("/demo-driver-licences/verify/:licenceNumber", async (req, res) => {
+  try {
+    const licenceNumber = (req.params.licenceNumber || "").trim();
+    const driver = await DemoDriverLicence.findOne({ licenceNumber: new RegExp(`^${licenceNumber}$`, "i") });
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driving licence could not be verified"
+      });
+    }
+
+    return res.json({
+      success: true,
+      driver: {
+        licenceNumber: driver.licenceNumber,
+        fullName: driver.fullName,
+        address: driver.address,
+        age: driver.age,
+        nic: driver.nic,
+        licenceStatus: driver.licenceStatus
+      }
+    });
+  } catch (error) {
+    console.error("Error verifying demo licence:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during licence verification",
+      error: error.message
+    });
+  }
+});
+
+router.get("/demo-driver-licences", async (req, res) => {
+  try {
+    const drivers = await DemoDriverLicence.find().sort({ licenceNumber: 1 });
+    return res.json({
+      success: true,
+      count: drivers.length,
+      drivers: drivers.map(d => ({
+        licenceNumber: d.licenceNumber,
+        fullName: d.fullName,
+        address: d.address,
+        age: d.age,
+        nic: d.nic,
+        licenceStatus: d.licenceStatus
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching demo driver records",
+      error: error.message
+    });
+  }
+});
 
 const parseSafeInt = (val) => {
   const parsed = parseInt(val, 10);
