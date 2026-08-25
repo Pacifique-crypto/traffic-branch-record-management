@@ -161,18 +161,24 @@ export default function DutyRoster() {
         getDutyRosters().catch(() => [])
       ]);
 
-      const activeOffs = (allOffs || []).filter(o => o.status !== "Pending");
-      setOfficers(activeOffs);
-      setShifts(allShifts || []);
-      setLeaves(allLeaves || []);
-      setVehicles(allVehs || []);
-      setRosters(allRosters || []);
+      const safeOffs = Array.isArray(allOffs) ? allOffs : (allOffs && Array.isArray(allOffs.officers) ? allOffs.officers : []);
+      const safeShifts = Array.isArray(allShifts) ? allShifts : (allShifts && Array.isArray(allShifts.shifts) ? allShifts.shifts : []);
+      const safeLeaves = Array.isArray(allLeaves) ? allLeaves : (allLeaves && Array.isArray(allLeaves.leaves) ? allLeaves.leaves : []);
+      const safeVehs = Array.isArray(allVehs) ? allVehs : (allVehs && Array.isArray(allVehs.vehicles) ? allVehs.vehicles : []);
+      const safeRosters = Array.isArray(allRosters) ? allRosters : (allRosters && Array.isArray(allRosters.rosters) ? allRosters.rosters : []);
 
-      if (allShifts && allShifts.length > 0 && !selectedShift) {
-        setSelectedShift(allShifts[0].name);
+      const activeOffs = safeOffs.filter(o => o && o.status !== "Pending");
+      setOfficers(activeOffs);
+      setShifts(safeShifts);
+      setLeaves(safeLeaves);
+      setVehicles(safeVehs);
+      setRosters(safeRosters);
+
+      if (safeShifts.length > 0 && !selectedShift) {
+        setSelectedShift(safeShifts[0].name);
       }
 
-      syncRosterForWeek(allRosters || []);
+      syncRosterForWeek(safeRosters);
     } catch (err) {
       showMsg("Failed to load records from database", "error");
     } finally {
@@ -186,8 +192,9 @@ export default function DutyRoster() {
 
   // Sync grid with selected week
   const syncRosterForWeek = (rosterList = rosters) => {
-    const matching = (rosterList || []).find(r => {
-      if (r.rosterType !== "Weekly") return false;
+    const list = Array.isArray(rosterList) ? rosterList : [];
+    const matching = list.find(r => {
+      if (!r || r.rosterType !== "Weekly") return false;
       return formatDateStr(r.weekStart) === weekStartStr;
     });
 
@@ -229,9 +236,11 @@ export default function DutyRoster() {
 
   // Helper: Check if officer is on leave on a date
   const getOfficerLeaveForDate = (officerId, date) => {
+    if (!officerId) return undefined;
     const offIdStr = officerId.toString();
     const dStr = formatDateStr(date);
-    return leaves.find(l => {
+    const leavesList = Array.isArray(leaves) ? leaves : [];
+    return leavesList.find(l => {
       if (!l || !l.officer) return false;
       const lOffId = (l.officer._id || l.officer).toString();
       if (lOffId !== offIdStr) return false;
@@ -447,8 +456,13 @@ export default function DutyRoster() {
     window.print();
   };
 
+  // Safe Array Wrappers
+  const officersArr = Array.isArray(officers) ? officers : [];
+  const rostersArr = Array.isArray(rosters) ? rosters : [];
+
   // Filter Officer Rows
-  const filteredOfficers = officers.filter(o => {
+  const filteredOfficers = officersArr.filter(o => {
+    if (!o) return false;
     if (searchOfficer.trim()) {
       const term = searchOfficer.toLowerCase();
       const matchName = (o.fullName || "").toLowerCase().includes(term);
@@ -462,7 +476,7 @@ export default function DutyRoster() {
       let hasMatch = false;
       weekDays.forEach(day => {
         const dateStr = formatDateStr(day);
-        const key = `${o._id.toString()}_${dateStr}`;
+        const key = `${(o._id || "").toString()}_${dateStr}`;
         const asg = assignmentsMap[key];
         const leaveRec = getOfficerLeaveForDate(o._id, day);
 
@@ -486,13 +500,13 @@ export default function DutyRoster() {
   });
 
   // Calculate Statistics
-  const totalOfficersCount = officers.length;
+  const totalOfficersCount = officersArr.length;
   const totalAssignedSlotsCount = Object.keys(assignmentsMap).length;
   const officersWithAssignment = new Set(Object.keys(assignmentsMap).map(k => k.split("_")[0]));
-  const unassignedOfficersCount = officers.filter(o => !officersWithAssignment.has(o._id.toString())).length;
-  const officersOnLeaveCount = officers.filter(o => weekDays.some(d => getOfficerLeaveForDate(o._id, d))).length;
+  const unassignedOfficersCount = officersArr.filter(o => o && !officersWithAssignment.has((o._id || "").toString())).length;
+  const officersOnLeaveCount = officersArr.filter(o => o && weekDays.some(d => getOfficerLeaveForDate(o._id, d))).length;
 
-  const currentOfficerObj = officers.find(o => selectedOfficerId && o._id.toString() === selectedOfficerId.toString());
+  const currentOfficerObj = officersArr.find(o => selectedOfficerId && o && (o._id || "").toString() === selectedOfficerId.toString());
   const currentStatus = activeRosterDoc ? activeRosterDoc.status : "Draft";
 
   // ==========================================
@@ -511,11 +525,11 @@ export default function DutyRoster() {
     const nextWeekDays = getWeekDates(nextWeekMonday);
     const nextWeekLabel = `${nextWeekDays[0].getDate()} - ${nextWeekDays[6].getDate()} ${nextWeekDays[6].toLocaleDateString("en-GB", { month: "short", year: "numeric" })}`;
 
-    const pendingCount = (rosters || []).filter(r => r.status === "Pending Approval").length || (activeRosterDoc && activeRosterDoc.status === "Pending Approval" ? 1 : 1);
-    const totalOfficersVal = officers.length || 42;
+    const pendingCount = rostersArr.filter(r => r && r.status === "Pending Approval").length || (activeRosterDoc && activeRosterDoc.status === "Pending Approval" ? 1 : 1);
+    const totalOfficersVal = officersArr.length || 42;
     const assignedDutiesVal = Object.keys(assignmentsMap).length || 68;
-    const leaveCountVal = officers.filter(o => weekDays.some(d => getOfficerLeaveForDate(o._id, d))).length || 5;
-    const specialDutiesVal = Object.values(assignmentsMap).filter(a => a.dutyType === "Crime Investigation" || a.dutyType === "Accident Investigation").length || 2;
+    const leaveCountVal = officersArr.filter(o => o && weekDays.some(d => getOfficerLeaveForDate(o._id, d))).length || 5;
+    const specialDutiesVal = Object.values(assignmentsMap).filter(a => a && (a.dutyType === "Crime Investigation" || a.dutyType === "Accident Investigation")).length || 2;
     const conflictsVal = 1;
 
     return (
