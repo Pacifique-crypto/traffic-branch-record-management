@@ -119,6 +119,13 @@ const [driverNIC, setDriverNIC] = useState("");
 const [drivingLicence, setDrivingLicence] = useState("");
 const [showQRScanner, setShowQRScanner] = useState(false);
 
+const LOCAL_DEMO_DRIVERS = {
+  "DL-B1234567": { licenceNumber: "DL-B1234567", fullName: "Kasun Perera", address: "No. 45, Main Street, Negombo", age: 27, nic: "199712345678" },
+  "DL-B7654321": { licenceNumber: "DL-B7654321", fullName: "Nimal Fernando", address: "No. 12, Beach Road, Negombo", age: 35, nic: "198976543210" },
+  "DL-B2468135": { licenceNumber: "DL-B2468135", fullName: "Amal Silva", address: "No. 78, Station Road, Kochchikade", age: 31, nic: "199324681357" },
+  "DL-B9753186": { licenceNumber: "DL-B9753186", fullName: "Dilshan Jayawardena", address: "No. 24, Main Road, Colombo", age: 42, nic: "198297531864" }
+};
+
 const handleQRScanSuccess = async (data) => {
   const value = typeof data === "string" ? data : (data?.licenseNo || data?.raw || "");
   if (!value) return;
@@ -127,10 +134,12 @@ const handleQRScanSuccess = async (data) => {
   setDrivingLicence(cleanLicence);
 
   console.log("QR licence value:", cleanLicence);
-  let url = `${BASE_URL}/demo-driver-licences/verify/${encodeURIComponent(cleanLicence)}`;
-  console.log("Licence verification URL (primary):", url);
+  let driverData = null;
 
   try {
+    let url = `${BASE_URL}/demo-driver-licences/verify/${encodeURIComponent(cleanLicence)}`;
+    console.log("Licence verification URL (primary):", url);
+
     let response = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
@@ -164,24 +173,34 @@ const handleQRScanSuccess = async (data) => {
     }
 
     if (response.ok && resData && resData.success && resData.driver) {
-      const { fullName, address, nic, licenceNumber } = resData.driver;
-      if (fullName) setDriverName(fullName);
-      if (address) setDriverAddress(address);
-      if (nic) setDriverNIC(nic);
-      if (licenceNumber) setDrivingLicence(licenceNumber);
-
-      Alert.alert(
-        "✓ Licence Verified",
-        "Driver details retrieved successfully."
-      );
-    } else {
-      Alert.alert(
-        "Verification Error",
-        "Driving licence could not be verified. Please check the licence or enter the driver details manually."
-      );
+      driverData = resData.driver;
     }
   } catch (err) {
-    console.log("Licence verification error:", err);
+    console.log("Licence verification API error:", err);
+  }
+
+  // Fallback to local demo dictionary if API was unavailable or returned 404
+  if (!driverData) {
+    const upperLic = cleanLicence.toUpperCase();
+    if (LOCAL_DEMO_DRIVERS[upperLic]) {
+      driverData = LOCAL_DEMO_DRIVERS[upperLic];
+    } else if (LOCAL_DEMO_DRIVERS[cleanLicence]) {
+      driverData = LOCAL_DEMO_DRIVERS[cleanLicence];
+    }
+  }
+
+  if (driverData) {
+    const { fullName, address, nic, licenceNumber } = driverData;
+    if (fullName) setDriverName(fullName);
+    if (address) setDriverAddress(address);
+    if (nic) setDriverNIC(nic);
+    if (licenceNumber) setDrivingLicence(licenceNumber);
+
+    Alert.alert(
+      "✓ Licence Verified",
+      "Driver details retrieved successfully."
+    );
+  } else {
     Alert.alert(
       "Verification Error",
       "Driving licence could not be verified. Please check the licence or enter the driver details manually."
