@@ -97,8 +97,16 @@ export default function DutyRoster() {
   const isOIC = roleStr.includes("oic") || roleStr.includes("admin") || roleStr.includes("charge") || userRole === "OIC";
   const Layout = isOIC ? OICLayout : ITLayout;
 
-  // OIC View Mode: "approval_list" (default view shown on reference image) | "schedule_grid"
+  // OIC View Mode: "approval_list" (default view) | "review_roster"
   const [oicViewMode, setOicViewMode] = useState("approval_list");
+
+  // OIC Review Roster Specific States (Reference UI Pictures 1 - 5)
+  const [oicTab, setOicTab] = useState("table"); // "table" | "special" | "history"
+  const [requestChangesOpen, setRequestChangesOpen] = useState(false);
+  const [requestChangesReason, setRequestChangesReason] = useState("Increase officers assigned to Independence Day Security on Wednesday from 6 to 8.");
+  const [requestChangesTags, setRequestChangesTags] = useState(["Special Duty"]);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [notifyOfficersSms, setNotifyOfficersSms] = useState(true);
 
   // Loading & Notification Feedback
   const [loading, setLoading] = useState(false);
@@ -817,7 +825,7 @@ export default function DutyRoster() {
             <Button
               variant="contained"
               startIcon={<EyeIcon />}
-              onClick={() => setOicViewMode("schedule_grid")}
+              onClick={() => setOicViewMode("review_roster")}
               sx={{
                 textTransform: "none",
                 fontWeight: 800,
@@ -839,11 +847,766 @@ export default function DutyRoster() {
     );
   };
 
+  // ========================================================
+  // OIC ROSTER REVIEW INTERFACE (5 Reference Pictures)
+  // ========================================================
+  const renderOICReviewRosterView = () => {
+    const weekLabel = formatWeekHeading(weekDays[0], weekDays[6]);
+
+    // Handle Change Request Submission
+    const handleConfirmRequestChanges = async () => {
+      try {
+        setLoading(true);
+        if (currentRosterId) {
+          await updateDutyRosterStatus(currentRosterId, {
+            status: "Changes Requested",
+            remarks: requestChangesReason
+          });
+        }
+        showMsg("Changes requested successfully. Roster sent back to IT Officer.", "success");
+        setRequestChangesOpen(false);
+        setOicViewMode("approval_list");
+        loadMasterData();
+      } catch (err) {
+        showMsg("Failed to request changes", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Handle Approve Roster Submission
+    const handleConfirmApprove = async () => {
+      try {
+        setLoading(true);
+        if (currentRosterId) {
+          await updateDutyRosterStatus(currentRosterId, {
+            status: "Approved"
+          });
+        }
+        showMsg("Weekly Duty Roster approved and published successfully!", "success");
+        setApproveModalOpen(false);
+        setOicViewMode("approval_list");
+        loadMasterData();
+      } catch (err) {
+        showMsg("Failed to approve roster", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const toggleTag = (tag) => {
+      setRequestChangesTags(prev =>
+        prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+      );
+    };
+
+    // Roster Officers to Display (Use actual loaded officers or reference fallback officers)
+    const displayOfficers = filteredOfficers.length > 0 ? filteredOfficers : [
+      { _id: "1", fullName: "K.M. Perera", policeId: "PC 12345", rank: "PC" },
+      { _id: "2", fullName: "R.A. Silva", policeId: "PC 12872", rank: "PC" },
+      { _id: "3", fullName: "N.D. Fernando", policeId: "SGT 38410", rank: "SGT" },
+      { _id: "4", fullName: "W.S. Jayasuriya", policeId: "PC 34502", rank: "PC" }
+    ];
+
+    // Card Badge Color Helper for Duty Cell (Picture 1)
+    const getDutyCellBadge = (offId, dayDate) => {
+      const dateStr = formatDateStr(dayDate);
+      const key = `${offId}_${dateStr}`;
+      const asg = assignmentsMap[key];
+      const leaveRec = getOfficerLeaveForDate(offId, dayDate);
+
+      if (leaveRec) {
+        return (
+          <Box sx={{ p: 1, borderRadius: 1.5, background: "#fef2f2", border: "1px solid #fecaca", textTransform: "uppercase" }}>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "#dc2626", display: "block" }}>
+              LEAVE
+            </Typography>
+            <Box sx={{ mt: 0.5, px: 0.8, py: 0.2, borderRadius: 1, background: "#fee2e2", display: "inline-flex", alignItems: "center", gap: 0.3 }}>
+              <WarningIcon sx={{ fontSize: 10, color: "#b91c1c" }} />
+              <Typography variant="caption" sx={{ fontSize: "0.62rem", fontWeight: 800, color: "#b91c1c" }}>
+                CONFLICT
+              </Typography>
+            </Box>
+          </Box>
+        );
+      }
+
+      if (!asg) {
+        return (
+          <Typography variant="caption" sx={{ fontWeight: 700, color: "#94a3b8" }}>
+            OFF
+          </Typography>
+        );
+      }
+
+      const dutyType = asg.dutyType || "Traffic Patrol";
+      let bg = "#eff6ff";
+      let border = "#bfdbfe";
+      let textColor = "#1d4ed8";
+
+      if (dutyType.includes("Special")) {
+        bg = "#fffbeb";
+        border = "#fde68a";
+        textColor = "#b45309";
+      } else if (dutyType.includes("Night")) {
+        bg = "#faf5ff";
+        border = "#e9d5ff";
+        textColor = "#6b21a8";
+      } else if (dutyType.includes("Station")) {
+        bg = "#f8fafc";
+        border = "#cbd5e1";
+        textColor = "#334155";
+      } else if (dutyType.includes("Accident")) {
+        bg = "#fff7ed";
+        border = "#ffedd5";
+        textColor = "#c2410c";
+      }
+
+      return (
+        <Box sx={{ p: 1, borderRadius: 1.5, background: bg, border: `1px solid ${border}`, textAlign: "left" }}>
+          <Typography variant="caption" sx={{ fontWeight: 800, color: textColor, textTransform: "uppercase", display: "block", fontSize: "0.68rem" }}>
+            {dutyType}
+          </Typography>
+
+          {asg.shiftTime && (
+            <Typography variant="caption" sx={{ fontSize: "0.65rem", color: "#475569", display: "block", mt: 0.3, fontWeight: 600 }}>
+              {asg.shiftTime}
+            </Typography>
+          )}
+
+          {asg.location && (
+            <Typography variant="caption" sx={{ fontSize: "0.62rem", color: "#64748b", display: "block", mt: 0.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {asg.location}
+            </Typography>
+          )}
+        </Box>
+      );
+    };
+
+    return (
+      <Box sx={{ pb: 10, pt: 1, px: 1 }}>
+        {/* BACK TO DASHBOARD BUTTON */}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => setOicViewMode("approval_list")}
+          sx={{
+            textTransform: "none",
+            fontWeight: 700,
+            borderRadius: 2,
+            mb: 2.5,
+            borderColor: "#cbd5e1",
+            color: "#334155",
+            background: "#ffffff",
+            "&:hover": { background: "#f8fafc", borderColor: "#94a3b8" }
+          }}
+        >
+          ← Back to Duty Roster Approvals
+        </Button>
+
+        {/* TOP STEPPER & HEADER ROW (Matching Reference Image 1) */}
+        <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                  Weekly Duty Roster
+                </Typography>
+                <Chip
+                  label="PENDING OIC APPROVAL"
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: "0.72rem",
+                    background: "#fef3c7",
+                    color: "#b45309",
+                    borderRadius: 1.5,
+                    px: 0.5
+                  }}
+                />
+              </Box>
+              <Typography variant="body2" sx={{ color: "#64748b", mt: 0.8, fontWeight: 600 }}>
+                {weekLabel} &nbsp;|&nbsp; Created by <strong>IT Officer</strong> &nbsp;|&nbsp; Submitted 14 August 2026
+              </Typography>
+            </Box>
+
+            {/* STEPPER PROGRESS */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pt: 0.5 }}>
+              {/* Step 1: Submitted */}
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <Avatar sx={{ width: 28, height: 28, background: "#dcfce7", color: "#16a34a", fontSize: "0.8rem", fontWeight: 800 }}>
+                  ✓
+                </Avatar>
+                <Typography variant="caption" sx={{ mt: 0.5, fontSize: "0.65rem", fontWeight: 700, color: "#16a34a" }}>
+                  Submitted
+                </Typography>
+              </Box>
+              <Box sx={{ width: 30, height: 2, background: "#cbd5e1", mb: 2 }} />
+
+              {/* Step 2: OIC Review */}
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <Avatar sx={{ width: 28, height: 28, background: "#fef3c7", color: "#d97706", fontSize: "0.8rem" }}>
+                  ●
+                </Avatar>
+                <Typography variant="caption" sx={{ mt: 0.5, fontSize: "0.65rem", fontWeight: 800, color: "#d97706" }}>
+                  OIC Review
+                </Typography>
+              </Box>
+              <Box sx={{ width: 30, height: 2, background: "#cbd5e1", mb: 2 }} />
+
+              {/* Step 3: Decision */}
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <Avatar sx={{ width: 28, height: 28, background: "#f1f5f9", color: "#94a3b8", fontSize: "0.8rem" }}>
+                  ●
+                </Avatar>
+                <Typography variant="caption" sx={{ mt: 0.5, fontSize: "0.65rem", fontWeight: 600, color: "#94a3b8" }}>
+                  Decision
+                </Typography>
+              </Box>
+              <Box sx={{ width: 30, height: 2, background: "#cbd5e1", mb: 2 }} />
+
+              {/* Step 4: Published */}
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <Avatar sx={{ width: 28, height: 28, background: "#f1f5f9", color: "#94a3b8", fontSize: "0.8rem" }}>
+                  ●
+                </Avatar>
+                <Typography variant="caption" sx={{ mt: 0.5, fontSize: "0.65rem", fontWeight: 600, color: "#94a3b8" }}>
+                  Published
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* DARK NAVY SUB-NAVBAR (#0f172a) */}
+        <Paper
+          elevation={0}
+          sx={{
+            background: "#0f172a",
+            borderRadius: "12px 12px 0 0",
+            px: 2,
+            pt: 1.5,
+            pb: 0,
+            display: "flex",
+            gap: 2
+          }}
+        >
+          <Button
+            onClick={() => setOicTab("table")}
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              color: oicTab === "table" ? "#ffffff" : "#94a3b8",
+              borderBottom: oicTab === "table" ? "3px solid #eab308" : "3px solid transparent",
+              borderRadius: 0,
+              pb: 1.2,
+              px: 2,
+              gap: 1
+            }}
+          >
+            📅 Roster Table
+          </Button>
+
+          <Button
+            onClick={() => setOicTab("special")}
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              color: oicTab === "special" ? "#ffffff" : "#94a3b8",
+              borderBottom: oicTab === "special" ? "3px solid #eab308" : "3px solid transparent",
+              borderRadius: 0,
+              pb: 1.2,
+              px: 2,
+              gap: 1
+            }}
+          >
+            🔔 Special Duties
+          </Button>
+
+          <Button
+            onClick={() => setOicTab("history")}
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              color: oicTab === "history" ? "#ffffff" : "#94a3b8",
+              borderBottom: oicTab === "history" ? "3px solid #eab308" : "3px solid transparent",
+              borderRadius: 0,
+              pb: 1.2,
+              px: 2,
+              gap: 1
+            }}
+          >
+            🕒 Roster History
+          </Button>
+        </Paper>
+
+        {/* TAB 1: ROSTER TABLE VIEW (PICTURE 1) */}
+        {oicTab === "table" && (
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: "0 0 12px 12px", border: "1px solid #e2e8f0", borderTop: "none", background: "#ffffff" }}>
+            {/* Filter Bar */}
+            <Grid container spacing={1.5} sx={{ mb: 3 }} alignItems="center">
+              <Grid item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Search officer..."
+                  value={searchOfficer}
+                  onChange={(e) => setSearchOfficer(e.target.value)}
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ color: "#94a3b8", mr: 1, fontSize: 20 }} />
+                  }}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                />
+              </Grid>
+
+              <Grid item xs={6} sm={3} md={1.8}>
+                <FormControl fullWidth size="small">
+                  <Select value={filterDutyType} onChange={(e) => setFilterDutyType(e.target.value)} sx={{ borderRadius: 2, fontWeight: 600 }}>
+                    <MenuItem value="All">Duty Type</MenuItem>
+                    <MenuItem value="Traffic Patrol">Traffic Patrol</MenuItem>
+                    <MenuItem value="Station Duty">Station Duty</MenuItem>
+                    <MenuItem value="Night Patrol">Night Patrol</MenuItem>
+                    <MenuItem value="Accident Investigation">Accident Investigation</MenuItem>
+                    <MenuItem value="Crime Investigation">Crime Investigation</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={6} sm={3} md={1.8}>
+                <FormControl fullWidth size="small">
+                  <Select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} sx={{ borderRadius: 2, fontWeight: 600 }}>
+                    <MenuItem value="All">Shift</MenuItem>
+                    <MenuItem value="Morning Shift (06:00 - 14:00)">Morning Shift</MenuItem>
+                    <MenuItem value="Day Shift (08:00 - 16:00)">Day Shift</MenuItem>
+                    <MenuItem value="Evening Shift (14:00 - 22:00)">Evening Shift</MenuItem>
+                    <MenuItem value="Night Shift (22:00 - 06:00)">Night Shift</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={6} sm={3} md={1.8}>
+                <FormControl fullWidth size="small">
+                  <Select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} sx={{ borderRadius: 2, fontWeight: 600 }}>
+                    <MenuItem value="All">Location</MenuItem>
+                    <MenuItem value="Police Station">Police Station</MenuItem>
+                    <MenuItem value="Negombo Town Roundabout">Negombo Town Roundabout</MenuItem>
+                    <MenuItem value="Negombo Beach Road">Negombo Beach Road</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={6} sm={3} md={1.8}>
+                <FormControl fullWidth size="small">
+                  <Select value={filterConflicts} onChange={(e) => setFilterConflicts(e.target.value)} sx={{ borderRadius: 2, fontWeight: 600 }}>
+                    <MenuItem value="All">Conflicts</MenuItem>
+                    <MenuItem value="Has Conflicts">Has Conflicts</MenuItem>
+                    <MenuItem value="On Leave">On Leave</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            {/* WEEKLY DUTY TABLE */}
+            <TableContainer sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ background: "#f8fafc" }}>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569", py: 1.5, width: "160px" }}>Officer</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569", py: 1.5, width: "70px" }}>Rank</TableCell>
+                    {weekDays.map((day, idx) => (
+                      <TableCell key={idx} align="center" sx={{ fontWeight: 800, color: "#334155", py: 1.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, display: "block", color: "#0f172a" }}>
+                          {day.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>
+                          {day.getDate()} {day.toLocaleDateString("en-US", { month: "short" })}
+                        </Typography>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {displayOfficers.map((off) => (
+                    <TableRow key={off._id} hover>
+                      <TableCell sx={{ py: 2 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                          {off.fullName}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                          {off.policeId}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell sx={{ py: 2 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#475569" }}>
+                          {off.rank || "PC"}
+                        </Typography>
+                      </TableCell>
+
+                      {weekDays.map((day, dayIdx) => (
+                        <TableCell key={dayIdx} align="center" sx={{ py: 1.5, px: 1, minWidth: "120px" }}>
+                          {getDutyCellBadge(off._id, day)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
+
+        {/* TAB 2: SPECIAL DUTIES VIEW (PICTURE 2) */}
+        {oicTab === "special" && (
+          <Paper elevation={0} sx={{ p: 3, borderRadius: "0 0 12px 12px", border: "1px solid #e2e8f0", borderTop: "none", background: "#ffffff" }}>
+            {/* Special Duty Card 1 */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#b45309", display: "flex", alignItems: "center", gap: 1 }}>
+                  ✪ Independence Day Security
+                </Typography>
+                <Chip label="⚠ UNDER-STAFFED" sx={{ fontWeight: 800, fontSize: "0.72rem", background: "#fffdf5", color: "#b45309", border: "1px solid #fef08a", borderRadius: 1.5 }} />
+              </Box>
+
+              <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600, mb: 2 }}>
+                📅 19 Aug &nbsp;&nbsp; 🕒 14:00–22:00 &nbsp;&nbsp; 📍 Negombo Beach
+              </Typography>
+
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={3}>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", fontSize: "0.7rem" }}>
+                    REQUIRED
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mt: 0.5 }}>
+                    8
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", fontSize: "0.7rem" }}>
+                    ASSIGNED
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#d97706", mt: 0.5 }}>
+                    6
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Special Duty Card 2 */}
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#15803d", display: "flex", alignItems: "center", gap: 1 }}>
+                  ✪ VIP Route Escort
+                </Typography>
+                <Chip label="✓ COVERED" sx={{ fontWeight: 800, fontSize: "0.72rem", background: "#dcfce7", color: "#15803d", borderRadius: 1.5 }} />
+              </Box>
+
+              <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600, mb: 2 }}>
+                📅 21 Aug &nbsp;&nbsp; 🕒 07:00–11:00 &nbsp;&nbsp; 📍 Negombo-Colombo Rd
+              </Typography>
+
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={3}>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", fontSize: "0.7rem" }}>
+                    REQUIRED
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mt: 0.5 }}>
+                    4
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 800, textTransform: "uppercase", fontSize: "0.7rem" }}>
+                    ASSIGNED
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#15803d", mt: 0.5 }}>
+                    4
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Paper>
+        )}
+
+        {/* TAB 3: ROSTER HISTORY VIEW (PICTURE 3) */}
+        {oicTab === "history" && (
+          <Paper elevation={0} sx={{ p: 3, borderRadius: "0 0 12px 12px", border: "1px solid #e2e8f0", borderTop: "none", background: "#ffffff" }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              🕒 Roster History
+            </Typography>
+
+            <TableContainer sx={{ border: "1px solid #e2e8f0", borderRadius: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ background: "#f8fafc" }}>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569" }}>VERSION</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569" }}>DATE</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569" }}>ACTION</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569" }}>USER</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: "#475569" }}>STATUS</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800, color: "#475569" }}>ACTIONS</TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  <TableRow hover>
+                    <TableCell sx={{ fontWeight: 800 }}>V1</TableCell>
+                    <TableCell sx={{ color: "#64748b", fontWeight: 600 }}>14 Aug, 08:12</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Created</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: "#334155" }}>IT Officer</TableCell>
+                    <TableCell>
+                      <Chip label="DRAFT" size="small" sx={{ fontWeight: 800, fontSize: "0.68rem", background: "#f1f5f9", color: "#64748b" }} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button size="small" variant="outlined" startIcon={<EyeIcon />} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+
+                  <TableRow hover>
+                    <TableCell sx={{ fontWeight: 800 }}>V2</TableCell>
+                    <TableCell sx={{ color: "#64748b", fontWeight: 600 }}>14 Aug, 09:45</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Submitted</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: "#334155" }}>IT Officer</TableCell>
+                    <TableCell>
+                      <Chip label="PENDING APPROVAL" size="small" sx={{ fontWeight: 800, fontSize: "0.68rem", background: "#fef3c7", color: "#b45309" }} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button size="small" variant="outlined" startIcon={<EyeIcon />} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
+
+        {/* STICKY FOOTER ACTION BAR */}
+        <Paper
+          elevation={4}
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            p: 2,
+            px: 4,
+            background: "#ffffff",
+            borderTop: "1px solid #e2e8f0",
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            gap: 2,
+            zIndex: 1000
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={() => setRequestChangesOpen(true)}
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              fontSize: "0.95rem",
+              borderRadius: 2.5,
+              borderColor: "#fca5a5",
+              color: "#dc2626",
+              background: "#ffffff",
+              px: 3,
+              py: 1,
+              "&:hover": { background: "#fef2f2", borderColor: "#ef4444" }
+            }}
+          >
+            ⚠ Request Changes
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={() => setApproveModalOpen(true)}
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              fontSize: "0.95rem",
+              borderRadius: 2.5,
+              background: "#16a34a",
+              color: "#ffffff",
+              px: 3.5,
+              py: 1,
+              boxShadow: "0 2px 4px rgba(22, 163, 74, 0.3)",
+              "&:hover": { background: "#15803d" }
+            }}
+          >
+            ✓ Approve Roster
+          </Button>
+        </Paper>
+
+        {/* MODAL 1: REQUEST CHANGES (PICTURE 4) */}
+        <Dialog open={requestChangesOpen} onClose={() => setRequestChangesOpen(false)} maxWidth="sm" fullWidth paperProps={{ sx: { borderRadius: 3 } }}>
+          <DialogTitle sx={{ fontWeight: 800, color: "#991b1b", display: "flex", alignItems: "center", gap: 1, pt: 3 }}>
+            <WarningIcon sx={{ color: "#dc2626" }} />
+            Request Changes to Duty Roster
+          </DialogTitle>
+
+          <DialogContent sx={{ pt: 2 }}>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "#475569", textTransform: "uppercase", display: "block", mb: 0.8 }}>
+              REASON / REQUIRED CHANGES *
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              value={requestChangesReason}
+              onChange={(e) => setRequestChangesReason(e.target.value)}
+              placeholder="Enter details of required changes..."
+              sx={{ mb: 3, "& .MuiOutlinedInput-root": { borderRadius: 2.5, background: "#f8fafc" } }}
+            />
+
+            <Typography variant="caption" sx={{ fontWeight: 800, color: "#475569", textTransform: "uppercase", display: "block", mb: 1 }}>
+              RELATED AREAS (OPTIONAL)
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {["Officer", "Date", "Duty", "Shift", "Location", "Special Duty"].map(tag => {
+                const selected = requestChangesTags.includes(tag);
+                return (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    onClick={() => toggleTag(tag)}
+                    variant={selected ? "filled" : "outlined"}
+                    sx={{
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      borderColor: "#cbd5e1",
+                      background: selected ? "#0f172a" : "#ffffff",
+                      color: selected ? "#ffffff" : "#475569"
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          </DialogContent>
+
+          <DialogActions sx={{ p: 3, pt: 1, justifyContent: "flex-end", gap: 1.5 }}>
+            <Button onClick={() => setRequestChangesOpen(false)} sx={{ textTransform: "none", fontWeight: 700, color: "#64748b" }}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleConfirmRequestChanges}
+              disabled={loading || !requestChangesReason.trim()}
+              sx={{
+                textTransform: "none",
+                fontWeight: 800,
+                borderRadius: 2.5,
+                background: "#b91c1c",
+                color: "#ffffff",
+                px: 3,
+                py: 1,
+                "&:hover": { background: "#991b1b" }
+              }}
+            >
+              ← Send Back to IT Officer
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* MODAL 2: APPROVE ROSTER (PICTURE 5) */}
+        <Dialog open={approveModalOpen} onClose={() => setApproveModalOpen(false)} maxWidth="xs" fullWidth paperProps={{ sx: { borderRadius: 3.5, p: 1 } }}>
+          <DialogContent sx={{ textAlign: "center", pt: 3 }}>
+            <Avatar sx={{ background: "#dcfce7", color: "#16a34a", width: 48, height: 48, mx: "auto", mb: 2 }}>
+              ✓
+            </Avatar>
+
+            <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 2 }}>
+              Approve Weekly Roster
+            </Typography>
+
+            <Paper elevation={0} sx={{ p: 2, mb: 2.5, borderRadius: 2.5, background: "#f8fafc", textAlign: "left" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Week</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a" }}>{weekLabel}</Typography>
+              </Box>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Total Duties</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a" }}>68</Typography>
+              </Box>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Conflicts</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#16a34a", display: "flex", alignItems: "center", gap: 0.5 }}>
+                  ✓ 0
+                </Typography>
+              </Box>
+            </Paper>
+
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 1.5 }}>
+              <input
+                type="checkbox"
+                id="notifySms"
+                checked={notifyOfficersSms}
+                onChange={(e) => setNotifyOfficersSms(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: "pointer" }}
+              />
+              <label htmlFor="notifySms" style={{ fontSize: "0.85rem", fontWeight: 700, color: "#334155", cursor: "pointer" }}>
+                Notify all assigned officers via SMS/App
+              </label>
+            </Box>
+
+            <Typography variant="caption" sx={{ color: "#64748b", display: "block", px: 2, mb: 2.5 }}>
+              By approving this roster, it will be marked as official and published to all officers. <strong>This action cannot be undone.</strong>
+            </Typography>
+
+            <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5 }}>
+              <Button onClick={() => setApproveModalOpen(false)} sx={{ textTransform: "none", fontWeight: 700, color: "#64748b" }}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleConfirmApprove}
+                disabled={loading}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 800,
+                  borderRadius: 2.5,
+                  background: "#16a34a",
+                  color: "#ffffff",
+                  px: 3,
+                  py: 1,
+                  "&:hover": { background: "#15803d" }
+                }}
+              >
+                Confirm & Publish
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+      </Box>
+    );
+  };
+
   // If user is OIC and in approval list mode, render Duty Roster Approval interface
   if (isOIC && oicViewMode === "approval_list") {
     return (
       <Layout>
         {renderOICApprovalView()}
+      </Layout>
+    );
+  }
+
+  // If user is OIC and in review roster mode, render OIC Roster Review interface
+  if (isOIC) {
+    return (
+      <Layout>
+        {renderOICReviewRosterView()}
       </Layout>
     );
   }
