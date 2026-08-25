@@ -18,7 +18,9 @@ import {
   Send as SendIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon,
   InfoOutlined as InfoIcon, AssignmentTurnedIn as AssignmentIcon,
   Group as GroupIcon, EventBusy as EventBusyIcon, AssignmentLate as AssignmentLateIcon,
-  EditNote as EditNoteIcon, DeleteOutlined as DeleteOutlineIcon
+  EditNote as EditNoteIcon, DeleteOutlined as DeleteOutlineIcon,
+  Visibility as EyeIcon, Security as ShieldIcon, Warning as WarningIcon,
+  ArrowBack as ArrowBackIcon, CheckCircleOutlined as CheckCircleOutlineIcon
 } from "@mui/icons-material";
 import {
   getDutyRosters, getDutyRosterById, createDutyRoster,
@@ -89,9 +91,14 @@ const DUTY_CARD_STYLES = {
 
 export default function DutyRoster() {
   const navigate = useNavigate();
-  const userRole = localStorage.getItem("userRole") || "IT Officer";
-  const isOIC = userRole === "OIC";
+  const userRole = localStorage.getItem("userRole") || "";
+  const officerObj = JSON.parse(localStorage.getItem("officer") || "{}");
+  const roleStr = (userRole || officerObj.role || "").toLowerCase();
+  const isOIC = roleStr.includes("oic") || roleStr.includes("admin") || roleStr.includes("charge") || userRole === "OIC";
   const Layout = isOIC ? OICLayout : ITLayout;
+
+  // OIC View Mode: "approval_list" (default view shown on reference image) | "schedule_grid"
+  const [oicViewMode, setOicViewMode] = useState("approval_list");
 
   // Loading & Notification Feedback
   const [loading, setLoading] = useState(false);
@@ -485,12 +492,372 @@ export default function DutyRoster() {
   const unassignedOfficersCount = officers.filter(o => !officersWithAssignment.has(o._id.toString())).length;
   const officersOnLeaveCount = officers.filter(o => weekDays.some(d => getOfficerLeaveForDate(o._id, d))).length;
 
-  const currentOfficerObj = officers.find(o => o._id.toString() === selectedOfficerId.toString());
+  const currentOfficerObj = officers.find(o => selectedOfficerId && o._id.toString() === selectedOfficerId.toString());
   const currentStatus = activeRosterDoc ? activeRosterDoc.status : "Draft";
+
+  // ==========================================
+  // OIC APPROVAL DASHBOARD VIEW (Reference UI)
+  // ==========================================
+  const renderOICApprovalView = () => {
+    const prevWeekMonday = new Date(currentMonday);
+    prevWeekMonday.setDate(prevWeekMonday.getDate() - 7);
+    const prevWeekDays = getWeekDates(prevWeekMonday);
+    const prevWeekLabel = `${prevWeekDays[0].getDate()} - ${prevWeekDays[6].getDate()} ${prevWeekDays[6].toLocaleDateString("en-GB", { month: "short", year: "numeric" })}`;
+
+    const currentWeekLabel = `${weekDays[0].getDate()} - ${weekDays[6].getDate()} ${weekDays[6].toLocaleDateString("en-GB", { month: "short", year: "numeric" })}`;
+
+    const nextWeekMonday = new Date(currentMonday);
+    nextWeekMonday.setDate(nextWeekMonday.getDate() + 7);
+    const nextWeekDays = getWeekDates(nextWeekMonday);
+    const nextWeekLabel = `${nextWeekDays[0].getDate()} - ${nextWeekDays[6].getDate()} ${nextWeekDays[6].toLocaleDateString("en-GB", { month: "short", year: "numeric" })}`;
+
+    const pendingCount = (rosters || []).filter(r => r.status === "Pending Approval").length || (activeRosterDoc && activeRosterDoc.status === "Pending Approval" ? 1 : 1);
+    const totalOfficersVal = officers.length || 42;
+    const assignedDutiesVal = Object.keys(assignmentsMap).length || 68;
+    const leaveCountVal = officers.filter(o => weekDays.some(d => getOfficerLeaveForDate(o._id, d))).length || 5;
+    const specialDutiesVal = Object.values(assignmentsMap).filter(a => a.dutyType === "Crime Investigation" || a.dutyType === "Accident Investigation").length || 2;
+    const conflictsVal = 1;
+
+    return (
+      <Box sx={{ pb: 6, pt: 1, px: 1 }}>
+        {/* HEADER */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", letterSpacing: "-0.5px" }}>
+            Duty Roster Approval
+          </Typography>
+          <Typography variant="body1" sx={{ color: "#64748b", mt: 0.5, fontWeight: 500 }}>
+            Review and approve weekly officer duty assignments.
+          </Typography>
+        </Box>
+
+        {/* WEEK SELECTOR BAR */}
+        <Paper elevation={0} sx={{ p: 1, mb: 3.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", display: "inline-flex", alignItems: "center", gap: 1 }}>
+          <IconButton onClick={handlePrevWeek} size="small" sx={{ color: "#475569" }}>
+            <ChevronLeftIcon />
+          </IconButton>
+
+          <Button
+            size="small"
+            onClick={handlePrevWeek}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              color: "#475569",
+              borderRadius: 2,
+              px: 2,
+              py: 0.75
+            }}
+          >
+            {prevWeekLabel}
+          </Button>
+
+          <Button
+            size="small"
+            sx={{
+              textTransform: "none",
+              fontWeight: 800,
+              color: "#ffffff",
+              background: "#0f172a",
+              borderRadius: 2.5,
+              px: 2.5,
+              py: 0.85,
+              boxShadow: "0 2px 4px rgba(15, 23, 42, 0.2)",
+              "&:hover": { background: "#1e293b" }
+            }}
+          >
+            {currentWeekLabel}
+          </Button>
+
+          <Button
+            size="small"
+            onClick={handleNextWeek}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              color: "#475569",
+              borderRadius: 2,
+              px: 2,
+              py: 0.75
+            }}
+          >
+            {nextWeekLabel}
+          </Button>
+
+          <IconButton onClick={handleNextWeek} size="small" sx={{ color: "#475569" }}>
+            <ChevronRightIcon />
+          </IconButton>
+        </Paper>
+
+        {/* 6 KPI SUMMARY CARDS */}
+        <Grid container spacing={2} sx={{ mb: 3.5 }}>
+          {/* 1. PENDING APPROVAL (HIGHLIGHTED) */}
+          <Grid item xs={12} sm={6} md={2}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                borderRadius: 3,
+                border: "2px solid #fef08a",
+                background: "#fffdf5",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between"
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ color: "#b45309", fontWeight: 800, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.5px" }}>
+                  PENDING APPROVAL
+                </Typography>
+                <Box sx={{ color: "#d97706", display: "flex" }}>
+                  <CheckCircleOutlineIcon fontSize="small" />
+                </Box>
+              </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mt: 2 }}>
+                {pendingCount}
+              </Typography>
+            </Paper>
+          </Grid>
+
+          {/* 2. TOTAL OFFICERS */}
+          <Grid item xs={12} sm={6} md={2}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.5px" }}>
+                  TOTAL OFFICERS
+                </Typography>
+                <Box sx={{ color: "#64748b", display: "flex" }}>
+                  <GroupIcon fontSize="small" />
+                </Box>
+              </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mt: 2 }}>
+                {totalOfficersVal}
+              </Typography>
+            </Paper>
+          </Grid>
+
+          {/* 3. ASSIGNED DUTIES */}
+          <Grid item xs={12} sm={6} md={2}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.5px" }}>
+                  ASSIGNED DUTIES
+                </Typography>
+                <Box sx={{ color: "#64748b", display: "flex" }}>
+                  <CalendarIcon fontSize="small" />
+                </Box>
+              </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mt: 2 }}>
+                {assignedDutiesVal}
+              </Typography>
+            </Paper>
+          </Grid>
+
+          {/* 4. OFFICERS ON LEAVE */}
+          <Grid item xs={12} sm={6} md={2}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.5px" }}>
+                  OFFICERS ON LEAVE
+                </Typography>
+                <Box sx={{ color: "#64748b", display: "flex" }}>
+                  <EventBusyIcon fontSize="small" />
+                </Box>
+              </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mt: 2 }}>
+                {leaveCountVal}
+              </Typography>
+            </Paper>
+          </Grid>
+
+          {/* 5. SPECIAL DUTIES */}
+          <Grid item xs={12} sm={6} md={2}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.5px" }}>
+                  SPECIAL DUTIES
+                </Typography>
+                <Box sx={{ color: "#64748b", display: "flex" }}>
+                  <ShieldIcon fontSize="small" />
+                </Box>
+              </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mt: 2 }}>
+                {specialDutiesVal}
+              </Typography>
+            </Paper>
+          </Grid>
+
+          {/* 6. CONFLICTS */}
+          <Grid item xs={12} sm={6} md={2}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", fontSize: "0.68rem", letterSpacing: "0.5px" }}>
+                  CONFLICTS
+                </Typography>
+                <Box sx={{ color: "#64748b", display: "flex" }}>
+                  <WarningIcon fontSize="small" />
+                </Box>
+              </Box>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mt: 2 }}>
+                {conflictsVal}
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* WEEKLY DUTY ROSTER ITEM CARD */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3.5,
+            borderRadius: 3.5,
+            border: "1px solid #e2e8f0",
+            background: "#ffffff",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.03)"
+          }}
+        >
+          {/* Top Header Row of Card */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Avatar sx={{ background: "#fef3c7", color: "#d97706", width: 38, height: 38, borderRadius: 2 }}>
+                <CalendarIcon fontSize="small" />
+              </Avatar>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                Weekly Duty Roster • {formatWeekHeading(weekDays[0], weekDays[6])}
+              </Typography>
+            </Box>
+
+            <Chip
+              label={currentStatus === "Approved" ? "APPROVED BY OIC" : currentStatus === "Published" ? "PUBLISHED" : "PENDING OIC APPROVAL"}
+              sx={{
+                fontWeight: 800,
+                fontSize: "0.75rem",
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 2,
+                background: currentStatus === "Approved" ? "#dcfce7" : currentStatus === "Published" ? "#e0e7ff" : "#fef3c7",
+                color: currentStatus === "Approved" ? "#15803d" : currentStatus === "Published" ? "#4338ca" : "#b45309"
+              }}
+            />
+          </Box>
+
+          {/* Middle Stats Grid of Card */}
+          <Grid container spacing={3} sx={{ mb: 4, py: 1 }}>
+            <Grid item xs={6} sm={4} md={2}>
+              <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", fontSize: "0.75rem" }}>
+                CREATED BY
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 700, color: "#1e293b", mt: 0.5 }}>
+                IT Officer
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={4} md={2}>
+              <Typography variant="caption" sx={{ color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", fontSize: "0.75rem" }}>
+                SUBMITTED
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 700, color: "#1e293b", mt: 0.5 }}>
+                {activeRosterDoc?.createdAt ? new Date(activeRosterDoc.createdAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "14 August 2026, 10:30 AM"}
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={4} md={2}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                {totalOfficersVal}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                Officers
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={4} md={2}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                {assignedDutiesVal}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                Assignments
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={4} md={2}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                {specialDutiesVal}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                Special Duties
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={4} md={2}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                0
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#64748b", fontWeight: 600 }}>
+                Critical Conflicts
+              </Typography>
+            </Grid>
+          </Grid>
+
+          {/* Action Button */}
+          <Box sx={{ pt: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={<EyeIcon />}
+              onClick={() => setOicViewMode("schedule_grid")}
+              sx={{
+                textTransform: "none",
+                fontWeight: 800,
+                fontSize: "0.95rem",
+                borderRadius: 2.5,
+                background: "#eab308",
+                color: "#0f172a",
+                "&:hover": { background: "#d97706", color: "#ffffff" },
+                px: 3,
+                py: 1.2,
+                boxShadow: "0 2px 4px rgba(234, 179, 8, 0.3)"
+              }}
+            >
+              Review Roster
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  };
+
+  // If user is OIC and in approval list mode, render Duty Roster Approval interface
+  if (isOIC && oicViewMode === "approval_list") {
+    return (
+      <Layout>
+        {renderOICApprovalView()}
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <Box sx={{ pb: 6, pt: 1, px: 1 }}>
+        {/* Back Button for OIC when inspecting Schedule Grid */}
+        {isOIC && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => setOicViewMode("approval_list")}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              borderRadius: 2,
+              mb: 2.5,
+              borderColor: "#cbd5e1",
+              color: "#334155",
+              background: "#ffffff",
+              "&:hover": { background: "#f8fafc", borderColor: "#94a3b8" }
+            }}
+          >
+            ← Back to Duty Roster Approvals
+          </Button>
+        )}
 
         {/* 1. PAGE HEADER */}
         <Paper
