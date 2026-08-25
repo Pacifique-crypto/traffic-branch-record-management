@@ -55,9 +55,6 @@ app.use("/api/admin", adminRoutes);
 const vehicleRoutes = require("./routes/vehicleRoutes");
 app.use("/api/vehicles", vehicleRoutes);
 
-const dataRoutes = require("./routes/dataRoutes");
-app.use("/api", dataRoutes);
-
 const dutyRoutes = require("./routes/dutyRoutes");
 app.use("/api/duties", dutyRoutes);
 
@@ -66,6 +63,9 @@ app.use("/api/leaves", leaveRoutes);
 
 const demoDriverLicenceRoutes = require("./routes/demoDriverLicenceRoutes");
 app.use("/api/demo-driver-licences", demoDriverLicenceRoutes);
+
+const dataRoutes = require("./routes/dataRoutes");
+app.use("/api", dataRoutes);
 
 // Auto-seed initial demo driver licences
 const DemoDriverLicence = require("./models/DemoDriverLicence");
