@@ -119,10 +119,59 @@ const [driverNIC, setDriverNIC] = useState("");
 const [drivingLicence, setDrivingLicence] = useState("");
 const [showQRScanner, setShowQRScanner] = useState(false);
 
-const handleQRScanSuccess = (data) => {
+const handleQRScanSuccess = async (data) => {
   const value = typeof data === "string" ? data : (data?.licenseNo || data?.raw || "");
-  if (value) {
-    setDrivingLicence(value);
+  if (!value) return;
+
+  const cleanLicence = String(value || "").trim();
+  setDrivingLicence(cleanLicence);
+
+  console.log("QR licence value:", cleanLicence);
+  const url = `${BASE_URL}/demo-driver-licences/verify/${encodeURIComponent(cleanLicence)}`;
+  console.log("Licence verification URL:", url);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
+      }
+    });
+
+    console.log("Verification HTTP status:", response.status);
+    const responseText = await response.text();
+    console.log("Verification raw response:", responseText);
+
+    let resData = null;
+    try {
+      resData = JSON.parse(responseText);
+    } catch (e) {
+      console.log("JSON parse error on verification response:", e);
+    }
+
+    if (response.ok && resData && resData.success && resData.driver) {
+      const { fullName, address, nic, licenceNumber } = resData.driver;
+      if (fullName) setDriverName(fullName);
+      if (address) setDriverAddress(address);
+      if (nic) setDriverNIC(nic);
+      if (licenceNumber) setDrivingLicence(licenceNumber);
+
+      Alert.alert(
+        "✓ Licence Verified",
+        "Driver details retrieved successfully."
+      );
+    } else {
+      Alert.alert(
+        "Verification Error",
+        "Driving licence could not be verified. Please check the licence or enter the driver details manually."
+      );
+    }
+  } catch (err) {
+    console.log("Licence verification error:", err);
+    Alert.alert(
+      "Verification Error",
+      "Driving licence could not be verified. Please check the licence or enter the driver details manually."
+    );
   }
 };
 

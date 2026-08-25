@@ -249,24 +249,6 @@ export const getDutyRosterById = async (id) => {
   return res.json();
 };
 
-export const generateAIDutyRoster = async (data) => {
-  const res = await fetch(`${BASE_URL}/duties/rosters/generate`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const validateDutyRoster = async (data) => {
-  const res = await fetch(`${BASE_URL}/duties/rosters/validate`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
 export const createDutyRoster = async (data) => {
   const res = await fetch(`${BASE_URL}/duties/rosters`, {
     method: "POST",
@@ -281,6 +263,14 @@ export const updateDutyRosterStatus = async (id, data) => {
     method: "PUT",
     headers: getHeaders(),
     body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const deleteDutyRoster = async (id) => {
+  const res = await fetch(`${BASE_URL}/duties/rosters/${id}`, {
+    method: "DELETE",
+    headers: getHeaders(),
   });
   return res.json();
 };
