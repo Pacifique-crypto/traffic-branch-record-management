@@ -127,16 +127,30 @@ const handleQRScanSuccess = async (data) => {
   setDrivingLicence(cleanLicence);
 
   console.log("QR licence value:", cleanLicence);
-  const url = `${BASE_URL}/demo-driver-licences/verify/${encodeURIComponent(cleanLicence)}`;
-  console.log("Licence verification URL:", url);
+  let url = `${BASE_URL}/demo-driver-licences/verify/${encodeURIComponent(cleanLicence)}`;
+  console.log("Licence verification URL (primary):", url);
 
   try {
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
         ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
       }
     });
+
+    if (response.status === 404) {
+      const fallbackUrl = `${BASE_URL}/duties/demo-driver-licences/verify/${encodeURIComponent(cleanLicence)}`;
+      console.log("Licence verification URL (fallback):", fallbackUrl);
+      const fallbackRes = await fetch(fallbackUrl, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
+        }
+      });
+      if (fallbackRes.ok) {
+        response = fallbackRes;
+      }
+    }
 
     console.log("Verification HTTP status:", response.status);
     const responseText = await response.text();
