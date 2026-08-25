@@ -4,6 +4,9 @@ const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware")
 
 const Accident = require("../models/Accident");
 const Violation = require("../models/Violation");
+const demoDriverLicenceRoutes = require("./demoDriverLicenceRoutes");
+
+router.use("/demo-driver-licences", demoDriverLicenceRoutes);
 
 const parseSafeInt = (val) => {
   const parsed = parseInt(val, 10);
