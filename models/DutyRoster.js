@@ -52,7 +52,12 @@ const dutyRosterSchema = new mongoose.Schema({
   },
   approvedBy: String,
   publishedDate: Date,
-  assignments: [dutyAssignmentSchema]
 }, { timestamps: true });
+
+// Indexes for high-performance roster filtering and officer mobile app queries
+dutyRosterSchema.index({ status: 1, rosterType: 1 });
+dutyRosterSchema.index({ weekStart: 1, weekEnd: 1 });
+dutyRosterSchema.index({ date: 1 });
+dutyRosterSchema.index({ "assignments.officer": 1, status: 1 });
 
 module.exports = mongoose.model("DutyRoster", dutyRosterSchema);

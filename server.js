@@ -77,6 +77,7 @@ const seedDemoDriverLicences = async () => {
         fullName: "Kasun Perera",
         address: "No. 45, Main Street, Negombo",
         age: 27,
+        nic: "199812345678",
         licenceStatus: "Valid"
       },
       {
@@ -84,6 +85,7 @@ const seedDemoDriverLicences = async () => {
         fullName: "Nimal Fernando",
         address: "No. 12, Beach Road, Negombo",
         age: 35,
+        nic: "199112345679",
         licenceStatus: "Valid"
       },
       {
@@ -91,6 +93,7 @@ const seedDemoDriverLicences = async () => {
         fullName: "Amal Silva",
         address: "No. 78, Station Road, Kochchikade",
         age: 31,
+        nic: "199512345680",
         licenceStatus: "Valid"
       },
       {
@@ -98,6 +101,7 @@ const seedDemoDriverLicences = async () => {
         fullName: "Dilshan Jayawardena",
         address: "No. 24, Main Road, Colombo",
         age: 42,
+        nic: "198312345681",
         licenceStatus: "Valid"
       }
     ];
@@ -105,7 +109,7 @@ const seedDemoDriverLicences = async () => {
     for (const record of demoRecords) {
       await DemoDriverLicence.findOneAndUpdate(
         { licenceNumber: record.licenceNumber },
-        { $setOnInsert: record },
+        { $set: record },
         { upsert: true, new: true }
       );
     }

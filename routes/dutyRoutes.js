@@ -5,9 +5,7 @@ const DutyRoster = require("../models/DutyRoster");
 const OfficerAvailability = require("../models/OfficerAvailability");
 const Officer = require("../models/Officer");
 const Shift = require("../models/Shift");
-const Vehicle = require("../models/Vehicle");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
-const { recommendOfficer } = require("../services/AIRecommendationService");
 
 // ==========================================
 // DUTY SHIFTS CRUD
@@ -147,7 +145,6 @@ router.get("/availability", verifyToken, async (req, res) => {
 router.post("/availability", verifyToken, async (req, res) => {
   try {
     const { officerId, date, status, shift } = req.body;
-    // status: 'Available', 'On Leave'
     const availability = await OfficerAvailability.findOneAndUpdate(
       { officer: officerId, date: new Date(date) },
       { officer: officerId, date: new Date(date), status, shift: shift || "All" },
@@ -160,10 +157,10 @@ router.post("/availability", verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// DUTY ROSTERS & AI GENERATION ENGINE
+// DUTY ROSTERS API
 // ==========================================
 
-// Get all rosters (with filters)
+// Get all rosters
 router.get("/rosters", verifyToken, async (req, res) => {
   try {
     const query = {};
@@ -191,464 +188,7 @@ router.get("/rosters/:id", verifyToken, async (req, res) => {
   }
 });
 
-// Helper: Rank values hierarchy for scoring
-const RANK_HIERARCHY = {
-  "Constable": 1,
-  "Sergeant": 2,
-  "Sub-Inspector": 3,
-  "Inspector": 4
-};
-
-// AI RECOMMENDATION ENGINE (Rule-Based Generator)
-router.post("/rosters/generate", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
-  try {
-    const { rosterType, date, shift, weekStart, weekEnd, enableAI } = req.body;
-
-    const activeOfficers = await Officer.find({ status: { $ne: "Pending" } });
-    let rules = await DutyRule.find({}).populate("shift");
-    const activeShifts = await Shift.find({ isActive: true });
-    
-    if (rules.length === 0) {
-      rules = [
-        { location: "Negombo Clock Tower Junction", dutyType: "Traffic Control", requiredOfficers: 2, minRank: "Constable", priority: "High" },
-        { location: "Beach Road Tourism Zone", dutyType: "Patrol Duty", requiredOfficers: 2, minRank: "Constable", priority: "Medium" },
-        { location: "Colombo-Chilaw Highway (A3)", dutyType: "Speed Check & Inspection", requiredOfficers: 2, minRank: "Sergeant", priority: "High" },
-        { location: "Kochchikade Bridge Checkpoint", dutyType: "Security Checkpoint", requiredOfficers: 1, minRank: "Constable", priority: "Medium" }
-      ];
-    }
-
-    const assignments = [];
-    const dateRange = [];
-
-    if (rosterType === "Daily") {
-      dateRange.push(new Date(date));
-    } else {
-      // Weekly: generate array of 7 dates
-      const start = new Date(weekStart);
-      const end = new Date(weekEnd);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        dateRange.push(new Date(d));
-      }
-    }
-
-    // Keep track of assignments in-memory during generator run to check workload
-    // Key format: officerId -> Count of shifts assigned during this generator run
-    const weeklyWorkload = {};
-    activeOfficers.forEach(o => {
-      weeklyWorkload[o._id.toString()] = 0;
-    });
-
-    // Fetch existing published/approved assignments in this range to populate workload
-    const rangeStart = dateRange[0];
-    const rangeEnd = dateRange[dateRange.length - 1];
-    const rangeStartDay = new Date(rangeStart);
-    rangeStartDay.setHours(0, 0, 0, 0);
-    const rangeEndDay = new Date(rangeEnd);
-    rangeEndDay.setHours(23, 59, 59, 999);
-
-    const existingRosters = await DutyRoster.find({
-      status: { $in: ["Approved", "Published"] },
-      $or: [
-        { date: { $gte: rangeStartDay, $lte: rangeEndDay } },
-        { weekStart: { $gte: rangeStartDay }, weekEnd: { $lte: rangeEndDay } }
-      ]
-    });
-
-    existingRosters.forEach(r => {
-      r.assignments.forEach(asg => {
-        if (asg.officer) {
-          const offIdStr = asg.officer.toString();
-          if (weeklyWorkload[offIdStr] !== undefined) {
-            weeklyWorkload[offIdStr] += 1;
-          }
-        }
-      });
-    });
-
-    // Custom availabilities / leaves
-    const leaves = await OfficerAvailability.find({
-      startDate: { $lte: rangeEndDay },
-      endDate: { $gte: rangeStartDay }
-    });
-
-    const getSriLankaDayBoundaries = (dateInput) => {
-      const d = new Date(dateInput);
-      const slDateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
-      const [year, month, day] = slDateStr.split("-").map(Number);
-
-      const startOfSLDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
-      const endOfSLDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - (5.5 * 60 * 60 * 1000));
-
-      return { startOfSLDay, endOfSLDay };
-    };
-
-    const isOfficerOnLeave = (officerId, targetDate) => {
-      const offIdStr = officerId.toString();
-      const { startOfSLDay, endOfSLDay } = getSriLankaDayBoundaries(targetDate);
-
-      return leaves.some(l => {
-        if (!l || !l.officer) return false;
-        const leaveOffId = (l.officer._id || l.officer).toString();
-        if (leaveOffId !== offIdStr) return false;
-        const s = new Date(l.startDate);
-        const e = new Date(l.endDate);
-        return s <= endOfSLDay && e >= startOfSLDay;
-      });
-    };
-
-    // Fetch all published rosters & available vehicles
-    const publishedRosters = await DutyRoster.find({ status: "Published" });
-    const availableVehicles = await Vehicle.find({ status: { $in: ["AVAILABLE", "Active", "Approved"] } });
-    const assignedVehiclesPerShift = new Set();
-
-    const getOfficerConsecutiveCount = (officerId, targetDate) => {
-      let count = 0;
-      const offIdStr = officerId.toString();
-      let checkDate = new Date(targetDate);
-      checkDate.setDate(checkDate.getDate() - 1);
-
-      for (let i = 0; i < 7; i++) {
-        const dayStr = checkDate.toDateString();
-        const workedInPublished = publishedRosters.some(r =>
-          r.assignments && r.assignments.some(a =>
-            a.officer && a.officer.toString() === offIdStr &&
-            new Date(a.date).toDateString() === dayStr
-          )
-        );
-        const workedInCurrent = assignments.some(a =>
-          a.officer && a.officer.toString() === offIdStr &&
-          new Date(a.date).toDateString() === dayStr
-        );
-        if (workedInPublished || workedInCurrent) {
-          count++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-      return count;
-    };
-
-    const isRuleMatchingShift = (rule, targetShiftObj) => {
-      if (!rule || !rule.shift) {
-        return true; // Fallback rule without shift reference applies to all
-      }
-      const targetIdStr = targetShiftObj._id ? targetShiftObj._id.toString() : "";
-      const targetName = targetShiftObj.name || "";
-
-      if (typeof rule.shift === "object" && rule.shift._id) {
-        const ruleShiftIdStr = rule.shift._id.toString();
-        return ruleShiftIdStr === targetIdStr || rule.shift.name === targetName;
-      }
-      const ruleShiftStr = String(rule.shift);
-      return ruleShiftStr === targetIdStr || ruleShiftStr === targetName;
-    };
-
-    // Sort rules by priority (High first) so we assign important slots first
-    const sortedRules = [...rules].sort((a, b) => {
-      const priorityMap = { High: 3, Medium: 2, Low: 1 };
-      return (priorityMap[b.priority] || 2) - (priorityMap[a.priority] || 2);
-    });
-
-    // Generate assignments day by day
-    for (const d of dateRange) {
-      const dayStr = d.toDateString();
-
-      // Determine shifts to process for this generator run
-      let shiftsToProcess = activeShifts;
-      if (rosterType === "Daily") {
-        const matched = activeShifts.filter(s => s.name === shift || s._id.toString() === shift);
-        if (matched.length > 0) {
-          shiftsToProcess = matched;
-        } else {
-          shiftsToProcess = [{ _id: "daily_custom", name: shift }];
-        }
-      }
-
-      for (const shObj of shiftsToProcess) {
-        const sh = shObj.name;
-        // Track which officers are already assigned to a duty on this date and shift
-        const shiftAssignedOfficers = new Set();
-
-        // Filter rules matching the current shift
-        const matchingRules = sortedRules.filter(rule => isRuleMatchingShift(rule, shObj));
-
-        for (const rule of matchingRules) {
-          const required = rule.requiredOfficers || 1;
-
-          for (let count = 0; count < required; count++) {
-            let bestOfficer = null;
-            let highestScore = -Infinity;
-            let bestReason = "";
-
-            // Check vehicle allocation for this rule slot
-            let allocatedVehicle = null;
-            if (rule.requiresVehicle) {
-              allocatedVehicle = availableVehicles.find(v =>
-                !assignedVehiclesPerShift.has(`${v._id.toString()}_${dayStr}_${sh}`) &&
-                (!rule.vehicleType || (v.vehicleType || "").toLowerCase() === (rule.vehicleType || "").toLowerCase())
-              ) || null;
-
-              // HARD CONSTRAINT: If requiresVehicle is true and NO matching vehicle is available,
-              // DO NOT assign an officer for this vehicle slot.
-              if (!allocatedVehicle) {
-                continue;
-              }
-            }
-
-            if (!enableAI) {
-              // Select first eligible officer without scoring
-              for (const officer of activeOfficers) {
-                const offIdStr = officer._id.toString();
-                if (shiftAssignedOfficers.has(offIdStr)) continue;
-                if (isOfficerOnLeave(officer._id, d)) continue;
-                
-                const officerRankVal = RANK_HIERARCHY[officer.rank] || 1;
-                const requiredRankVal = RANK_HIERARCHY[rule.minRank] || 1;
-                if (officerRankVal < requiredRankVal) continue;
-
-                const consecutiveCount = getOfficerConsecutiveCount(officer._id, d);
-                if (consecutiveCount >= (rule.maxConsecutiveAssignments || 3)) continue;
-
-                bestOfficer = officer;
-                bestReason = "✓ Available\n✓ Rank Eligible";
-                if (rule.requiresVehicle && allocatedVehicle) {
-                  bestReason += `\n✓ Vehicle Allocated: ${allocatedVehicle.vehicleType} (${allocatedVehicle.registrationNo})`;
-                }
-                break;
-              }
-            } else {
-              // Run AI Rule-Based scoring using AIRecommendationService
-              const yesterday = new Date(d);
-              yesterday.setDate(yesterday.getDate() - 1);
-              const yesterdayStr = yesterday.toDateString();
-
-              // Get all assignments for yesterday
-              const yesterdayAsgs = [];
-              assignments.forEach(asg => {
-                if (new Date(asg.date).toDateString() === yesterdayStr) {
-                  yesterdayAsgs.push({
-                    officer: asg.officer,
-                    location: asg.location,
-                    shift: asg.shift,
-                    date: asg.date
-                  });
-                }
-              });
-
-              existingRosters.forEach(r => {
-                r.assignments.forEach(asg => {
-                  if (new Date(asg.date).toDateString() === yesterdayStr) {
-                    yesterdayAsgs.push({
-                      officer: asg.officer,
-                      location: asg.location,
-                      shift: asg.shift,
-                      date: asg.date
-                    });
-                  }
-                });
-              });
-
-              // Construct currentAssignments in this run + shiftAssignedOfficers
-              const currentAssignments = assignments.map(asg => ({
-                officer: asg.officer,
-                date: asg.date,
-                shift: asg.shift
-              }));
-              shiftAssignedOfficers.forEach(offId => {
-                if (!currentAssignments.some(asg => asg.officer.toString() === offId && asg.shift === sh)) {
-                  currentAssignments.push({
-                    officer: offId,
-                    date: d,
-                    shift: sh
-                  });
-                }
-              });
-
-              for (const officer of activeOfficers) {
-                const consecutiveCount = getOfficerConsecutiveCount(officer._id, d);
-                const { score, reason } = recommendOfficer(
-                  officer,
-                  rule,
-                  d,
-                  sh,
-                  yesterdayAsgs,
-                  currentAssignments,
-                  leaves,
-                  consecutiveCount,
-                  allocatedVehicle
-                );
-
-                if (score > highestScore) {
-                  highestScore = score;
-                  bestOfficer = officer;
-                  bestReason = reason;
-                }
-              }
-            }
-
-            if (bestOfficer) {
-              const offIdStr = bestOfficer._id.toString();
-              shiftAssignedOfficers.add(offIdStr);
-              weeklyWorkload[offIdStr] += 1;
-              if (allocatedVehicle) {
-                assignedVehiclesPerShift.add(`${allocatedVehicle._id.toString()}_${dayStr}_${sh}`);
-              }
-
-              assignments.push({
-                officer: bestOfficer._id,
-                officerName: bestOfficer.fullName,
-                officerRank: bestOfficer.rank,
-                officerPoliceId: bestOfficer.policeId,
-                location: rule.location,
-                dutyType: rule.dutyType,
-                date: d,
-                shift: sh,
-                aiRecommendationReason: bestReason
-              });
-            }
-          }
-        }
-      }
-    }
-
-    res.json({
-      rosterType,
-      status: "Draft",
-      date: rosterType === "Daily" ? date : undefined,
-      weekStart: rosterType === "Weekly" ? weekStart : undefined,
-      weekEnd: rosterType === "Weekly" ? weekEnd : undefined,
-      shift: rosterType === "Daily" ? shift : undefined,
-      createdBy: req.user.username,
-      assignments
-    });
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Validate Manual / AI Roster
-router.post("/rosters/validate", verifyToken, async (req, res) => {
-  try {
-    const { assignments, weekStart, weekEnd } = req.body;
-    const errors = [];
-    const warnings = [];
-
-    if (!Array.isArray(assignments) || assignments.length === 0) {
-      return res.json({ isValid: true, errors: [], warnings: ["No assignments to validate."] });
-    }
-
-    const rangeStart = weekStart ? new Date(weekStart) : new Date();
-    const rangeEnd = weekEnd ? new Date(weekEnd) : new Date();
-
-    const getSriLankaDayBoundaries = (dateInput) => {
-      const d = new Date(dateInput);
-      const slDateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
-      const [year, month, day] = slDateStr.split("-").map(Number);
-      const startOfSLDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
-      const endOfSLDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - (5.5 * 60 * 60 * 1000));
-      return { startOfSLDay, endOfSLDay };
-    };
-
-    // Fetch leaves
-    const leaves = await OfficerAvailability.find({
-      startDate: { $lte: rangeEnd },
-      endDate: { $gte: rangeStart }
-    }).populate("officer");
-
-    // Fetch rules & officers
-    const rules = await DutyRule.find({});
-    const officers = await Officer.find({});
-    const officerMap = new Map();
-    officers.forEach(o => officerMap.set(o._id.toString(), o));
-
-    const RANK_HIERARCHY = {
-      "Constable": 1,
-      "Sergeant": 2,
-      "Sub-Inspector": 3,
-      "Inspector": 4
-    };
-
-    // Map officer-date assignments to detect double booking
-    const officerDateShiftMap = new Map();
-
-    for (let i = 0; i < assignments.length; i++) {
-      const asg = assignments[i];
-      if (!asg || !asg.officer) continue;
-
-      const offIdStr = (asg.officer._id || asg.officer).toString();
-      const officerObj = officerMap.get(offIdStr);
-      const offName = asg.officerName || (officerObj ? officerObj.fullName : "Officer");
-      const asgDate = new Date(asg.date);
-      const dateStr = asgDate.toDateString();
-
-      // 1. Leave Check
-      const { startOfSLDay, endOfSLDay } = getSriLankaDayBoundaries(asgDate);
-      const activeLeave = leaves.find(l => {
-        if (!l || !l.officer) return false;
-        const leaveOffId = (l.officer._id || l.officer).toString();
-        if (leaveOffId !== offIdStr) return false;
-        const s = new Date(l.startDate);
-        const e = new Date(l.endDate);
-        return s <= endOfSLDay && e >= startOfSLDay;
-      });
-
-      if (activeLeave) {
-        errors.push({
-          assignmentIndex: i,
-          officerId: offIdStr,
-          officerName: offName,
-          date: dateStr,
-          type: "LEAVE_CONFLICT",
-          message: `Cannot assign duty: ${offName} is on approved leave (${activeLeave.leaveType || "Leave"}).`
-        });
-      }
-
-      // 2. Rank Check
-      if (asg.dutyType && asg.location) {
-        const matchingRule = rules.find(r => r.dutyType === asg.dutyType && r.location === asg.location);
-        if (matchingRule && matchingRule.minRank) {
-          const offRank = asg.officerRank || (officerObj ? officerObj.rank : "Constable");
-          const offRankVal = RANK_HIERARCHY[offRank] || 1;
-          const reqRankVal = RANK_HIERARCHY[matchingRule.minRank] || 1;
-          if (offRankVal < reqRankVal) {
-            errors.push({
-              assignmentIndex: i,
-              officerId: offIdStr,
-              officerName: offName,
-              date: dateStr,
-              type: "RANK_INSUFFICIENT",
-              message: `${offName} (${offRank}) does not meet minimum rank requirement (${matchingRule.minRank}) for ${asg.dutyType}.`
-            });
-          }
-        }
-      }
-
-      // 3. Double Booking Check
-      const key = `${offIdStr}_${dateStr}_${asg.shift}`;
-      if (officerDateShiftMap.has(key)) {
-        errors.push({
-          assignmentIndex: i,
-          officerId: offIdStr,
-          officerName: offName,
-          date: dateStr,
-          type: "DOUBLE_BOOKING",
-          message: `${offName} is assigned to multiple duties on ${dateStr} for ${asg.shift}.`
-        });
-      } else {
-        officerDateShiftMap.set(key, true);
-      }
-    }
-
-    const isValid = errors.length === 0;
-    res.json({ isValid, errors, warnings });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Create/save Roster (Draft or Submit)
+// Create/save Roster
 router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
   try {
     const { rosterType, status, date, weekStart, weekEnd, shift, assignments } = req.body;
@@ -671,10 +211,10 @@ router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), asyn
   }
 });
 
-// Update Roster (Approval workflow, Publish status, Draft updates)
+// Update Roster
 router.put("/rosters/:id", verifyToken, async (req, res) => {
   try {
-    const { status, assignments, approvedBy } = req.body;
+    const { status, assignments, approvedBy, rejectionRemarks } = req.body;
     
     const updateData = {};
     if (status) {
@@ -686,6 +226,9 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
         updateData.publishedDate = new Date();
       }
     }
+    if (rejectionRemarks !== undefined) {
+      updateData.rejectionRemarks = rejectionRemarks;
+    }
     if (assignments) {
       updateData.assignments = assignments;
     }
@@ -696,8 +239,18 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
       { new: true }
     );
 
-    // If published, we can automatically trigger a notification here or let frontend do it
     res.json(roster);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete Roster
+router.delete("/rosters/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), async (req, res) => {
+  try {
+    const deleted = await DutyRoster.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ message: "Roster not found" });
+    res.json({ message: "Roster deleted successfully" });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -708,33 +261,32 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
 // ==========================================
 router.get("/officer/:policeId", verifyToken, async (req, res) => {
   try {
-    // Find the officer first
     const officer = await Officer.findOne({ policeId: req.params.policeId });
     if (!officer) return res.status(404).json({ message: "Officer not found" });
 
-    // Find all published rosters that contain this officer in assignments
     const rosters = await DutyRoster.find({
       status: "Published",
       "assignments.officer": officer._id
     }).sort({ createdAt: -1 });
 
-    // Map and extract only assignments belonging to this officer
     const officerDuties = [];
     rosters.forEach(r => {
-      r.assignments.forEach(asg => {
-        if (asg.officer.toString() === officer._id.toString()) {
-          officerDuties.push({
-            id: asg._id,
-            rosterId: r._id,
-            rosterType: r.rosterType,
-            location: asg.location,
-            dutyType: asg.dutyType,
-            date: asg.date,
-            shift: asg.shift,
-            publishedDate: r.publishedDate
-          });
-        }
-      });
+      if (Array.isArray(r.assignments)) {
+        r.assignments.forEach(asg => {
+          if (asg && asg.officer && asg.officer.toString() === officer._id.toString()) {
+            officerDuties.push({
+              id: asg._id,
+              rosterId: r._id,
+              rosterType: r.rosterType,
+              location: asg.location,
+              dutyType: asg.dutyType,
+              date: asg.date,
+              shift: asg.shift,
+              publishedDate: r.publishedDate
+            });
+          }
+        });
+      }
     });
 
     res.json(officerDuties);

@@ -37,6 +37,7 @@ router.get("/verify/:licenceNumber", async (req, res) => {
         fullName: driver.fullName,
         address: driver.address,
         age: driver.age,
+        nic: driver.nic,
         licenceStatus: driver.licenceStatus
       }
     });
@@ -65,6 +66,7 @@ router.get("/", async (req, res) => {
         fullName: d.fullName,
         address: d.address,
         age: d.age,
+        nic: d.nic,
         licenceStatus: d.licenceStatus
       }))
     });

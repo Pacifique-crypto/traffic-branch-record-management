@@ -22,6 +22,11 @@ const demoDriverLicenceSchema = new mongoose.Schema(
       type: Number,
       required: true
     },
+    nic: {
+      type: String,
+      required: true,
+      trim: true
+    },
     licenceStatus: {
       type: String,
       default: "Valid",
