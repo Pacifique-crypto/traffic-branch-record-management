@@ -763,31 +763,12 @@ onChangeText={setDriverAge}
 Driving Licence No.
 </Text>
 
-<View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
-  <TextInput
-    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-    placeholder="Enter Driving Licence Number"
-    value={drivingLicence}
-    onChangeText={setDrivingLicence}
-  />
-  <TouchableOpacity
-    style={{
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#0284c7",
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-      borderRadius: 10,
-      marginLeft: 8,
-      elevation: 2,
-    }}
-    onPress={() => setShowQRScanner(true)}
-    activeOpacity={0.8}
-  >
-    <Ionicons name="camera-outline" size={20} color="#ffffff" style={{ marginRight: 4 }} />
-    <Text style={{ color: "#ffffff", fontSize: 13, fontWeight: "600" }}>Scan</Text>
-  </TouchableOpacity>
-</View>
+<TextInput
+style={styles.input}
+placeholder="Enter Driving Licence Number"
+value={drivingLicence}
+onChangeText={setDrivingLicence}
+/>
 
 <View
 style={{
@@ -840,16 +821,6 @@ Continue →
 
 <View style={styles.card}>
 
-<Text style={styles.label}>
-Assistant Officer
-</Text>
-
-<TextInput
-style={styles.input}
-placeholder="Enter Assistant Officer"
-value={assistantOfficer}
-onChangeText={setAssistantOfficer}
-/>
 
 <Text style={styles.label}>
 Killed / Injured Name
