@@ -275,6 +275,10 @@ router.put("/me", verifyToken, async (req, res) => {
     if (admin) {
       if (updateData.fullName) admin.fullName = updateData.fullName;
       if (updateData.email !== undefined) admin.email = updateData.email;
+      if (updateData.contactNo !== undefined) admin.contactNo = updateData.contactNo;
+      if (updateData.address !== undefined) admin.address = updateData.address;
+      if (updateData.profileImage !== undefined) admin.profileImage = updateData.profileImage;
+
       if (updateData.newPassword || updateData.password) {
         const targetPw = updateData.newPassword || updateData.password;
         if (updateData.currentPassword) {

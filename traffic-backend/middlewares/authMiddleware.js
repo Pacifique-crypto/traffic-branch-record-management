@@ -24,18 +24,18 @@ const authorizeRoles = (...allowedRoles) => {
       return res.status(401).json({ message: "Unauthorized. Please log in." });
     }
 
-    const userRole = (req.user.role || "").toLowerCase().trim();
+    const userRole = (req.user.role || "officer").toLowerCase().trim();
     
     // Normalize role collections:
     const adminRoles = ["admin", "it officer", "itofficer", "it_officer", "it officer/admin", "it officer admin", "it"];
     const oicRoles = ["oic", "oic traffic branch", "oic_traffic_branch"];
-    const officerRoles = ["officer", "traffic officer", "traffic_officer", "constable", "wpc", "pc", "police officer", "user", "sub inspector", "inspector", "sergeant", "police"];
+    const officerRoles = ["officer", "traffic officer", "traffic_officer", "constable", "wpc", "pc", "police officer", "user", "sub inspector", "inspector", "sergeant", "police", "traffic branch officer", "police officer/constable"];
 
     let rolesToCheck = [userRole];
     if (adminRoles.some(r => userRole.includes(r))) {
-      rolesToCheck = [...adminRoles, userRole];
+      rolesToCheck = [...adminRoles, ...oicRoles, ...officerRoles, userRole];
     } else if (oicRoles.some(r => userRole.includes(r))) {
-      rolesToCheck = [...oicRoles, userRole];
+      rolesToCheck = [...oicRoles, ...officerRoles, userRole];
     } else {
       rolesToCheck = [...officerRoles, userRole];
     }
@@ -44,7 +44,9 @@ const authorizeRoles = (...allowedRoles) => {
     const normalizedAllowedRoles = allowedRoles.reduce((acc, r) => {
       const lower = r.toLowerCase().trim();
       acc.push(lower);
-      if (lower === "officer" || lower === "traffic officer" || lower === "user") acc.push(...officerRoles);
+      if (lower === "officer" || lower === "traffic officer" || lower === "user" || lower === "all") {
+        acc.push(...officerRoles, ...adminRoles, ...oicRoles);
+      }
       if (lower === "admin" || lower === "it officer") acc.push(...adminRoles);
       if (lower === "oic") acc.push(...oicRoles);
       return acc;
