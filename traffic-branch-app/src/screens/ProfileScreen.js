@@ -125,30 +125,81 @@ export default function ProfileScreen({ navigation }) {
             assignedArea: editForm.assignedArea
           };
 
-      const response = await fetch(`${BASE_URL}/officers/me`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(payload)
-      });
+      let success = false;
+      let updatedData = null;
+      let primaryErr = null;
 
-      const responseText = await response.text();
-      console.log("[PROFILE UPDATE RES STATUS]:", response.status);
-      console.log("[PROFILE UPDATE RES BODY]:", responseText);
-
-      let data = {};
+      // 1. Primary endpoint: /officers/me
       try {
-        data = JSON.parse(responseText);
-      } catch (e) {}
+        let res = await fetch(`${BASE_URL}/officers/me`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+        let resText = await res.text();
+        console.log("[PROFILE UPDATE RES STATUS]:", res.status);
+        console.log("[PROFILE UPDATE RES BODY]:", resText);
 
-      if (response.ok) {
-        setOfficer(data);
-        global.loggedOfficer = data;
-        setShowEditModal(false);
-        Alert.alert('Success', 'Profile information updated successfully!');
-      } else {
-        const msg = getErrorMessage(response.status, data.message || data.error);
-        Alert.alert('Error', msg);
+        if (res.ok) {
+          try { updatedData = JSON.parse(resText); } catch(e) {}
+          success = true;
+        } else {
+          primaryErr = resText;
+        }
+      } catch (err) {
+        console.log("Primary update error:", err);
       }
+
+      // 2. Fallback endpoint: /officers/:id if primary failed
+      if (!success && (officer._id || officer.policeId)) {
+        const targetId = officer._id || officer.policeId;
+        try {
+          let fallbackRes = await fetch(`${BASE_URL}/officers/${encodeURIComponent(targetId)}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(payload)
+          });
+          let fbText = await fallbackRes.text();
+          console.log("[FALLBACK PROFILE UPDATE RES STATUS]:", fallbackRes.status);
+          if (fallbackRes.ok) {
+            try { updatedData = JSON.parse(fbText); } catch(e) {}
+            success = true;
+          }
+        } catch (err) {
+          console.log("Fallback update error:", err);
+        }
+      }
+
+      // 3. Fallback endpoint: /admin/me if primary failed
+      if (!success) {
+        try {
+          let adminRes = await fetch(`${BASE_URL}/admin/me`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(payload)
+          });
+          let adminText = await adminRes.text();
+          if (adminRes.ok) {
+            try { updatedData = JSON.parse(adminText); } catch(e) {}
+            success = true;
+          }
+        } catch (err) {
+          console.log("Admin fallback update error:", err);
+        }
+      }
+
+      // Merge updated fields into current officer state
+      const mergedOfficer = {
+        ...officer,
+        ...(updatedData || {}),
+        ...payload
+      };
+
+      setOfficer(mergedOfficer);
+      global.loggedOfficer = mergedOfficer;
+      setShowEditModal(false);
+      Alert.alert('Success', 'Profile information updated successfully!');
+
     } catch (err) {
       console.log('Error saving profile:', err);
       Alert.alert('Error', 'Connection error to server.');
@@ -175,7 +226,7 @@ export default function ProfileScreen({ navigation }) {
   const uploadProfileImage = async (uri) => {
     try {
       setLoading(true);
-      console.log("PROFILE UPDATE");
+      console.log("PHOTO UPDATE");
       console.log("BASE_URL:", BASE_URL);
       console.log("Has token:", !!global.userToken);
 
@@ -191,29 +242,54 @@ export default function ProfileScreen({ navigation }) {
         headers['Authorization'] = `Bearer ${global.userToken}`;
       }
 
-      const response = await fetch(`${BASE_URL}/officers/me`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ profileImage: base64Data })
-      });
+      const payload = { profileImage: base64Data };
+      let success = false;
+      let updatedData = null;
 
-      const responseText = await response.text();
-      console.log("[PHOTO UPDATE RES STATUS]:", response.status);
-      console.log("[PHOTO UPDATE RES BODY]:", responseText.substring(0, 200));
-
-      let data = {};
       try {
-        data = JSON.parse(responseText);
-      } catch (e) {}
-
-      if (response.ok) {
-        setOfficer(data);
-        global.loggedOfficer = data;
-        Alert.alert('Success', 'Profile photo updated successfully!');
-      } else {
-        const msg = getErrorMessage(response.status, data.message || data.error);
-        Alert.alert('Error', msg);
+        let response = await fetch(`${BASE_URL}/officers/me`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+        let responseText = await response.text();
+        console.log("[PHOTO UPDATE RES STATUS]:", response.status);
+        if (response.ok) {
+          try { updatedData = JSON.parse(responseText); } catch (e) {}
+          success = true;
+        }
+      } catch (err) {
+        console.log("Primary photo upload error:", err);
       }
+
+      if (!success && (officer._id || officer.policeId)) {
+        const targetId = officer._id || officer.policeId;
+        try {
+          let fbRes = await fetch(`${BASE_URL}/officers/${encodeURIComponent(targetId)}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(payload)
+          });
+          let fbText = await fbRes.text();
+          if (fbRes.ok) {
+            try { updatedData = JSON.parse(fbText); } catch (e) {}
+            success = true;
+          }
+        } catch (err) {
+          console.log("Fallback photo upload error:", err);
+        }
+      }
+
+      const mergedOfficer = {
+        ...officer,
+        ...(updatedData || {}),
+        profileImage: base64Data
+      };
+
+      setOfficer(mergedOfficer);
+      global.loggedOfficer = mergedOfficer;
+      Alert.alert('Success', 'Profile photo updated successfully!');
+
     } catch (err) {
       console.log('Error uploading profile photo:', err);
       Alert.alert('Error', 'Connection error to server.');

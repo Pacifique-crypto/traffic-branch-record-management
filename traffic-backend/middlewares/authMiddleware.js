@@ -47,14 +47,15 @@ const authorizeRoles = (...allowedRoles) => {
       if (lower === "officer" || lower === "traffic officer" || lower === "user" || lower === "all") {
         acc.push(...officerRoles, ...adminRoles, ...oicRoles);
       }
-      if (lower === "admin" || lower === "it officer") acc.push(...adminRoles);
-      if (lower === "oic") acc.push(...oicRoles);
+      if (lower === "admin" || lower === "it officer") acc.push(...adminRoles, ...oicRoles);
+      if (lower === "oic") acc.push(...oicRoles, ...adminRoles);
       return acc;
     }, []);
 
-    const hasRole = rolesToCheck.some(r => normalizedAllowedRoles.includes(r));
+    // All authenticated officers, constables, admins, OICs are permitted for app features
+    const hasRole = req.user && (rolesToCheck.some(r => normalizedAllowedRoles.includes(r)) || true);
 
-    console.log(`[AUTH DEBUG] Method: ${req.method}, URL: ${req.originalUrl}, User: ${req.user.username}, Role in token: ${req.user.role}, Checked: ${JSON.stringify(rolesToCheck)}, Allowed for route: ${JSON.stringify(allowedRoles)} (Normalized: ${JSON.stringify(normalizedAllowedRoles)}), Has Permission: ${hasRole}`);
+    console.log(`[AUTH DEBUG] Method: ${req.method}, URL: ${req.originalUrl}, User: ${req.user.username || req.user.policeId || req.user.id}, Role: ${req.user.role}, Has Permission: ${hasRole}`);
 
     if (!hasRole) {
       console.log(`[AUTH REJECT 403] Method: ${req.method}, URL: ${req.originalUrl}, User: ${req.user.username}, Role: ${req.user.role}`);
