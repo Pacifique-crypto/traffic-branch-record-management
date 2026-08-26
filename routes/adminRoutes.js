@@ -138,6 +138,9 @@ router.put("/me", verifyToken, async (req, res) => {
     if (admin) {
       if (targetName) admin.fullName = targetName;
       if (email !== undefined) admin.email = email;
+      if (contactNo !== undefined) admin.contactNo = contactNo;
+      if (req.body.address !== undefined) admin.address = req.body.address;
+      if (req.body.profileImage !== undefined) admin.profileImage = req.body.profileImage;
       
       const targetPw = newPassword || password;
       if (targetPw) {
