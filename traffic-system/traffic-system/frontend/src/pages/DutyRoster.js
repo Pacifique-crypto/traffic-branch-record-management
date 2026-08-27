@@ -3481,57 +3481,6 @@ export default function DutyRoster() {
             </Button>
           </DialogActions>
         </Dialog>
-
-        {/* ADD DUTY REQUIREMENT SUB-DIALOG */}
-        <Dialog open={addReqDialogOpen} onClose={() => setAddReqDialogOpen(false)} maxWidth="xs" fullWidth>
-          <DialogTitle sx={{ fontWeight: 800 }}>Add Duty Requirement</DialogTitle>
-          <DialogContent divider sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Duty Type</InputLabel>
-              <Select value={newReqForm.type} label="Duty Type" onChange={e => setNewReqForm({ ...newReqForm, type: e.target.value })}>
-                <MenuItem value="Traffic Patrol">Traffic Patrol</MenuItem>
-                <MenuItem value="Night Patrol">Night Patrol</MenuItem>
-                <MenuItem value="Station Duty">Station Duty</MenuItem>
-                <MenuItem value="Motorcycle Patrol">Motorcycle Patrol</MenuItem>
-                <MenuItem value="Crime Investigation">Crime Investigation</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField label="Shift Time" size="small" value={newReqForm.shift} onChange={e => setNewReqForm({ ...newReqForm, shift: e.target.value })} />
-            <TextField label="Location" size="small" value={newReqForm.location} onChange={e => setNewReqForm({ ...newReqForm, location: e.target.value })} />
-            <TextField label="Required Count" type="number" size="small" value={newReqForm.required} onChange={e => setNewReqForm({ ...newReqForm, required: parseInt(e.target.value, 10) || 1 })} />
-            <FormControl fullWidth size="small">
-              <InputLabel>Rank</InputLabel>
-              <Select value={newReqForm.rank} label="Rank" onChange={e => setNewReqForm({ ...newReqForm, rank: e.target.value })}>
-                <MenuItem value="PC">PC (Constable)</MenuItem>
-                <MenuItem value="WPC">WPC (Woman Constable)</MenuItem>
-                <MenuItem value="Sergeant">Sergeant</MenuItem>
-                <MenuItem value="SI">SI (Sub Inspector)</MenuItem>
-                <MenuItem value="IP">IP (Inspector)</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth size="small">
-              <InputLabel>Priority</InputLabel>
-              <Select value={newReqForm.priority} label="Priority" onChange={e => setNewReqForm({ ...newReqForm, priority: e.target.value })}>
-                <MenuItem value="Normal">Normal</MenuItem>
-                <MenuItem value="High">High</MenuItem>
-                <MenuItem value="Critical">Critical</MenuItem>
-              </Select>
-            </FormControl>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setAddReqDialogOpen(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              onClick={() => {
-                setDutyRequirements([...dutyRequirements, { ...newReqForm, id: Date.now() }]);
-                setAddReqDialogOpen(false);
-              }}
-              sx={{ textTransform: "none", fontWeight: 700, background: "#2563eb" }}
-            >
-              Add Requirement
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Box>
     </Layout>
   );
