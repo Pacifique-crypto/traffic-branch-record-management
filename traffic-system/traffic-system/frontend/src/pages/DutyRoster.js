@@ -3228,6 +3228,19 @@ export default function DutyRoster() {
                   </Button>
                 </Paper>
 
+                {/* FOOTER ACTIONS */}
+                <Box sx={{ display: "flex", justifyContent: "flex-start", alignItems: "center", mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setAutoStep(4)}
+                    sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
+                  >
+                    Back
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
             {/* STEP 6: ROSTER GENERATED SUCCESSFULLY (MATCHING IMAGE 1 EXACTLY) */}
             {autoStep === 6 && (
               <Box>
