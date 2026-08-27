@@ -1724,16 +1724,6 @@ export default function DutyRoster() {
           {/* Workflow Action Bar */}
           <Box sx={{ mt: 2.5, pt: 2, borderTop: "1px solid #f1f5f9", display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
-              {!isOIC && (
-                <>
-                  <Button variant="outlined" size="small" startIcon={<SaveIcon />} onClick={handleSaveDraft} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
-                    Save Draft
-                  </Button>
-                  <Button variant="contained" color="warning" size="small" startIcon={<SendIcon />} onClick={handleSubmitToOIC} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
-                    Submit to OIC
-                  </Button>
-                </>
-              )}
 
               {isOIC && currentStatus === "Pending Approval" && (
                 <>
