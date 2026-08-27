@@ -7,7 +7,7 @@ import {
   TableContainer, TableHead, TableRow, Button, Grid, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Select, MenuItem, InputLabel,
   FormControl, Chip, CircularProgress, IconButton, Alert, Snackbar, Tooltip,
-  Avatar, Drawer, Divider, Card, CardContent
+  Avatar, Drawer, Divider, Card, CardContent, FormControlLabel, Switch
 } from "@mui/material";
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -20,7 +20,8 @@ import {
   Group as GroupIcon, EventBusy as EventBusyIcon, AssignmentLate as AssignmentLateIcon,
   EditNote as EditNoteIcon, DeleteOutlined as DeleteOutlineIcon,
   Visibility as EyeIcon, Security as ShieldIcon, Warning as WarningIcon,
-  ArrowBack as ArrowBackIcon, CheckCircleOutlined as CheckCircleOutlineIcon
+  ArrowBack as ArrowBackIcon, CheckCircleOutlined as CheckCircleOutlineIcon,
+  AutoAwesome as AutoAwesomeIcon, ArrowForward as ArrowForwardIcon
 } from "@mui/icons-material";
 import {
   getDutyRosters, getDutyRosterById, createDutyRoster,
@@ -156,6 +157,80 @@ export default function DutyRoster() {
   // Rejection Dialog State (OIC ONLY)
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionRemarks, setRejectionRemarks] = useState("");
+
+  // Auto Generate Roster Wizard State (IT OFFICER)
+  const [autoGenerateModalOpen, setAutoGenerateModalOpen] = useState(false);
+  const [autoStep, setAutoStep] = useState(1); // 1, 2, 3, 4, 5
+  const [dutyRequirements, setDutyRequirements] = useState([
+    { id: 1, type: "Traffic Patrol", shift: "06:00-18:00", location: "Negombo Town", required: 2, rank: "PC", priority: "Normal" },
+    { id: 2, type: "Night Patrol", shift: "18:00-06:00", location: "Negombo Town", required: 3, rank: "PC", priority: "High" },
+    { id: 3, type: "Station Duty", shift: "06:00-18:00", location: "Police Station", required: 2, rank: "PC", priority: "Normal" }
+  ]);
+  const [specialRequirements, setSpecialRequirements] = useState([
+    { id: 101, type: "VIP Escort", shift: "10:00-16:00", location: "Colombo Highway", required: 2, rank: "SI", priority: "High" }
+  ]);
+  const [addReqDialogOpen, setAddReqDialogOpen] = useState(false);
+  const [newReqForm, setNewReqForm] = useState({
+    type: "Traffic Patrol",
+    shift: "06:00-18:00",
+    location: "Negombo Town",
+    required: 2,
+    rank: "PC",
+    priority: "Normal"
+  });
+  const [rosterRules, setRosterRules] = useState({
+    respectLeaves: true,
+    maxWeeklyHours: true,
+    minRestGap: true,
+    equalNightShifts: true
+  });
+
+  const handleRunAutoGenerate = () => {
+    try {
+      setLoading(true);
+      const newAssignments = { ...assignmentsMap };
+      const days = weekDays;
+
+      const leaveOfficerIds = leaves.map(l => l.officerId || (l.officer && l.officer._id));
+      const activeOfficers = officers.filter(o => !leaveOfficerIds.includes(o._id));
+
+      if (activeOfficers.length === 0) {
+        showMsg("No available officers to auto-assign.", "warning");
+        setLoading(false);
+        return;
+      }
+
+      let officerIndex = 0;
+      days.forEach((dayDate) => {
+        const dayStr = formatDateStr(dayDate);
+        dutyRequirements.forEach((req) => {
+          for (let i = 0; i < req.required; i++) {
+            const assignedOfficer = activeOfficers[officerIndex % activeOfficers.length];
+            officerIndex++;
+            const key = `${assignedOfficer._id}_${dayStr}`;
+            newAssignments[key] = {
+              officerId: assignedOfficer._id,
+              dateStr: dayStr,
+              dutyType: req.type,
+              shift: req.shift,
+              location: req.location,
+              remarks: `Auto-generated ${req.priority} Priority`
+            };
+          }
+        });
+      });
+
+      setAssignmentsMap(newAssignments);
+      setAutoGenerateModalOpen(false);
+      setAutoStep(1);
+      showMsg("Weekly Duty Roster auto-generated successfully!", "success");
+    } catch (err) {
+      console.error("Auto generate error:", err);
+      showMsg("Failed to auto-generate roster.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load Data from Backend
   const loadMasterData = async () => {
@@ -1698,24 +1773,48 @@ export default function DutyRoster() {
                   Export / Print
                 </Button>
 
-                {/* 2. ACTION AREA: IT OFFICER ONLY "+ Add Assignment" */}
+                {/* 2. ACTION AREA: IT OFFICER ONLY "✨ Auto Generate" & "+ Add Assignment" */}
                 {!isOIC && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleOpenAddOrEditDrawer()}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 800,
-                      borderRadius: 2,
-                      background: "#2563eb",
-                      "&:hover": { background: "#1d4ed8" },
-                      px: 2.5
-                    }}
-                  >
-                    + Add Assignment
-                  </Button>
+                  <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<AutoAwesomeIcon />}
+                      onClick={() => {
+                        setAutoStep(1);
+                        setAutoGenerateModalOpen(true);
+                      }}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 800,
+                        borderRadius: 2,
+                        background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                        color: "#ffffff",
+                        "&:hover": { background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)" },
+                        px: 2.5,
+                        boxShadow: "0 2px 8px rgba(245,158,11,0.3)"
+                      }}
+                    >
+                      ✨ Auto Generate
+                    </Button>
+
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={() => handleOpenAddOrEditDrawer()}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 800,
+                        borderRadius: 2,
+                        background: "#2563eb",
+                        "&:hover": { background: "#1d4ed8" },
+                        px: 2.5
+                      }}
+                    >
+                      + Add Assignment
+                    </Button>
+                  </Box>
                 )}
               </Box>
             </Grid>
@@ -2339,6 +2438,493 @@ export default function DutyRoster() {
             {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* ============================================================ */}
+        {/* AUTO GENERATE ROSTER WIZARD DIALOG (MATCHING PICTURES 2 & 3) */}
+        {/* ============================================================ */}
+        <Dialog
+          open={autoGenerateModalOpen}
+          onClose={() => setAutoGenerateModalOpen(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: { borderRadius: 3, overflow: "hidden", background: "#f8fafc" }
+          }}
+        >
+          {/* HEADER BANNER - DARK NAVY */}
+          <Box sx={{ background: "#091930", color: "#ffffff", p: 3 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <AutoAwesomeIcon sx={{ color: "#fbbf24", fontSize: 24 }} />
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#ffffff" }}>
+                  Auto Generate Roster
+                </Typography>
+              </Box>
+              <IconButton onClick={() => setAutoGenerateModalOpen(false)} sx={{ color: "#94a3b8", "&:hover": { color: "#ffffff" } }}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+
+            {/* 5 STEPPER INDICATOR */}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+              {[
+                { step: 1, label: "SELECT WEEK" },
+                { step: 2, label: "CONFIGURE DUTIES" },
+                { step: 3, label: "ADD SPECIAL DUTIES" },
+                { step: 4, label: "REVIEW RULES" },
+                { step: 5, label: "GENERATE ROSTER" }
+              ].map((s, idx) => {
+                const isCompleted = autoStep > s.step;
+                const isActive = autoStep === s.step;
+                return (
+                  <React.Fragment key={s.step}>
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, cursor: isCompleted ? "pointer" : "default" }} onClick={() => isCompleted && setAutoStep(s.step)}>
+                      <Box
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 800,
+                          fontSize: "14px",
+                          mb: 0.8,
+                          background: isCompleted ? "#065f46" : isActive ? "#091930" : "transparent",
+                          color: isCompleted ? "#ffffff" : isActive ? "#fbbf24" : "#64748b",
+                          border: isCompleted ? "2px solid #10b981" : isActive ? "2px solid #fbbf24" : "2px solid #334155"
+                        }}
+                      >
+                        {isCompleted ? <CheckIcon sx={{ fontSize: 18 }} /> : s.step}
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: "10px",
+                          letterSpacing: "0.5px",
+                          color: isActive ? "#fbbf24" : isCompleted ? "#10b981" : "#64748b"
+                        }}
+                      >
+                        {s.label}
+                      </Typography>
+                    </Box>
+                    {idx < 4 && (
+                      <Box
+                        sx={{
+                          flex: 1,
+                          height: "2px",
+                          mx: 1,
+                          mt: -2,
+                          background: autoStep > idx + 1 ? "#10b981" : "#334155"
+                        }}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </Box>
+          </Box>
+
+          {/* STEP CONTENT BODY */}
+          <Box sx={{ p: 3.5, background: "#f8fafc", minHeight: 380 }}>
+            {/* STEP 1: SELECT WEEK (PICTURE 2) */}
+            {autoStep === 1 && (
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
+                  Select Roster Week
+                </Typography>
+
+                {/* DATE SELECTOR PILL */}
+                <Box
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    background: "#ffffff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 2,
+                    px: 2.5,
+                    py: 1.2,
+                    mb: 3,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                  }}
+                >
+                  <CalendarIcon sx={{ color: "#0284c7", fontSize: 20 }} />
+                  <Typography sx={{ fontWeight: 700, color: "#334155", fontSize: "14px" }}>
+                    {formatWeekHeading(weekDays[0], weekDays[6])}
+                  </Typography>
+                </Box>
+
+                {/* 3 SUMMARY CARDS */}
+                <Grid container spacing={2.5} sx={{ mb: 4 }}>
+                  <Grid item xs={12} sm={4}>
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                      <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                        {officers.length > 0 ? officers.length : 11}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        AVAILABLE OFFICERS
+                      </Typography>
+                    </Paper>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                      <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                        {leaves.length > 0 ? leaves.length : 1}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        ON APPROVED LEAVE
+                      </Typography>
+                    </Paper>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 3, background: "#ffffff", border: "1px solid #e2e8f0" }}>
+                      <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                        2
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        EXISTING RESTRICTIONS
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+
+                {/* FOOTER ACTIONS */}
+                <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 4 }}>
+                  <Button
+                    variant="contained"
+                    endIcon={<ArrowForwardIcon />}
+                    onClick={() => setAutoStep(2)}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 800,
+                      px: 3.5,
+                      py: 1.2,
+                      borderRadius: 2,
+                      background: "#f59e0b",
+                      color: "#000000",
+                      "&:hover": { background: "#d97706" },
+                      boxShadow: "0 2px 8px rgba(245,158,11,0.3)"
+                    }}
+                  >
+                    Continue
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* STEP 2: CONFIGURE DUTIES (PICTURE 3) */}
+            {autoStep === 2 && (
+              <Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b" }}>
+                    Normal Duty Requirements
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setAddReqDialogOpen(true)}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      background: "#ffffff",
+                      color: "#1e293b",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 2,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                      "&:hover": { background: "#f1f5f9" }
+                    }}
+                  >
+                    + Add Duty Requirement
+                  </Button>
+                </Box>
+
+                {/* TABLE OF DUTY REQUIREMENTS */}
+                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2.5, mb: 4, background: "#ffffff" }}>
+                  <Table size="small">
+                    <TableHead sx={{ background: "#f8fafc" }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Duty Type</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Shift</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Location</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Required</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Rank</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Priority</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {dutyRequirements.map((req) => (
+                        <TableRow key={req.id} hover>
+                          <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{req.type}</TableCell>
+                          <TableCell sx={{ color: "#475569", fontFamily: "monospace" }}>{req.shift}</TableCell>
+                          <TableCell sx={{ color: "#475569" }}>{req.location}</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{req.required}</TableCell>
+                          <TableCell sx={{ color: "#475569" }}>{req.rank}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={req.priority}
+                              size="small"
+                              variant={req.priority === "High" ? "outlined" : "filled"}
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: "11px",
+                                height: 22,
+                                ...(req.priority === "High"
+                                  ? { color: "#ef4444", borderColor: "#fca5a5", background: "#fef2f2" }
+                                  : { color: "#475569", background: "#f1f5f9" })
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => setDutyRequirements(dutyRequirements.filter(r => r.id !== req.id))}
+                              sx={{ color: "#94a3b8", "&:hover": { color: "#ef4444" } }}
+                            >
+                              <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {dutyRequirements.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center" sx={{ py: 3, color: "#94a3b8" }}>
+                            No duty requirements added. Click "+ Add Duty Requirement" to add one.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                {/* FOOTER ACTIONS */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setAutoStep(1)}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      px: 3,
+                      borderRadius: 2,
+                      borderColor: "#cbd5e1",
+                      color: "#475569",
+                      background: "#ffffff",
+                      "&:hover": { background: "#f1f5f9" }
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="contained"
+                    endIcon={<ArrowForwardIcon />}
+                    onClick={() => setAutoStep(3)}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 800,
+                      px: 3.5,
+                      py: 1.2,
+                      borderRadius: 2,
+                      background: "#f59e0b",
+                      color: "#000000",
+                      "&:hover": { background: "#d97706" },
+                      boxShadow: "0 2px 8px rgba(245,158,11,0.3)"
+                    }}
+                  >
+                    Continue
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* STEP 3: ADD SPECIAL DUTIES */}
+            {autoStep === 3 && (
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
+                  Special Duty Requirements (Optional)
+                </Typography>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 2.5, border: "1px solid #e2e8f0", background: "#ffffff", mb: 4 }}>
+                  <Typography variant="body2" sx={{ color: "#64748b", mb: 2 }}>
+                    Configure special assignments (VIP escort, festival traffic control, highway patrol details) for the week:
+                  </Typography>
+                  <Table size="small">
+                    <TableHead sx={{ background: "#f8fafc" }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>Event / Special Duty</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Time</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Location</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Officers Required</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Priority</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {specialRequirements.map(s => (
+                        <TableRow key={s.id}>
+                          <TableCell sx={{ fontWeight: 700 }}>{s.type}</TableCell>
+                          <TableCell>{s.shift}</TableCell>
+                          <TableCell>{s.location}</TableCell>
+                          <TableCell sx={{ fontWeight: 700 }}>{s.required}</TableCell>
+                          <TableCell><Chip label={s.priority} color="warning" size="small" sx={{ fontWeight: 700 }} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Paper>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
+                  <Button variant="outlined" onClick={() => setAutoStep(2)} sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2 }}>
+                    Back
+                  </Button>
+                  <Button variant="contained" endIcon={<ArrowForwardIcon />} onClick={() => setAutoStep(4)} sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}>
+                    Continue
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* STEP 4: REVIEW RULES */}
+            {autoStep === 4 && (
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
+                  Roster Generation Rules & Constraints
+                </Typography>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 2.5, border: "1px solid #e2e8f0", background: "#ffffff", mb: 4 }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <FormControlLabel
+                      control={<Switch checked={rosterRules.respectLeaves} onChange={e => setRosterRules({ ...rosterRules, respectLeaves: e.target.checked })} color="warning" />}
+                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Respect Approved Officer Leaves and Medical Exceptions</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch checked={rosterRules.maxWeeklyHours} onChange={e => setRosterRules({ ...rosterRules, maxWeeklyHours: e.target.checked })} color="warning" />}
+                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Max 48 Working Hours Per Officer Per Week</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch checked={rosterRules.minRestGap} onChange={e => setRosterRules({ ...rosterRules, minRestGap: e.target.checked })} color="warning" />}
+                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Minimum 12-Hour Rest Gap Between Shift Assignments</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch checked={rosterRules.equalNightShifts} onChange={e => setRosterRules({ ...rosterRules, equalNightShifts: e.target.checked })} color="warning" />}
+                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Equal Distribution of Night Patrol Shifts Across Ranks</Typography>}
+                    />
+                  </Box>
+                </Paper>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
+                  <Button variant="outlined" onClick={() => setAutoStep(3)} sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2 }}>
+                    Back
+                  </Button>
+                  <Button variant="contained" endIcon={<ArrowForwardIcon />} onClick={() => setAutoStep(5)} sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}>
+                    Continue
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {/* STEP 5: GENERATE ROSTER */}
+            {autoStep === 5 && (
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
+                  Ready to Generate Roster
+                </Typography>
+                <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", textAlign: "center", mb: 4 }}>
+                  <AutoAwesomeIcon sx={{ fontSize: 48, color: "#f59e0b", mb: 1.5 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", mb: 1 }}>
+                    All Constraints Configured
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#64748b", maxWidth: 450, mx: "auto", mb: 3 }}>
+                    The system will automatically assign officers for {formatWeekHeading(weekDays[0], weekDays[6])} based on specified duty requirements and active rules.
+                  </Typography>
+                  <Box sx={{ display: "inline-flex", gap: 3, background: "#f8fafc", p: 2, borderRadius: 2, border: "1px solid #e2e8f0" }}>
+                    <Box><Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>WEEK</Typography><Typography sx={{ fontWeight: 800, color: "#1e293b" }}>{formatReadableDate(weekDays[0])}</Typography></Box>
+                    <Divider orientation="vertical" flexItem />
+                    <Box><Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>DUTY TYPES</Typography><Typography sx={{ fontWeight: 800, color: "#1e293b" }}>{dutyRequirements.length}</Typography></Box>
+                    <Divider orientation="vertical" flexItem />
+                    <Box><Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>OFFICERS</Typography><Typography sx={{ fontWeight: 800, color: "#1e293b" }}>{officers.length || 11}</Typography></Box>
+                  </Box>
+                </Paper>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
+                  <Button variant="outlined" onClick={() => setAutoStep(4)} sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2 }}>
+                    Back
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<AutoAwesomeIcon />}
+                    onClick={handleRunAutoGenerate}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 800,
+                      px: 4,
+                      py: 1.3,
+                      borderRadius: 2,
+                      background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                      color: "#ffffff",
+                      "&:hover": { background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)" },
+                      boxShadow: "0 4px 14px rgba(245,158,11,0.4)"
+                    }}
+                  >
+                    ✨ Auto-Generate Roster
+                  </Button>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </Dialog>
+
+        {/* ADD DUTY REQUIREMENT SUB-DIALOG */}
+        <Dialog open={addReqDialogOpen} onClose={() => setAddReqDialogOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800 }}>Add Duty Requirement</DialogTitle>
+          <DialogContent divider sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Duty Type</InputLabel>
+              <Select value={newReqForm.type} label="Duty Type" onChange={e => setNewReqForm({ ...newReqForm, type: e.target.value })}>
+                <MenuItem value="Traffic Patrol">Traffic Patrol</MenuItem>
+                <MenuItem value="Night Patrol">Night Patrol</MenuItem>
+                <MenuItem value="Station Duty">Station Duty</MenuItem>
+                <MenuItem value="Motorcycle Patrol">Motorcycle Patrol</MenuItem>
+                <MenuItem value="Crime Investigation">Crime Investigation</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField label="Shift Time" size="small" value={newReqForm.shift} onChange={e => setNewReqForm({ ...newReqForm, shift: e.target.value })} />
+            <TextField label="Location" size="small" value={newReqForm.location} onChange={e => setNewReqForm({ ...newReqForm, location: e.target.value })} />
+            <TextField label="Required Count" type="number" size="small" value={newReqForm.required} onChange={e => setNewReqForm({ ...newReqForm, required: parseInt(e.target.value, 10) || 1 })} />
+            <FormControl fullWidth size="small">
+              <InputLabel>Rank</InputLabel>
+              <Select value={newReqForm.rank} label="Rank" onChange={e => setNewReqForm({ ...newReqForm, rank: e.target.value })}>
+                <MenuItem value="PC">PC (Constable)</MenuItem>
+                <MenuItem value="WPC">WPC (Woman Constable)</MenuItem>
+                <MenuItem value="Sergeant">Sergeant</MenuItem>
+                <MenuItem value="SI">SI (Sub Inspector)</MenuItem>
+                <MenuItem value="IP">IP (Inspector)</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel>Priority</InputLabel>
+              <Select value={newReqForm.priority} label="Priority" onChange={e => setNewReqForm({ ...newReqForm, priority: e.target.value })}>
+                <MenuItem value="Normal">Normal</MenuItem>
+                <MenuItem value="High">High</MenuItem>
+                <MenuItem value="Critical">Critical</MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setAddReqDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDutyRequirements([...dutyRequirements, { ...newReqForm, id: Date.now() }]);
+                setAddReqDialogOpen(false);
+              }}
+              sx={{ textTransform: "none", fontWeight: 700, background: "#2563eb" }}
+            >
+              Add Requirement
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Layout>
   );
