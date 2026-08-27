@@ -161,29 +161,63 @@ export default function DutyRoster() {
   // Auto Generate Roster Wizard State (IT OFFICER)
   const [autoGenerateModalOpen, setAutoGenerateModalOpen] = useState(false);
   const [autoStep, setAutoStep] = useState(1); // 1, 2, 3, 4, 5
+
+  // Step 2 Inline Form & List State (Matching Screenshot 1)
+  const [showInlineDutyForm, setShowInlineDutyForm] = useState(false);
+  const [dutyReqForm, setDutyReqForm] = useState({
+    type: "Traffic Patrol",
+    shift: "06:00-18:00",
+    location: "Police Station",
+    required: 2,
+    rank: "PC",
+    priority: "Normal"
+  });
+
   const [dutyRequirements, setDutyRequirements] = useState([
     { id: 1, type: "Traffic Patrol", shift: "06:00-18:00", location: "Negombo Town", required: 2, rank: "PC", priority: "Normal" },
     { id: 2, type: "Night Patrol", shift: "18:00-06:00", location: "Negombo Town", required: 3, rank: "PC", priority: "High" },
     { id: 3, type: "Station Duty", shift: "06:00-18:00", location: "Police Station", required: 2, rank: "PC", priority: "Normal" }
   ]);
-  const [specialRequirements, setSpecialRequirements] = useState([
-    { id: 101, type: "VIP Escort", shift: "10:00-16:00", location: "Colombo Highway", required: 2, rank: "SI", priority: "High" }
-  ]);
-  const [addReqDialogOpen, setAddReqDialogOpen] = useState(false);
-  const [newReqForm, setNewReqForm] = useState({
-    type: "Traffic Patrol",
+
+  // Step 3 Inline Form & List State (Matching Screenshots 2 & 3)
+  const [showInlineSpecialForm, setShowInlineSpecialForm] = useState(false);
+  const [specialDutyForm, setSpecialDutyForm] = useState({
+    name: "",
+    date: "20 Aug 2026",
     shift: "06:00-18:00",
-    location: "Negombo Town",
-    required: 2,
+    location: "Police Station",
+    required: 4,
     rank: "PC",
     priority: "Normal"
   });
-  const [rosterRules, setRosterRules] = useState({
-    respectLeaves: true,
-    maxWeeklyHours: true,
-    minRestGap: true,
-    equalNightShifts: true
-  });
+
+  const [specialDutiesList, setSpecialDutiesList] = useState([
+    {
+      id: 101,
+      name: "Independence Day Security",
+      date: "19 Aug 2026",
+      shift: "14:00-22:00",
+      location: "Negombo Beach",
+      required: 8,
+      rank: "PC",
+      priority: "High Priority",
+      status: "Planned"
+    }
+  ]);
+
+  // Step 4 10 Scheduling Rules State (Matching Screenshot 4)
+  const [schedulingRules, setSchedulingRules] = useState([
+    { id: 1, label: "Do not assign officers on approved leave", enabled: true },
+    { id: 2, label: "Avoid overlapping duties", enabled: true },
+    { id: 3, label: "Respect minimum rest period", enabled: true },
+    { id: 4, label: "Consider officer rank requirements", enabled: true },
+    { id: 5, label: "Consider duty eligibility", enabled: true },
+    { id: 6, label: "Balance workload between officers", enabled: true },
+    { id: 7, label: "Consider special duty requirements", enabled: true },
+    { id: 8, label: "Avoid repeated night duties where possible", enabled: true },
+    { id: 9, label: "Avoid assigning morning duty immediately after night duty", enabled: true },
+    { id: 10, label: "Maintain required number of officers per duty", enabled: true }
+  ]);
 
   const handleRunAutoGenerate = () => {
     try {
@@ -203,6 +237,8 @@ export default function DutyRoster() {
       let officerIndex = 0;
       days.forEach((dayDate) => {
         const dayStr = formatDateStr(dayDate);
+
+        // Assign normal duty requirements
         dutyRequirements.forEach((req) => {
           for (let i = 0; i < req.required; i++) {
             const assignedOfficer = activeOfficers[officerIndex % activeOfficers.length];
@@ -214,7 +250,24 @@ export default function DutyRoster() {
               dutyType: req.type,
               shift: req.shift,
               location: req.location,
-              remarks: `Auto-generated ${req.priority} Priority`
+              remarks: `Auto-generated (${req.priority} Priority)`
+            };
+          }
+        });
+
+        // Assign special duty requirements
+        specialDutiesList.forEach((sp) => {
+          for (let i = 0; i < sp.required; i++) {
+            const assignedOfficer = activeOfficers[officerIndex % activeOfficers.length];
+            officerIndex++;
+            const key = `${assignedOfficer._id}_${dayStr}`;
+            newAssignments[key] = {
+              officerId: assignedOfficer._id,
+              dateStr: dayStr,
+              dutyType: sp.name || "Special Duty",
+              shift: sp.shift,
+              location: sp.location,
+              remarks: `Special Duty: ${sp.name} (${sp.priority})`
             };
           }
         });
@@ -2616,106 +2669,198 @@ export default function DutyRoster() {
               </Box>
             )}
 
-            {/* STEP 2: CONFIGURE DUTIES (PICTURE 3) */}
+            {/* STEP 2: CONFIGURE DUTIES (MATCHING SCREENSHOT 1) */}
             {autoStep === 2 && (
               <Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b" }}>
-                    Normal Duty Requirements
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => setAddReqDialogOpen(true)}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 700,
-                      background: "#ffffff",
-                      color: "#1e293b",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 2,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                      "&:hover": { background: "#f1f5f9" }
-                    }}
-                  >
-                    + Add Duty Requirement
-                  </Button>
-                </Box>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", mb: 3 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b" }}>
+                      Normal Duty Requirements
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => setShowInlineDutyForm(!showInlineDutyForm)}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 700,
+                        background: "#ffffff",
+                        color: "#1e293b",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 2,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                        "&:hover": { background: "#f8fafc" }
+                      }}
+                    >
+                      + Add Duty Requirement
+                    </Button>
+                  </Box>
 
-                {/* TABLE OF DUTY REQUIREMENTS */}
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2.5, mb: 4, background: "#ffffff" }}>
-                  <Table size="small">
-                    <TableHead sx={{ background: "#f8fafc" }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Duty Type</TableCell>
-                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Shift</TableCell>
-                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Location</TableCell>
-                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Required</TableCell>
-                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Rank</TableCell>
-                        <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Priority</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {dutyRequirements.map((req) => (
-                        <TableRow key={req.id} hover>
-                          <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{req.type}</TableCell>
-                          <TableCell sx={{ color: "#475569", fontFamily: "monospace" }}>{req.shift}</TableCell>
-                          <TableCell sx={{ color: "#475569" }}>{req.location}</TableCell>
-                          <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{req.required}</TableCell>
-                          <TableCell sx={{ color: "#475569" }}>{req.rank}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={req.priority}
-                              size="small"
-                              variant={req.priority === "High" ? "outlined" : "filled"}
-                              sx={{
-                                fontWeight: 700,
-                                fontSize: "11px",
-                                height: 22,
-                                ...(req.priority === "High"
-                                  ? { color: "#ef4444", borderColor: "#fca5a5", background: "#fef2f2" }
-                                  : { color: "#475569", background: "#f1f5f9" })
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell align="right">
-                            <IconButton
-                              size="small"
-                              onClick={() => setDutyRequirements(dutyRequirements.filter(r => r.id !== req.id))}
-                              sx={{ color: "#94a3b8", "&:hover": { color: "#ef4444" } }}
+                  {/* INLINE FORM FOR ADDING DUTY REQUIREMENT (MATCHING SCREENSHOT 1) */}
+                  {showInlineDutyForm && (
+                    <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={dutyReqForm.type}
+                              onChange={(e) => setDutyReqForm({ ...dutyReqForm, type: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
                             >
-                              <DeleteOutlineIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {dutyRequirements.length === 0 && (
+                              <MenuItem value="Traffic Patrol">Traffic Patrol</MenuItem>
+                              <MenuItem value="Night Patrol">Night Patrol</MenuItem>
+                              <MenuItem value="Station Duty">Station Duty</MenuItem>
+                              <MenuItem value="Motorcycle Patrol">Motorcycle Patrol</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={dutyReqForm.shift}
+                              onChange={(e) => setDutyReqForm({ ...dutyReqForm, shift: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="06:00-18:00">06:00-18:00</MenuItem>
+                              <MenuItem value="18:00-06:00">18:00-06:00</MenuItem>
+                              <MenuItem value="08:00-16:00">08:00-16:00</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={dutyReqForm.location}
+                              onChange={(e) => setDutyReqForm({ ...dutyReqForm, location: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="Police Station">Police Station</MenuItem>
+                              <MenuItem value="Negombo Town">Negombo Town</MenuItem>
+                              <MenuItem value="Negombo Beach">Negombo Beach</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            value={dutyReqForm.required}
+                            onChange={(e) => setDutyReqForm({ ...dutyReqForm, required: parseInt(e.target.value, 10) || 1 })}
+                            sx={{ "& .MuiOutlinedInput-root": { background: "#ffffff", borderRadius: 2 } }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={dutyReqForm.rank}
+                              onChange={(e) => setDutyReqForm({ ...dutyReqForm, rank: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="PC">PC</MenuItem>
+                              <MenuItem value="WPC">WPC</MenuItem>
+                              <MenuItem value="Sergeant">Sergeant</MenuItem>
+                              <MenuItem value="SI">SI</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={dutyReqForm.priority}
+                              onChange={(e) => setDutyReqForm({ ...dutyReqForm, priority: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="Normal">Normal</MenuItem>
+                              <MenuItem value="High">High</MenuItem>
+                              <MenuItem value="Critical">Critical</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </Grid>
+
+                      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 2.5 }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setShowInlineDutyForm(false)}
+                          sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() => {
+                            setDutyRequirements([...dutyRequirements, { ...dutyReqForm, id: Date.now() }]);
+                            setShowInlineDutyForm(false);
+                            showMsg("Duty requirement added!");
+                          }}
+                          sx={{ textTransform: "none", fontWeight: 800, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
+                        >
+                          Add Requirement
+                        </Button>
+                      </Box>
+                    </Paper>
+                  )}
+
+                  {/* TABLE OF DUTY REQUIREMENTS (MATCHING SCREENSHOT 1) */}
+                  <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e2e8f0", borderRadius: 2.5, background: "#ffffff" }}>
+                    <Table size="small">
+                      <TableHead sx={{ background: "#ffffff" }}>
                         <TableRow>
-                          <TableCell colSpan={7} align="center" sx={{ py: 3, color: "#94a3b8" }}>
-                            No duty requirements added. Click "+ Add Duty Requirement" to add one.
-                          </TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Duty Type</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Shift</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Location</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Required</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Rank</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}>Priority</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700, color: "#64748b", py: 1.5 }}></TableCell>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                      </TableHead>
+                      <TableBody>
+                        {dutyRequirements.map((req) => (
+                          <TableRow key={req.id} hover>
+                            <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{req.type}</TableCell>
+                            <TableCell sx={{ color: "#475569", fontFamily: "monospace" }}>{req.shift}</TableCell>
+                            <TableCell sx={{ color: "#475569" }}>{req.location}</TableCell>
+                            <TableCell sx={{ fontWeight: 700, color: "#1e293b" }}>{req.required}</TableCell>
+                            <TableCell sx={{ color: "#475569" }}>{req.rank}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={req.priority}
+                                size="small"
+                                variant={req.priority === "High" ? "outlined" : "filled"}
+                                sx={{
+                                  fontWeight: 700,
+                                  fontSize: "11px",
+                                  height: 22,
+                                  ...(req.priority === "High"
+                                    ? { color: "#ef4444", borderColor: "#fca5a5", background: "#fef2f2" }
+                                    : { color: "#475569", background: "#f1f5f9" })
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                size="small"
+                                onClick={() => setDutyRequirements(dutyRequirements.filter(r => r.id !== req.id))}
+                                sx={{ color: "#94a3b8", "&:hover": { color: "#ef4444" } }}
+                              >
+                                <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
 
                 {/* FOOTER ACTIONS */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 3 }}>
                   <Button
                     variant="outlined"
                     onClick={() => setAutoStep(1)}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 700,
-                      px: 3,
-                      borderRadius: 2,
-                      borderColor: "#cbd5e1",
-                      color: "#475569",
-                      background: "#ffffff",
-                      "&:hover": { background: "#f1f5f9" }
-                    }}
+                    sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
                   >
                     Back
                   </Button>
@@ -2723,151 +2868,373 @@ export default function DutyRoster() {
                     variant="contained"
                     endIcon={<ArrowForwardIcon />}
                     onClick={() => setAutoStep(3)}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 800,
-                      px: 3.5,
-                      py: 1.2,
-                      borderRadius: 2,
-                      background: "#f59e0b",
-                      color: "#000000",
-                      "&:hover": { background: "#d97706" },
-                      boxShadow: "0 2px 8px rgba(245,158,11,0.3)"
-                    }}
+                    sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
                   >
-                    Continue
+                    Continue ->
                   </Button>
                 </Box>
               </Box>
             )}
 
-            {/* STEP 3: ADD SPECIAL DUTIES */}
+            {/* STEP 3: ADD SPECIAL DUTIES (MATCHING SCREENSHOTS 2 & 3) */}
             {autoStep === 3 && (
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
-                  Special Duty Requirements (Optional)
-                </Typography>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2.5, border: "1px solid #e2e8f0", background: "#ffffff", mb: 4 }}>
-                  <Typography variant="body2" sx={{ color: "#64748b", mb: 2 }}>
-                    Configure special assignments (VIP escort, festival traffic control, highway patrol details) for the week:
-                  </Typography>
-                  <Table size="small">
-                    <TableHead sx={{ background: "#f8fafc" }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700 }}>Event / Special Duty</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Time</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Location</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Officers Required</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Priority</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {specialRequirements.map(s => (
-                        <TableRow key={s.id}>
-                          <TableCell sx={{ fontWeight: 700 }}>{s.type}</TableCell>
-                          <TableCell>{s.shift}</TableCell>
-                          <TableCell>{s.location}</TableCell>
-                          <TableCell sx={{ fontWeight: 700 }}>{s.required}</TableCell>
-                          <TableCell><Chip label={s.priority} color="warning" size="small" sx={{ fontWeight: 700 }} /></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", mb: 3 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b" }}>
+                      Special Duties This Week
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => setShowInlineSpecialForm(!showInlineSpecialForm)}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 700,
+                        background: "#ffffff",
+                        color: "#1e293b",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 2,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                        "&:hover": { background: "#f8fafc" }
+                      }}
+                    >
+                      + Add Special Duty
+                    </Button>
+                  </Box>
+
+                  {/* INLINE FORM FOR ADDING SPECIAL DUTY (MATCHING SCREENSHOT 3) */}
+                  {showInlineSpecialForm && (
+                    <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Duty name"
+                            value={specialDutyForm.name}
+                            onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, name: e.target.value })}
+                            sx={{ "& .MuiOutlinedInput-root": { background: "#ffffff", borderRadius: 2 } }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={specialDutyForm.date}
+                            onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, date: e.target.value })}
+                            sx={{ "& .MuiOutlinedInput-root": { background: "#ffffff", borderRadius: 2 } }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={specialDutyForm.shift}
+                              onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, shift: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="06:00-18:00">06:00-18:00</MenuItem>
+                              <MenuItem value="14:00-22:00">14:00-22:00</MenuItem>
+                              <MenuItem value="18:00-06:00">18:00-06:00</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={specialDutyForm.location}
+                              onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, location: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="Police Station">Police Station</MenuItem>
+                              <MenuItem value="Negombo Beach">Negombo Beach</MenuItem>
+                              <MenuItem value="Negombo Town">Negombo Town</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            value={specialDutyForm.required}
+                            onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, required: parseInt(e.target.value, 10) || 1 })}
+                            sx={{ "& .MuiOutlinedInput-root": { background: "#ffffff", borderRadius: 2 } }}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={specialDutyForm.rank}
+                              onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, rank: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="PC">PC</MenuItem>
+                              <MenuItem value="WPC">WPC</MenuItem>
+                              <MenuItem value="Sergeant">Sergeant</MenuItem>
+                              <MenuItem value="SI">SI</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth size="small">
+                            <Select
+                              value={specialDutyForm.priority}
+                              onChange={(e) => setSpecialDutyForm({ ...specialDutyForm, priority: e.target.value })}
+                              sx={{ background: "#ffffff", borderRadius: 2 }}
+                            >
+                              <MenuItem value="Normal">Normal</MenuItem>
+                              <MenuItem value="High Priority">High Priority</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </Grid>
+
+                      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 2.5 }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setShowInlineSpecialForm(false)}
+                          sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() => {
+                            if (!specialDutyForm.name) {
+                              showMsg("Please enter a duty name", "warning");
+                              return;
+                            }
+                            setSpecialDutiesList([
+                              ...specialDutiesList,
+                              { ...specialDutyForm, id: Date.now(), status: "Planned" }
+                            ]);
+                            setShowInlineSpecialForm(false);
+                            showMsg("Special duty added!");
+                          }}
+                          sx={{ textTransform: "none", fontWeight: 800, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
+                        >
+                          Add Special Duty
+                        </Button>
+                      </Box>
+                    </Paper>
+                  )}
+
+                  {/* SPECIAL DUTY CARDS LIST (MATCHING SCREENSHOT 2) */}
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {specialDutiesList.map((sp) => (
+                      <Paper
+                        key={sp.id}
+                        elevation={0}
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 2.5,
+                          border: "1px solid #e2e8f0",
+                          background: "#ffffff",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                            {sp.name}
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                            <Typography variant="body2" sx={{ color: "#64748b", fontFamily: "monospace", fontSize: "12px" }}>
+                              {sp.date}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#64748b", fontFamily: "monospace", fontSize: "12px" }}>
+                              {sp.shift}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#64748b", fontSize: "12px" }}>
+                              {sp.location}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#64748b", fontSize: "12px" }}>
+                              {sp.required} Officers
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#64748b", fontSize: "12px" }}>
+                              {sp.rank}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                          <Chip
+                            label={sp.priority || "High Priority"}
+                            size="small"
+                            variant="outlined"
+                            sx={{ color: "#ef4444", borderColor: "#fca5a5", background: "#fef2f2", fontWeight: 700, fontSize: "11px" }}
+                          />
+                          <Chip
+                            label={sp.status || "Planned"}
+                            size="small"
+                            variant="outlined"
+                            sx={{ color: "#475569", borderColor: "#cbd5e1", background: "#ffffff", fontWeight: 700, fontSize: "11px" }}
+                          />
+                          <IconButton
+                            size="small"
+                            onClick={() => setSpecialDutiesList(specialDutiesList.filter(s => s.id !== sp.id))}
+                            sx={{ color: "#94a3b8", "&:hover": { color: "#ef4444" } }}
+                          >
+                            <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Box>
+                      </Paper>
+                    ))}
+                  </Box>
                 </Paper>
 
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
-                  <Button variant="outlined" onClick={() => setAutoStep(2)} sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2 }}>
+                {/* FOOTER ACTIONS */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setAutoStep(2)}
+                    sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
+                  >
                     Back
                   </Button>
-                  <Button variant="contained" endIcon={<ArrowForwardIcon />} onClick={() => setAutoStep(4)} sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}>
-                    Continue
+                  <Button
+                    variant="contained"
+                    endIcon={<ArrowForwardIcon />}
+                    onClick={() => setAutoStep(4)}
+                    sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
+                  >
+                    Continue ->
                   </Button>
                 </Box>
               </Box>
             )}
 
-            {/* STEP 4: REVIEW RULES */}
+            {/* STEP 4: REVIEW RULES (MATCHING SCREENSHOT 4) */}
             {autoStep === 4 && (
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
-                  Roster Generation Rules & Constraints
-                </Typography>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2.5, border: "1px solid #e2e8f0", background: "#ffffff", mb: 4 }}>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <FormControlLabel
-                      control={<Switch checked={rosterRules.respectLeaves} onChange={e => setRosterRules({ ...rosterRules, respectLeaves: e.target.checked })} color="warning" />}
-                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Respect Approved Officer Leaves and Medical Exceptions</Typography>}
-                    />
-                    <FormControlLabel
-                      control={<Switch checked={rosterRules.maxWeeklyHours} onChange={e => setRosterRules({ ...rosterRules, maxWeeklyHours: e.target.checked })} color="warning" />}
-                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Max 48 Working Hours Per Officer Per Week</Typography>}
-                    />
-                    <FormControlLabel
-                      control={<Switch checked={rosterRules.minRestGap} onChange={e => setRosterRules({ ...rosterRules, minRestGap: e.target.checked })} color="warning" />}
-                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Minimum 12-Hour Rest Gap Between Shift Assignments</Typography>}
-                    />
-                    <FormControlLabel
-                      control={<Switch checked={rosterRules.equalNightShifts} onChange={e => setRosterRules({ ...rosterRules, equalNightShifts: e.target.checked })} color="warning" />}
-                      label={<Typography sx={{ fontWeight: 700, color: "#1e293b" }}>Equal Distribution of Night Patrol Shifts Across Ranks</Typography>}
-                    />
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", mb: 3 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 0.5 }}>
+                    Automatic Scheduling Rules
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#64748b", mb: 3 }}>
+                    Review the rules the generator will follow when assigning officers.
+                  </Typography>
+
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    {schedulingRules.map((rule) => (
+                      <Paper
+                        key={rule.id}
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          px: 2.5,
+                          borderRadius: 2.5,
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 600, color: "#334155", fontSize: "14px" }}>
+                          {rule.label}
+                        </Typography>
+                        <Switch
+                          checked={rule.enabled}
+                          onChange={(e) => {
+                            const updated = schedulingRules.map(r => r.id === rule.id ? { ...r, enabled: e.target.checked } : r);
+                            setSchedulingRules(updated);
+                          }}
+                          sx={{
+                            '& .MuiSwitch-switchBase.Mui-checked': {
+                              color: '#f59e0b',
+                              '& + .MuiSwitch-track': {
+                                backgroundColor: '#f59e0b',
+                              },
+                            },
+                          }}
+                        />
+                      </Paper>
+                    ))}
                   </Box>
                 </Paper>
 
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
-                  <Button variant="outlined" onClick={() => setAutoStep(3)} sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2 }}>
+                {/* FOOTER ACTIONS */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setAutoStep(3)}
+                    sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
+                  >
                     Back
                   </Button>
-                  <Button variant="contained" endIcon={<ArrowForwardIcon />} onClick={() => setAutoStep(5)} sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}>
-                    Continue
+                  <Button
+                    variant="contained"
+                    endIcon={<ArrowForwardIcon />}
+                    onClick={() => setAutoStep(5)}
+                    sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
+                  >
+                    Continue ->
                   </Button>
                 </Box>
               </Box>
             )}
 
-            {/* STEP 5: GENERATE ROSTER */}
+            {/* STEP 5: GENERATE ROSTER (MATCHING SCREENSHOT 5) */}
             {autoStep === 5 && (
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b", mb: 2 }}>
-                  Ready to Generate Roster
-                </Typography>
-                <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", textAlign: "center", mb: 4 }}>
-                  <AutoAwesomeIcon sx={{ fontSize: 48, color: "#f59e0b", mb: 1.5 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a", mb: 1 }}>
-                    All Constraints Configured
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "#64748b", maxWidth: 450, mx: "auto", mb: 3 }}>
-                    The system will automatically assign officers for {formatWeekHeading(weekDays[0], weekDays[6])} based on specified duty requirements and active rules.
-                  </Typography>
-                  <Box sx={{ display: "inline-flex", gap: 3, background: "#f8fafc", p: 2, borderRadius: 2, border: "1px solid #e2e8f0" }}>
-                    <Box><Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>WEEK</Typography><Typography sx={{ fontWeight: 800, color: "#1e293b" }}>{formatReadableDate(weekDays[0])}</Typography></Box>
-                    <Divider orientation="vertical" flexItem />
-                    <Box><Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>DUTY TYPES</Typography><Typography sx={{ fontWeight: 800, color: "#1e293b" }}>{dutyRequirements.length}</Typography></Box>
-                    <Divider orientation="vertical" flexItem />
-                    <Box><Typography variant="caption" sx={{ color: "#64748b", fontWeight: 700 }}>OFFICERS</Typography><Typography sx={{ fontWeight: 800, color: "#1e293b" }}>{officers.length || 11}</Typography></Box>
+                <Paper elevation={0} sx={{ p: 6, py: 7, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", textAlign: "center", mb: 3 }}>
+                  <Box
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: "50%",
+                      border: "2px solid #0284c7",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      mb: 2.5
+                    }}
+                  >
+                    <AutoAwesomeIcon sx={{ fontSize: 32, color: "#0284c7" }} />
                   </Box>
-                </Paper>
 
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
-                  <Button variant="outlined" onClick={() => setAutoStep(4)} sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2 }}>
-                    Back
-                  </Button>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", mb: 1 }}>
+                    Ready to Generate
+                  </Typography>
+
+                  <Typography variant="body2" sx={{ color: "#64748b", maxWidth: 480, mx: "auto", mb: 4, lineHeight: 1.6 }}>
+                    The generator will assign officers to duties based on the requirements, special duties and rules configured in the previous steps.
+                  </Typography>
+
                   <Button
                     variant="contained"
                     startIcon={<AutoAwesomeIcon />}
                     onClick={handleRunAutoGenerate}
                     sx={{
-                      textTransform: "none",
+                      textTransform: "uppercase",
                       fontWeight: 800,
-                      px: 4,
-                      py: 1.3,
+                      px: 4.5,
+                      py: 1.4,
                       borderRadius: 2,
-                      background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                      color: "#ffffff",
-                      "&:hover": { background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)" },
-                      boxShadow: "0 4px 14px rgba(245,158,11,0.4)"
+                      background: "#f59e0b",
+                      color: "#000000",
+                      "&:hover": { background: "#d97706" },
+                      boxShadow: "0 4px 12px rgba(245,158,11,0.3)",
+                      fontSize: "14px",
+                      letterSpacing: "0.5px"
                     }}
                   >
-                    ✨ Auto-Generate Roster
+                    ✨ GENERATE ROSTER
+                  </Button>
+                </Paper>
+
+                {/* FOOTER ACTIONS */}
+                <Box sx={{ display: "flex", justifyContent: "flex-start", alignItems: "center", mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setAutoStep(4)}
+                    sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
+                  >
+                    Back
                   </Button>
                 </Box>
               </Box>
