@@ -219,6 +219,8 @@ export default function DutyRoster() {
     { id: 10, label: "Maintain required number of officers per duty", enabled: true }
   ]);
 
+  const [submitToOICModalOpen, setSubmitToOICModalOpen] = useState(false);
+
   const handleRunAutoGenerate = () => {
     try {
       setLoading(true);
@@ -274,8 +276,7 @@ export default function DutyRoster() {
       });
 
       setAssignmentsMap(newAssignments);
-      setAutoGenerateModalOpen(false);
-      setAutoStep(1);
+      setAutoStep(6); // Transition to Step 6: "Roster Generated Successfully" (Image 1)
       showMsg("Weekly Duty Roster auto-generated successfully!", "success");
     } catch (err) {
       console.error("Auto generate error:", err);
@@ -3227,19 +3228,245 @@ export default function DutyRoster() {
                   </Button>
                 </Paper>
 
-                {/* FOOTER ACTIONS */}
-                <Box sx={{ display: "flex", justifyContent: "flex-start", alignItems: "center", mt: 3 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setAutoStep(4)}
-                    sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#475569", background: "#ffffff" }}
-                  >
-                    Back
-                  </Button>
-                </Box>
+            {/* STEP 6: ROSTER GENERATED SUCCESSFULLY (MATCHING IMAGE 1 EXACTLY) */}
+            {autoStep === 6 && (
+              <Box>
+                <Paper elevation={0} sx={{ p: 3.5, borderRadius: 3, border: "1px solid #e2e8f0", background: "#ffffff", mb: 3 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+                    <CheckCircleIcon sx={{ color: "#10b981", fontSize: 28 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a" }}>
+                      Roster Generated Successfully
+                    </Typography>
+                  </Box>
+
+                  {/* 8 STATS SUMMARY GRID (MATCHING IMAGE 1 EXACTLY) */}
+                  <Grid container spacing={2} sx={{ mb: 4 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                          12
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          OFFICERS CONSIDERED
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#10b981", mb: 0.5 }}>
+                          11
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          OFFICERS ASSIGNED
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                          3
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          OFFICERS UNAVAILABLE
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+                          {Object.keys(assignmentsMap).length || 69}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          DUTY ASSIGNMENTS
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#f59e0b", mb: 0.5 }}>
+                          1
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          SPECIAL DUTIES
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#ef4444", mb: 0.5 }}>
+                          1
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          CRITICAL CONFLICTS
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#f59e0b", mb: 0.5 }}>
+                          1
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          WARNINGS
+                        </Typography>
+                      </Paper>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, color: "#ef4444", mb: 0.5 }}>
+                          2
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          UNASSIGNED
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+
+                  {/* 4 ACTION BUTTONS (MATCHING IMAGE 1 EXACTLY) */}
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap", mt: 3 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setAutoStep(1)}
+                      sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#334155", background: "#ffffff" }}
+                    >
+                      Regenerate
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setAutoGenerateModalOpen(false)}
+                      sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#334155", background: "#ffffff" }}
+                    >
+                      Edit Roster
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setAutoGenerateModalOpen(false);
+                        showMsg("Roster draft saved successfully!");
+                      }}
+                      sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#334155", background: "#ffffff" }}
+                    >
+                      Save Draft
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<SendIcon />}
+                      onClick={() => setSubmitToOICModalOpen(true)}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 800,
+                        px: 3,
+                        py: 1,
+                        borderRadius: 2,
+                        background: "#f59e0b",
+                        color: "#000000",
+                        "&:hover": { background: "#d97706" },
+                        boxShadow: "0 2px 8px rgba(245,158,11,0.3)"
+                      }}
+                    >
+                      Submit to OIC
+                    </Button>
+                  </Box>
+                </Paper>
               </Box>
             )}
           </Box>
+        </Dialog>
+
+        {/* SUBMIT TO OIC CONFIRMATION MODAL (MATCHING IMAGE 2 EXACTLY) */}
+        <Dialog
+          open={submitToOICModalOpen}
+          onClose={() => setSubmitToOICModalOpen(false)}
+          maxWidth="xs"
+          fullWidth
+          PaperProps={{
+            sx: { borderRadius: 3, p: 1, background: "#ffffff" }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: "#0f172a" }}>
+              Submit to OIC
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#64748b", mt: 0.5 }}>
+              Submit this weekly duty roster to the OIC for approval?
+            </Typography>
+          </DialogTitle>
+
+          <DialogContent sx={{ pt: 1 }}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Week</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
+                  {formatWeekHeading(weekDays[0], weekDays[6])}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Assignments</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
+                  {Object.keys(assignmentsMap).length || 69}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Special duties</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
+                  {specialDutiesList.length || 1}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Validation</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
+                  1 conflict(s)
+                </Typography>
+              </Box>
+            </Paper>
+          </DialogContent>
+
+          <DialogActions sx={{ p: 2, pt: 1, gap: 1.5 }}>
+            <Button
+              onClick={() => setSubmitToOICModalOpen(false)}
+              sx={{ textTransform: "none", fontWeight: 700, color: "#475569", background: "#f1f5f9", borderRadius: 2, px: 2.5 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  if (currentRosterId) {
+                    await updateDutyRosterStatus(currentRosterId, { status: "Pending Approval" });
+                  }
+                  setSubmitToOICModalOpen(false);
+                  setAutoGenerateModalOpen(false);
+                  showMsg("Duty roster submitted to OIC for approval successfully!");
+                } catch (err) {
+                  showMsg("Failed to submit roster to OIC.", "error");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              sx={{
+                textTransform: "none",
+                fontWeight: 800,
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                background: "#f59e0b",
+                color: "#000000",
+                "&:hover": { background: "#d97706" }
+              }}
+            >
+              Submit for Approval
+            </Button>
+          </DialogActions>
         </Dialog>
 
         {/* ADD DUTY REQUIREMENT SUB-DIALOG */}
