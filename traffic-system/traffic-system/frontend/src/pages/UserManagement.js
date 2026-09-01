@@ -96,6 +96,11 @@ function UserManagement() {
     try {
       const res = await updateOfficer(id, { status: "Active" });
       if (res && !res.error) {
+        if (res.message) {
+          alert(res.message);
+        } else {
+          alert("Officer approved successfully. Login credentials have been sent to the registered email address.");
+        }
         fetchOfficers();
       } else {
         alert(res.error || "Failed to approve officer.");

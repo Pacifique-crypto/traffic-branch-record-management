@@ -44,6 +44,11 @@ const officerSchema = new mongoose.Schema({
     required: true
   },
 
+  generatedPassword: {
+    type: String,
+    default: ""
+  },
+
   role: {
     type: String,
     default: "officer"
