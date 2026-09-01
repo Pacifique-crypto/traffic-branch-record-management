@@ -19,5 +19,5 @@ git branch -D backend-deploy-tmp >nul 2>&1
 
 echo ==================================================
 echo  SUCCESS: PUSHED TO main, backend, AND traffic-backend!
-echo  RENDER & GITHUB ARE NOW 100%% IN SYNC!
+echo  RENDER ^& GITHUB ARE NOW 100%% IN SYNC!
 echo ==================================================
