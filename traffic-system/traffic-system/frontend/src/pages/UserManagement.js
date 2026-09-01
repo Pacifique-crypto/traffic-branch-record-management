@@ -523,7 +523,8 @@ function RegisterModal({ onClose, onSave }) {
     password: "",
   });
   const [isUsernameEdited, setIsUsernameEdited] = useState(false);
-  const [showPw, setShowPw] = useState(false);
+  const [isPasswordEdited, setIsPasswordEdited] = useState(false);
+  const [showPw, setShowPw] = useState(true);
   const [error, setError]   = useState("");
 
   const roles = ["OIC", "IT Officer", "Traffic Officer"];
@@ -539,11 +540,54 @@ function RegisterModal({ onClose, onSave }) {
     return firstLetters + lastName;
   };
 
+  const generateAutoPassword = (name, nicNum) => {
+    const cleanWords = (name || "")
+      .trim()
+      .split(/\s+/)
+      .map(w => w.replace(/[^a-zA-Z]/g, ""))
+      .filter(Boolean);
+
+    let initials = "";
+    if (cleanWords.length === 0) {
+      initials = "Of";
+    } else if (cleanWords.length === 1) {
+      const w = cleanWords[0];
+      initials = w.charAt(0).toUpperCase() + (w.charAt(1) || "a").toLowerCase();
+    } else {
+      const uppercasePart = cleanWords.slice(0, -1).map(w => w.charAt(0).toUpperCase()).join("");
+      const lowercasePart = cleanWords[cleanWords.length - 1].charAt(0).toLowerCase();
+      initials = uppercasePart + lowercasePart;
+    }
+
+    const nicDigits = (nicNum || "").replace(/\D/g, "");
+    let numberPart = "";
+    if (nicDigits.length >= 4) {
+      numberPart = nicDigits.slice(-6);
+    } else if (nicDigits.length > 0) {
+      numberPart = nicDigits.padEnd(4, "0");
+    } else {
+      numberPart = "123456";
+    }
+
+    let pwd = `${initials}${numberPart}`;
+    while (pwd.length < 8) {
+      pwd += "9";
+    }
+    if (!/[A-Z]/.test(pwd)) pwd = "A" + pwd;
+    if (!/[a-z]/.test(pwd)) pwd = "a" + pwd;
+    if (!/\d/.test(pwd)) pwd = pwd + "1";
+
+    return pwd;
+  };
+
   const handleFullNameChange = (e) => {
     const val = e.target.value;
     const updatedForm = { ...form, fullName: val };
     if (!isUsernameEdited) {
       updatedForm.username = recommendUsername(val);
+    }
+    if (!isPasswordEdited) {
+      updatedForm.password = generateAutoPassword(val, form.nic);
     }
     setForm(updatedForm);
   };
@@ -551,6 +595,25 @@ function RegisterModal({ onClose, onSave }) {
   const handleUsernameChange = (e) => {
     setIsUsernameEdited(true);
     setForm({ ...form, username: e.target.value });
+  };
+
+  const handleNicChange = (e) => {
+    const val = e.target.value;
+    const updatedForm = { ...form, nic: val };
+    if (!isPasswordEdited) {
+      updatedForm.password = generateAutoPassword(form.fullName, val);
+    }
+    setForm(updatedForm);
+  };
+
+  const handlePasswordChange = (e) => {
+    setIsPasswordEdited(true);
+    setForm({ ...form, password: e.target.value });
+  };
+
+  const handleRegeneratePassword = () => {
+    setIsPasswordEdited(false);
+    setForm(prev => ({ ...prev, password: generateAutoPassword(prev.fullName, prev.nic) }));
   };
 
   const handleChange = e => {
@@ -571,9 +634,11 @@ function RegisterModal({ onClose, onSave }) {
       !form.email.trim() ||
       !form.rank ||
       !form.gender ||
+      !form.dob ||
+      !form.address.trim() ||
       !form.password
     ) {
-      setError("Please fill in all required fields.");
+      setError("Please fill in all required fields (including Date of Birth and Residential Address).");
       return;
     }
 
@@ -668,7 +733,7 @@ function RegisterModal({ onClose, onSave }) {
                 name="nic"
                 placeholder="e.g. 199012345678 or 123456789V"
                 value={form.nic}
-                onChange={handleChange}
+                onChange={handleNicChange}
               />
             </div>
             {/* Contact No */}
@@ -718,44 +783,62 @@ function RegisterModal({ onClose, onSave }) {
                 <option>Other</option>
               </select>
             </div>
-            {/* DOB (Optional) */}
+            {/* DOB (Mandatory) */}
             <div className="um-field">
-              <label className="um-field-label">DATE OF BIRTH (Optional)</label>
+              <label className="um-field-label">DATE OF BIRTH *</label>
               <input className="um-field-input" name="dob" type="date" value={form.dob} onChange={handleChange} />
             </div>
           </div>
 
-          {/* Address (Optional) */}
+          {/* Address (Mandatory) */}
           <div className="um-field-full">
-            <label className="um-field-label">RESIDENTIAL ADDRESS (Optional)</label>
+            <label className="um-field-label">RESIDENTIAL ADDRESS *</label>
             <textarea
               className="um-field-input um-textarea"
               name="address"
-              placeholder="Enter full address..."
+              placeholder="Enter full residential address..."
               value={form.address}
               onChange={handleChange}
               rows={2}
             />
           </div>
 
-          {/* Password */}
+          {/* Auto Generated Password */}
           <div className="um-field-full">
-            <label className="um-field-label">SET PASSWORD *</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label className="um-field-label">PASSWORD * (Auto-generated)</label>
+              <button
+                type="button"
+                onClick={handleRegeneratePassword}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#2563eb",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  padding: 0,
+                  marginBottom: "4px"
+                }}
+              >
+                ↻ Auto-Generate Password
+              </button>
+            </div>
             <div className="um-pw-wrap">
               <input
                 className="um-field-input"
                 name="password"
                 type={showPw ? "text" : "password"}
-                placeholder="At least 8 characters (A-Z, a-z, 0-9)"
+                placeholder="Auto-generated password"
                 value={form.password}
-                onChange={handleChange}
+                onChange={handlePasswordChange}
                 style={{ paddingRight: 40 }}
               />
               <button type="button" className="um-pw-eye" onClick={() => setShowPw(!showPw)}>
                 {showPw ? <FiEyeOff size={15} /> : <FiEye size={15} />}
               </button>
             </div>
-            <p className="um-field-hint">Must include numbers, uppercase & lowercase letters (min 8 chars).</p>
+            <p className="um-field-hint">Auto-generated using name initials and NIC numbers. Editable if needed.</p>
           </div>
 
           {error && <p className="um-error">{error}</p>}

@@ -278,7 +278,7 @@ function VehicleManagement() {
             <table className="um-table">
               <thead>
                 <tr>
-                  <th>REGISTRATION NO</th>
+                  <th>VEHICLE NUMBER</th>
                   <th>REQUEST TYPE</th>
                   <th>PROPOSED OFFICER / DETAILS</th>
                   <th>APPROVE / REJECT</th>
@@ -360,7 +360,7 @@ function VehicleManagement() {
               <FiSearch size={15} color="#94a3b8" style={{ marginRight: 8 }} />
               <input
                 className="um-search-input"
-                placeholder="Search by reg no, vehicle type, officer..."
+                placeholder="Search by vehicle number, vehicle type, officer..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                 style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, width: "100%", color: "#0f172a" }}
@@ -397,7 +397,7 @@ function VehicleManagement() {
           <table className="um-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>REG NO</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>VEHICLE NUMBER</th>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>VEHICLE TYPE</th>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>ASSIGNED OFFICER</th>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.06em" }}>ASSIGNED BRANCH</th>
@@ -912,10 +912,57 @@ const BRANCH_OPTIONS = [
   "Other"
 ];
 
+const ENGINE_CAPACITY_OPTIONS = [
+  "100 cc",
+  "125 cc",
+  "150 cc",
+  "250 cc",
+  "350 cc",
+  "650 cc",
+  "800 cc",
+  "1000 cc",
+  "1200 cc",
+  "1500 cc",
+  "1800 cc",
+  "2000 cc",
+  "2200 cc",
+  "2500 cc",
+  "2800 cc",
+  "3000 cc",
+  "3500 cc",
+  "Other"
+];
+
+const ENGINE_OIL_OPTIONS = [
+  "0.8 Liters",
+  "1.0 Liter",
+  "1.2 Liters",
+  "1.5 Liters",
+  "2.0 Liters",
+  "2.5 Liters",
+  "3.0 Liters",
+  "3.5 Liters",
+  "4.0 Liters",
+  "4.5 Liters",
+  "5.0 Liters",
+  "5.5 Liters",
+  "6.0 Liters",
+  "6.5 Liters",
+  "7.0 Liters",
+  "8.0 Liters",
+  "Other"
+];
+
 // ─── Register Vehicle Modal Component ───
 function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
   const [selectedBranch, setSelectedBranch] = useState("Administration Branch");
   const [customBranch, setCustomBranch] = useState("");
+
+  const [selectedEngineCap, setSelectedEngineCap] = useState("2500 cc");
+  const [customEngineCap, setCustomEngineCap] = useState("");
+
+  const [selectedOilCap, setSelectedOilCap] = useState("4.5 Liters");
+  const [customOilCap, setCustomOilCap] = useState("");
 
   const [form, setForm] = useState({
     registrationNo: "",
@@ -926,11 +973,11 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
     year: new Date().getFullYear(),
     color: "",
     fuelType: "Diesel (Super)",
-    engineCapacity: "",
+    engineCapacity: "2500 cc",
     cylinders: 4,
     tyreSize: "",
     fuelTankCapacity: "",
-    oilCapacity: "",
+    oilCapacity: "4.5 Liters",
     registrationDate: new Date().toISOString().split("T")[0],
     revenueLicenseExpiry: "",
     insuranceExpiry: "",
@@ -948,9 +995,15 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
   };
 
   const handleSubmit = () => {
-    if (!form.registrationNo.trim()) return setError("Registration Number is required.");
+    if (!form.registrationNo.trim()) return setError("Vehicle Number is required.");
     if (selectedBranch === "Other" && !customBranch.trim()) {
       return setError("Please specify the branch name.");
+    }
+    if (selectedEngineCap === "Other" && !customEngineCap.trim()) {
+      return setError("Please specify the engine capacity.");
+    }
+    if (selectedOilCap === "Other" && !customOilCap.trim()) {
+      return setError("Please specify the engine oil capacity.");
     }
     onSave(form);
   };
@@ -969,7 +1022,7 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
         <div className="um-modal-body">
           <div className="um-field-row">
             <div className="um-field">
-              <label className="um-field-label">REGISTRATION NO *</label>
+              <label className="um-field-label">VEHICLE NUMBER *</label>
               <input className="um-field-input" name="registrationNo" placeholder="e.g. WP KA-1234" value={form.registrationNo} onChange={handleChange} />
             </div>
             <div className="um-field">
@@ -1026,7 +1079,41 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
           <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">ENGINE CAPACITY</label>
-              <input className="um-field-input" name="engineCapacity" placeholder="e.g. 2500 cc" value={form.engineCapacity} onChange={handleChange} />
+              <select
+                className="um-field-input"
+                value={selectedEngineCap}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedEngineCap(val);
+                  if (val === "Other") {
+                    setForm({ ...form, engineCapacity: customEngineCap.trim() || "Other" });
+                  } else {
+                    setForm({ ...form, engineCapacity: val });
+                  }
+                  setError("");
+                }}
+              >
+                <option value="">Select Engine Capacity...</option>
+                {ENGINE_CAPACITY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              {selectedEngineCap === "Other" && (
+                <input
+                  className="um-field-input"
+                  style={{ marginTop: 8 }}
+                  placeholder="Enter custom engine capacity (e.g. 1600 cc)..."
+                  value={customEngineCap}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomEngineCap(val);
+                    setForm({ ...form, engineCapacity: val.trim() || "Other" });
+                    setError("");
+                  }}
+                />
+              )}
             </div>
             <div className="um-field">
               <label className="um-field-label">NO OF CYLINDERS</label>
@@ -1048,7 +1135,41 @@ function RegisterVehicleModal({ onClose, onSave, officers = [] }) {
           <div className="um-field-row">
             <div className="um-field">
               <label className="um-field-label">ENGINE OIL CAPACITY</label>
-              <input className="um-field-input" name="oilCapacity" placeholder="e.g. 4.5 Liters" value={form.oilCapacity} onChange={handleChange} />
+              <select
+                className="um-field-input"
+                value={selectedOilCap}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedOilCap(val);
+                  if (val === "Other") {
+                    setForm({ ...form, oilCapacity: customOilCap.trim() || "Other" });
+                  } else {
+                    setForm({ ...form, oilCapacity: val });
+                  }
+                  setError("");
+                }}
+              >
+                <option value="">Select Engine Oil Capacity...</option>
+                {ENGINE_OIL_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              {selectedOilCap === "Other" && (
+                <input
+                  className="um-field-input"
+                  style={{ marginTop: 8 }}
+                  placeholder="Enter custom oil capacity (e.g. 3.8 Liters)..."
+                  value={customOilCap}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomOilCap(val);
+                    setForm({ ...form, oilCapacity: val.trim() || "Other" });
+                    setError("");
+                  }}
+                />
+              )}
             </div>
             <div className="um-field">
               <label className="um-field-label">REVENUE LICENSE EXPIRY</label>
@@ -1267,7 +1388,7 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
               {isEditing ? "Edit Vehicle Technical Profile" : "Vehicle Technical Profile"}
             </h3>
             <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
-              Reg No: {currentVehicle.registrationNo}
+              Vehicle No: {currentVehicle.registrationNo}
             </p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#ffffff", fontSize: 20, cursor: "pointer", padding: "0 4px" }}>✕</button>
@@ -1280,7 +1401,7 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>REGISTRATION NO *</label>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 5 }}>VEHICLE NUMBER *</label>
                   <input
                     style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, color: "#0f172a", outline: "none" }}
                     value={editForm.registrationNo}
@@ -1388,7 +1509,7 @@ function VehicleDetailsModal({ vehicle, onClose, onOpenHistory, onRefresh }) {
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>REGISTRATION NUMBER</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: 0 }}>VEHICLE NUMBER</p>
                   <p style={{ fontSize: 15, fontWeight: 800, color: "#1e3a8a", margin: "3px 0 0 0" }}>{currentVehicle.registrationNo}</p>
                 </div>
                 <div>
