@@ -8,6 +8,12 @@ const bcrypt = require("bcryptjs");
 router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
     console.log("Register payload received on backend:", req.body);
+    const { fullName, dob, policeId, gender, contactNo, username, nic, password, email, rank, role, address, status } = req.body;
+
+    if (!dob || !address || !address.trim()) {
+      return res.status(400).json({ message: "Date of Birth and Residential Address are required." });
+    }
+
     const targetUsername = (username && username.trim()) ? username.trim() : (policeId || "").trim();
     const targetPoliceId = (policeId && policeId.trim()) ? policeId.trim() : targetUsername;
 
