@@ -3,6 +3,7 @@ const router = express.Router();
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const Officer = require("../models/Officer");
 const bcrypt = require("bcryptjs");
+const { sendApprovalCredentialsEmail } = require("../services/emailService");
 
 // REGISTER OFFICER
 router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
@@ -35,6 +36,7 @@ router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req
       username: targetUsername,
       nic,
       password: hashedPassword,
+      generatedPassword: password, // Store exact generated password for OIC approval email
       email,
       rank,
       role,
@@ -311,7 +313,7 @@ router.put("/me", verifyToken, async (req, res) => {
 // GET ALL OFFICERS
 router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
-    const officers = await Officer.find().select("-password");
+    const officers = await Officer.find().select("-password -generatedPassword");
     res.json(officers);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -390,13 +392,57 @@ router.put("/:id", verifyToken, async (req, res) => {
     if (req.body.password && isManager) {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(req.body.password, salt);
+      // Update generatedPassword if password is changed by manager
+      updateData.generatedPassword = req.body.password;
     }
+
+    // Detect OIC approval transition: Pending -> Active (or non-Active -> Active)
+    const isApprovalTransition = (officerToUpdate.status === "Pending" || officerToUpdate.status !== "Active") && updateData.status === "Active";
+    const passwordForEmail = officerToUpdate.generatedPassword || req.body.generatedPassword || req.body.password;
 
     const updatedOfficer = await Officer.findByIdAndUpdate(
       officerToUpdate._id,
       updateData,
       { new: true }
-    ).select("-password");
+    ).select("-password -generatedPassword");
+
+    if (isApprovalTransition) {
+      // Clear generatedPassword from DB after reading it so unhashed password is not stored indefinitely
+      await Officer.findByIdAndUpdate(officerToUpdate._id, { generatedPassword: "" });
+
+      let emailMessage = "Officer approved successfully.";
+      let emailSent = false;
+
+      const recipientEmail = (updateData.email || officerToUpdate.email || "").trim();
+      const officerFullName = updateData.fullName || officerToUpdate.fullName;
+      const officerUsername = updateData.username || officerToUpdate.username || officerToUpdate.policeId;
+
+      if (recipientEmail && passwordForEmail) {
+        const mailRes = await sendApprovalCredentialsEmail(
+          recipientEmail,
+          officerFullName,
+          officerUsername,
+          passwordForEmail
+        );
+
+        if (mailRes.success) {
+          emailSent = true;
+          emailMessage = "Officer approved successfully. Login credentials have been sent to the registered email address.";
+          console.log(`[OIC APPROVAL] Credential email sent successfully to ${recipientEmail}`);
+        } else {
+          console.error(`[OIC APPROVAL] Officer approved successfully, but credential email failed to send. Reason: ${mailRes.error || "SMTP failure"}`);
+          emailMessage = "Officer approved successfully, but the credential email could not be sent.";
+        }
+      } else if (!recipientEmail) {
+        console.warn(`[OIC APPROVAL] Officer ${officerUsername} approved, but no registered email address was found.`);
+        emailMessage = "Officer approved successfully, but no registered email address was found.";
+      }
+
+      const responsePayload = updatedOfficer.toObject();
+      responsePayload.message = emailMessage;
+      responsePayload.emailSent = emailSent;
+      return res.json(responsePayload);
+    }
 
     res.json(updatedOfficer);
 
