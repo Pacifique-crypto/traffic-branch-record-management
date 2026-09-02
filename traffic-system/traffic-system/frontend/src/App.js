@@ -57,8 +57,8 @@ function App() {
         <Route path="/duty-roster"        element={<PrivateRoute allowedRoles={["OIC", "IT Officer"]}><DutyRoster /></PrivateRoute>} />
         <Route path="/duty-roster/manual" element={<Navigate to="/duty-roster" replace />} />
         <Route path="/duty-roster/schedule" element={<Navigate to="/duty-roster" replace />} />
-        <Route path="/reports"            element={<PrivateRoute><Reports /></PrivateRoute>} />
-        <Route path="/analytics"          element={<PrivateRoute><Analytics /></PrivateRoute>} />
+        <Route path="/reports"            element={<PrivateRoute allowedRoles={["OIC"]}><Reports /></PrivateRoute>} />
+        <Route path="/analytics"          element={<PrivateRoute allowedRoles={["OIC"]}><Analytics /></PrivateRoute>} />
         <Route path="/notifications"      element={<PrivateRoute><Notifications /></PrivateRoute>} />
 
         {/* Shared */}

@@ -1,884 +1,1790 @@
 import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
-import { FiPrinter, FiDownload, FiCheckSquare, FiAlertTriangle, FiFileText, FiX, FiCalendar, FiShield, FiMapPin } from "react-icons/fi";
+import {
+  FiPrinter, FiDownload, FiCheckSquare, FiAlertTriangle, FiFileText, FiX,
+  FiCalendar, FiShield, FiMapPin, FiPlay, FiEye, FiClock, FiCheck, FiFilter,
+  FiRotateCw, FiGrid, FiLayers, FiAlertCircle, FiCheckCircle2, FiChevronRight, FiList
+} from "react-icons/fi";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, AreaChart, Area, LineChart, Line, Legend
+} from "recharts";
 import { getAccidents, getViolations } from "../api";
 
-// ── Chart Helper Components ──────────────────────────────────────────────────
+// ── Initial Mock Data ────────────────────────────────────────────────────────
 
-function LocationBarChart({ data }) {
-  const yTicks = [100, 75, 50, 25, 0];
-  const max = 100;
-  const height = 130;
-  return (
-    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "170px", position: "relative", paddingTop: "15px" }}>
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: `${height}px`, fontSize: "10px", color: "#94a3b8", textAlign: "right", paddingRight: "6px" }}>
-        {yTicks.map(t => <span key={t}>{t}</span>)}
-      </div>
-      <div style={{ flex: 1, position: "relative", height: `${height}px`, borderBottom: "1px solid #e2e8f0" }}>
-        {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => (
-          <div key={idx} style={{ position: "absolute", top: `${pct * (height - 1)}px`, left: 0, right: 0, borderTop: "1px dashed #f1f5f9" }} />
-        ))}
-        <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", height: "100%", position: "relative", zIndex: 2 }}>
-          {data.map((d, i) => {
-            const barH = (d.value / max) * height;
-            return (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "48px" }}>
-                <div style={{ width: "28px", height: `${barH}px`, background: "#0f172a", borderRadius: "4px 4px 0 0" }} />
-                <span style={{ fontSize: "10px", color: "#64748b", marginTop: "6px", whiteSpace: "nowrap" }}>{d.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+const accidentLocationData = [
+  { label: "Negombo Jn", value: 85 },
+  { label: "Colombo Fort", value: 72 },
+  { label: "Koppara Jn", value: 60 },
+  { label: "Kandy Rd", value: 45 },
+  { label: "Airport Rd", value: 30 },
+];
 
-function SeverityDonutChart({ slices }) {
-  const total = slices.reduce((s, d) => s + d.value, 0);
-  let cumAngle = -90;
-  const r = 46; const cx = 60; const cy = 60;
-  const paths = slices.map((s) => {
-    const angle = (s.value / total) * 360;
-    const start = cumAngle;
-    cumAngle += angle;
-    const toRad = (a) => (a * Math.PI) / 180;
-    const x1 = cx + r * Math.cos(toRad(start));
-    const y1 = cy + r * Math.sin(toRad(start));
-    const x2 = cx + r * Math.cos(toRad(start + angle));
-    const y2 = cy + r * Math.sin(toRad(start + angle));
-    const large = angle > 180 ? 1 : 0;
-    return { d: `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`, color: s.color, label: s.label, pct: s.pct };
-  });
+const accidentSeverityData = [
+  { name: "Property Damage", value: 52, color: "#64748b", pct: "52%" },
+  { name: "Minor Injury", value: 28, color: "#f59e0b", pct: "28%" },
+  { name: "Major Injury", value: 14, color: "#f97316", pct: "14%" },
+  { name: "Fatal", value: 6, color: "#ef4444", pct: "6%" },
+];
 
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0" }}>
-      <svg viewBox="0 0 120 120" width={130} height={130} style={{ flexShrink: 0 }}>
-        {paths.map((p, i) => <path key={i} d={p.d} fill={p.color} />)}
-        <circle cx={cx} cy={cy} r={28} fill="white" />
-      </svg>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, marginLeft: "20px" }}>
-        {slices.map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ width: 10, height: 10, borderRadius: "2px", background: s.color, flexShrink: 0 }} />
-              <span style={{ color: "#475569" }}>{s.label}</span>
-            </div>
-            <strong style={{ color: "#0f172a", fontWeight: 700 }}>{s.pct}%</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+const monthlyTrendData = [
+  { month: "Jan", val: 820 },
+  { month: "Feb", val: 845 },
+  { month: "Mar", val: 870 },
+  { month: "Apr", val: 920 },
+  { month: "May", val: 980 },
+  { month: "Jun", val: 1100 },
+  { month: "Jul", val: 1245 },
+];
 
-function MonthlyTrendLineChart({ data, labels }) {
-  const yTicks = [1400, 1100, 900, 700];
-  const min = 700; const max = 1400; const range = max - min;
-  const height = 130; const W = 360;
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * (W - 30) + 15;
-    const y = height - ((v - min) / range) * (height - 20) - 10;
-    return `${x},${y}`;
-  });
+const violationAreaData = [
+  { label: "Negombo Town", value: 3280 },
+  { label: "Colombo Fort", value: 2740 },
+  { label: "Kurunegala Terminal", value: 1980 },
+  { label: "Kandy Rd", value: 1420 },
+];
 
-  return (
-    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "170px", paddingTop: "15px" }}>
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: `${height}px`, fontSize: "10px", color: "#94a3b8", textAlign: "right", paddingRight: "6px" }}>
-        {yTicks.map(t => <span key={t}>{t}</span>)}
-      </div>
-      <div style={{ flex: 1, position: "relative", height: `${height}px` }}>
-        {[0, 0.33, 0.66, 1].map((pct, idx) => (
-          <div key={idx} style={{ position: "absolute", top: `${pct * (height - 1)}px`, left: 0, right: 0, borderTop: "1px dashed #f1f5f9" }} />
-        ))}
-        <svg viewBox={`0 0 ${W} ${height}`} width="100%" height={height} style={{ overflow: "visible", position: "relative", zIndex: 2 }}>
-          <polyline points={pts.join(" ")} fill="none" stroke="#0f172a" strokeWidth={2} />
-          {data.map((v, i) => {
-            const x = (i / (data.length - 1)) * (W - 30) + 15;
-            const y = height - ((v - min) / range) * (height - 20) - 10;
-            return <circle key={i} cx={x} cy={y} r={3.5} fill="#0f172a" stroke="white" strokeWidth={1.5} />;
-          })}
-        </svg>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "10px", color: "#64748b", paddingLeft: "10px", paddingRight: "10px" }}>
-          {labels.map((l, i) => <span key={i}>{l}</span>)}
-        </div>
-      </div>
-    </div>
-  );
-}
+const violationTypeData = [
+  { label: "Speeding", value: 3850, pct: 100 },
+  { label: "No Helmet", value: 3200, pct: 83 },
+  { label: "Signal Jump", value: 2450, pct: 63 },
+  { label: "Illegal Parking", value: 1980, pct: 51 },
+  { label: "No License", value: 1367, pct: 35 },
+];
 
-function OrangeHBarChart({ data }) {
-  const max = 4000;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px" }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "11px", color: "#475569", width: "100px", flexShrink: 0, fontWeight: 500 }}>{d.label}</span>
-          <div style={{ flex: 1, background: "#f1f5f9", borderRadius: "4px", height: "14px", overflow: "hidden" }}>
-            <div style={{ width: `${(d.value / max) * 100}%`, background: "#d97706", height: "100%", borderRadius: "4px" }} />
-          </div>
-          <span style={{ fontSize: "11px", color: "#0f172a", width: "40px", textAlign: "right", fontWeight: 700 }}>{d.value.toLocaleString()}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+const weeklyYearlyTrendData = [
+  { year: "2021", val: 7200 },
+  { year: "2022", val: 8400 },
+  { year: "2023", val: 9100 },
+  { year: "2024", val: 10800 },
+  { year: "2025", val: 11900 },
+  { year: "2026", val: 12847 },
+];
 
-function OrangePeakHoursChart() {
-  const yTicks = [1000, 750, 500, 250, 0];
-  const labels = ["6am", "9am", "12pm", "3pm", "6pm", "9pm"];
-  const vals = [150, 420, 520, 680, 890, 320];
-  const max = 1000; const height = 130; const W = 320;
-  const pts = vals.map((v, i) => {
-    const x = (i / (vals.length - 1)) * (W - 20) + 10;
-    const y = height - (v / max) * (height - 20) - 10;
-    return `${x},${y}`;
-  });
+const peakHoursData = [
+  { time: "6am", val: 150 },
+  { time: "9am", val: 420 },
+  { time: "12pm", val: 520 },
+  { time: "3pm", val: 680 },
+  { time: "6pm", val: 890 },
+  { time: "9pm", val: 320 },
+];
 
-  return (
-    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "170px", paddingTop: "15px" }}>
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: `${height}px`, fontSize: "10px", color: "#94a3b8", textAlign: "right" }}>
-        {yTicks.map(t => <span key={t}>{t}</span>)}
-      </div>
-      <div style={{ flex: 1, position: "relative", height: `${height}px` }}>
-        {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => (
-          <div key={idx} style={{ position: "absolute", top: `${pct * (height - 1)}px`, left: 0, right: 0, borderTop: "1px dashed #f1f5f9" }} />
-        ))}
-        <svg viewBox={`0 0 ${W} ${height}`} width="100%" height={height} style={{ overflow: "visible" }}>
-          <defs>
-            <linearGradient id="orgGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#d97706" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#d97706" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
-          <polygon points={`10,${height} ${pts.join(" ")} ${W - 10},${height}`} fill="url(#orgGrad)" />
-          <polyline points={pts.join(" ")} fill="none" stroke="#d97706" strokeWidth={2.5} />
-          {vals.map((v, i) => {
-            const x = (i / (vals.length - 1)) * (W - 20) + 10;
-            const y = height - (v / max) * (height - 20) - 10;
-            return <circle key={i} cx={x} cy={y} r={3.5} fill="#d97706" stroke="white" strokeWidth={1.5} />;
-          })}
-        </svg>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "10px", color: "#64748b" }}>
-          {labels.map((l, i) => <span key={i}>{l}</span>)}
-        </div>
-      </div>
-    </div>
-  );
-}
+const longTermStrategicData = [
+  { month: "Jan", accidents: 820, violations: 9800 },
+  { month: "Feb", accidents: 845, violations: 10100 },
+  { month: "Mar", accidents: 870, violations: 10400 },
+  { month: "Apr", accidents: 920, violations: 10900 },
+  { month: "May", accidents: 980, violations: 11400 },
+  { month: "Jun", accidents: 1100, violations: 12200 },
+  { month: "Jul", accidents: 1245, violations: 12847 },
+];
 
-function DualLineStrategicChart({ labels, accidents, violations }) {
-  const accMax = 1400; const violMax = 14000;
-  const height = 120; const W = 700;
+const initialArchiveRecords = [
+  {
+    id: "RPT-2026-0891",
+    title: "Monthly Accident Matrix Report",
+    category: "Accidents",
+    categoryColor: "#ef4444",
+    type: "AUTO",
+    period: "08/01/2026 — 08/31/2026",
+    generated: "01 Sep 2026, 00:00 AM",
+    by: "System (Auto)",
+    status: "Completed",
+    size: "284 KB",
+    filterData: { category: "accidents", vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"] }
+  },
+  {
+    id: "RPT-2026-0890",
+    title: "Monthly Violation Density Report",
+    category: "Violations",
+    categoryColor: "#3b82f6",
+    type: "AUTO",
+    period: "08/01/2026 — 08/31/2026",
+    generated: "01 Sep 2026, 00:00 AM",
+    by: "System (Auto)",
+    status: "Completed",
+    size: "312 KB",
+    filterData: { category: "violations", vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"] }
+  },
+  {
+    id: "RPT-NB-726306",
+    title: "Executive Summary Division Report",
+    category: "Both",
+    categoryColor: "#8b5cf6",
+    type: "MANUAL",
+    period: "06/30/2026 — 07/12/2026",
+    generated: "02 Sep 2026, 09:14 AM",
+    by: "PS Perera",
+    status: "Completed",
+    size: "410 KB",
+    filterData: { category: "both", vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"] }
+  },
+  {
+    id: "RPT-2026-0842",
+    title: "Custom High Speed Corridor Audit",
+    category: "Violations",
+    categoryColor: "#3b82f6",
+    type: "MANUAL",
+    period: "07/01/2026 — 07/15/2026",
+    generated: "16 Jul 2026, 14:30 PM",
+    by: "PS Perera",
+    status: "Completed",
+    size: "195 KB",
+    filterData: { category: "violations", vehicles: ["Motor Car", "Motorcycle", "Three-Wheeler"] }
+  },
+  {
+    id: "RPT-2026-0799",
+    title: "Night Duty Incident Summary",
+    category: "Accidents",
+    categoryColor: "#ef4444",
+    type: "MANUAL",
+    period: "06/01/2026 — 06/30/2026",
+    generated: "01 Jul 2026, 08:22 AM",
+    by: "PS Perera",
+    status: "Failed",
+    size: "0 KB",
+    filterData: { category: "accidents", vehicles: ["Motor Car", "Van", "Lorry"] }
+  }
+];
 
-  const accPts = accidents.map((v, i) => {
-    const x = (i / (accidents.length - 1)) * (W - 40) + 20;
-    const y = height - (v / accMax) * (height - 20) - 10;
-    return `${x},${y}`;
-  });
-
-  const violPts = violations.map((v, i) => {
-    const x = (i / (violations.length - 1)) * (W - 40) + 20;
-    const y = height - (v / violMax) * (height - 20) - 10;
-    return `${x},${y}`;
-  });
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", position: "relative", height: `${height}px`, margin: "10px 0 20px" }}>
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: "10px", color: "#94a3b8" }}>
-          <span>1400</span><span>1050</span><span>700</span><span>350</span><span>0</span>
-        </div>
-        <div style={{ flex: 1, margin: "0 15px", position: "relative" }}>
-          {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => (
-            <div key={idx} style={{ position: "absolute", top: `${pct * (height - 1)}px`, left: 0, right: 0, borderTop: "1px dashed #f1f5f9" }} />
-          ))}
-          <svg viewBox={`0 0 ${W} ${height}`} width="100%" height={height} style={{ overflow: "visible" }}>
-            <polyline points={accPts.join(" ")} fill="none" stroke="#ef4444" strokeWidth={2} />
-            {accidents.map((v, i) => {
-              const x = (i / (accidents.length - 1)) * (W - 40) + 20;
-              const y = height - (v / accMax) * (height - 20) - 10;
-              return <circle key={`a-${i}`} cx={x} cy={y} r={3} fill="white" stroke="#ef4444" strokeWidth={2} />;
-            })}
-            <polyline points={violPts.join(" ")} fill="none" stroke="#3b82f6" strokeWidth={2} />
-            {violations.map((v, i) => {
-              const x = (i / (violations.length - 1)) * (W - 40) + 20;
-              const y = height - (v / violMax) * (height - 20) - 10;
-              return <circle key={`v-${i}`} cx={x} cy={y} r={3} fill="white" stroke="#3b82f6" strokeWidth={2} />;
-            })}
-          </svg>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "10px", color: "#64748b" }}>
-            {labels.map((l, i) => <span key={i}>{l}</span>)}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", fontSize: "10px", color: "#94a3b8", textAlign: "right" }}>
-          <span>14000</span><span>10500</span><span>7000</span><span>3500</span><span>0</span>
-        </div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "center", gap: "20px", fontSize: "11px", color: "#64748b", marginTop: "10px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", border: "2px solid #ef4444", background: "white", display: "inline-block" }} />
-          <span style={{ color: "#ef4444", fontWeight: 600 }}>Accidents</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", border: "2px solid #3b82f6", background: "white", display: "inline-block" }} />
-          <span style={{ color: "#3b82f6", fontWeight: 600 }}>Violations</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
+const vehicleList = [
+  { name: "Motor Car", emoji: "🚗" },
+  { name: "Van", emoji: "🚐" },
+  { name: "Bus", emoji: "🚌" },
+  { name: "Lorry", emoji: "🚛" },
+  { name: "Three-Wheeler", emoji: "🛺" },
+  { name: "Motorcycle", emoji: "🏍" },
+  { name: "Bicycle", emoji: "🚲" },
+];
 
 function Reports() {
   const officer = JSON.parse(localStorage.getItem("officer") || "{}");
-  const officerName = officer.name || "PS Perera";
+  const officerName = officer.fullName || officer.name || "PS Perera";
+  const badgeNo = officer.policeId || "256 556 656";
 
-  const [reportType, setReportType]     = useState("Summary Report");
-  const [catAccidents, setCatAccidents]   = useState(true);
-  const [catViolations, setCatViolations] = useState(true);
-  const [dateRange, setDateRange]       = useState("This Month");
-  const [customFrom, setCustomFrom]     = useState("06/30/2026");
-  const [customTo, setCustomTo]         = useState("07/12/2026");
-  const [isModalOpen, setIsModalOpen]   = useState(false);
+  // ── Top Level Tabs ──
+  const [topTab, setTopTab] = useState("live"); // "live" | "scheduled"
 
-  const [accidentsList, setAccidentsList]   = useState([]);
-  const [violationsList, setViolationsList] = useState([]);
+  // ── Live Analytics State ──
+  const [liveDatePreset, setLiveDatePreset] = useState("Custom");
+  const [fromDate, setFromDate] = useState("06/30/2026");
+  const [toDate, setToDate] = useState("07/12/2026");
+  const [analyticsSection, setAnalyticsSection] = useState("violations"); // "accidents" | "violations"
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const accs = await getAccidents();
-        const viols = await getViolations();
-        setAccidentsList(accs || []);
-        setViolationsList(viols || []);
-      } catch (err) {
-        console.error("Failed to fetch reports data:", err);
-      }
-    };
-    fetchData();
-  }, []);
+  // ── Scheduled Reports State ──
+  const [autoAccidentsEnabled, setAutoAccidentsEnabled] = useState(true);
+  const [autoViolationsEnabled, setAutoViolationsEnabled] = useState(true);
+  const [runningReportId, setRunningReportId] = useState(null);
 
-  const totalAccidents = accidentsList.length > 0 ? accidentsList.length : 1245;
+  // ── Custom Report Form State ──
+  const [customCategory, setCustomCategory] = useState("both"); // "accidents" | "violations" | "both"
+  const [customDatePreset, setCustomDatePreset] = useState("Last 2 weeks");
+  const [customFromDate, setCustomFromDate] = useState("06/30/2026");
+  const [customToDate, setCustomToDate] = useState("07/12/2026");
+
+  const [accidentSeverities, setAccidentSeverities] = useState(["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"]);
+  const [accidentCauses, setAccidentCauses] = useState(["Excessive Speed", "Illegal Overtaking", "Reckless Driving", "Failure to Keep Left"]);
+  
+  const [violationActions, setViolationActions] = useState(["Judicial Cases (Court)", "Fine-based Offences", "Warnings"]);
+  const [violationCauses, setViolationCauses] = useState(["Speeding", "No Helmet", "Signal Jump", "Illegal Parking", "No License"]);
+
+  const [selectedVehicles, setSelectedVehicles] = useState(["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"]);
+
+  const [isCustomGenerating, setIsCustomGenerating] = useState(false);
+
+  // ── Archive & Modal State ──
+  const [archive, setArchive] = useState(initialArchiveRecords);
+  const [archiveFilter, setArchiveFilter] = useState("All");
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState("accidents");
+  const [activeModalReport, setActiveModalReport] = useState(null);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // Handle Preset Date selection
+  const handleLivePresetChange = (preset) => {
+    setLiveDatePreset(preset);
+    if (preset === "Today") {
+      setFromDate("07/12/2026"); setToDate("07/12/2026");
+    } else if (preset === "This Week") {
+      setFromDate("07/06/2026"); setToDate("07/12/2026");
+    } else if (preset === "This Month") {
+      setFromDate("07/01/2026"); setToDate("07/12/2026");
+    } else {
+      setFromDate("06/30/2026"); setToDate("07/12/2026");
+    }
+  };
+
+  const handleCustomPresetChange = (preset) => {
+    setCustomDatePreset(preset);
+    if (preset === "Last 7 days") {
+      setCustomFromDate("07/05/2026"); setCustomToDate("07/12/2026");
+    } else if (preset === "Last 2 weeks") {
+      setCustomFromDate("06/30/2026"); setCustomToDate("07/12/2026");
+    } else if (preset === "Last 30 days") {
+      setCustomFromDate("06/12/2026"); setCustomToDate("07/12/2026");
+    } else if (preset === "Last 90 days") {
+      setCustomFromDate("04/12/2026"); setCustomToDate("07/12/2026");
+    }
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 4000);
+  };
+
+  // Run Now handler for Monthly Reports
+  const handleRunMonthlyReport = (type) => {
+    setRunningReportId(type);
+    setTimeout(() => {
+      setRunningReportId(null);
+      const newId = `RPT-2026-0${Math.floor(892 + Math.random() * 100)}`;
+      const newRecord = {
+        id: newId,
+        title: type === "accidents" ? "Monthly Accident Report" : "Monthly Violation Report",
+        category: type === "accidents" ? "Accidents" : "Violations",
+        categoryColor: type === "accidents" ? "#ef4444" : "#3b82f6",
+        type: "AUTO",
+        period: "09/01/2026 — 09/30/2026",
+        generated: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + ", 10:00 AM",
+        by: "System (Manual Trigger)",
+        status: "Completed",
+        size: "320 KB",
+        filterData: { category: type, vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"] }
+      };
+      setArchive([newRecord, ...archive]);
+      showToast(`✅ ${newRecord.title} (${newId}) generated successfully and archived.`);
+    }, 2000);
+  };
+
+  // Generate Custom Report Handler
+  const handleGenerateCustomReport = () => {
+    if (selectedVehicles.length === 0) {
+      alert("Please select at least one vehicle type for the matrix report.");
+      return;
+    }
+    setIsCustomGenerating(true);
+    setTimeout(() => {
+      setIsCustomGenerating(false);
+      const newId = `RPT-NB-${Math.floor(700000 + Math.random() * 90000)}`;
+      const catTitle = customCategory === "accidents" ? "Custom Accident Matrix" : customCategory === "violations" ? "Custom Violation Matrix" : "Custom Summary Report";
+      const catColor = customCategory === "accidents" ? "#ef4444" : customCategory === "violations" ? "#3b82f6" : "#8b5cf6";
+      const catLabel = customCategory === "accidents" ? "Accidents" : customCategory === "violations" ? "Violations" : "Both";
+
+      const newRecord = {
+        id: newId,
+        title: catTitle,
+        category: catLabel,
+        categoryColor: catColor,
+        type: "MANUAL",
+        period: `${customFromDate} — ${customToDate}`,
+        generated: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + ", " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        by: officerName,
+        status: "Completed",
+        size: "265 KB",
+        filterData: { category: customCategory, vehicles: selectedVehicles }
+      };
+      setArchive([newRecord, ...archive]);
+      showToast(`🎉 Custom Report ${newId} compiled successfully!`);
+      setActiveModalReport(newRecord);
+      setModalTab(customCategory === "violations" ? "violations" : "accidents");
+      setIsModalOpen(true);
+    }, 2000);
+  };
+
+  // Open Modal Helper
+  const openModalForReport = (reportRecord) => {
+    setActiveModalReport(reportRecord);
+    if (reportRecord && reportRecord.category === "Violations") {
+      setModalTab("violations");
+    } else {
+      setModalTab("accidents");
+    }
+    setIsModalOpen(true);
+  };
+
+  // Toggle Vehicle selection
+  const toggleVehicle = (vName) => {
+    if (selectedVehicles.includes(vName)) {
+      setSelectedVehicles(selectedVehicles.filter(v => v !== vName));
+    } else {
+      setSelectedVehicles([...selectedVehicles, vName]);
+    }
+  };
+
+  const toggleAllVehicles = () => {
+    if (selectedVehicles.length === vehicleList.length) {
+      setSelectedVehicles([]);
+    } else {
+      setSelectedVehicles(vehicleList.map(v => v.name));
+    }
+  };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleExport = () => {
-    alert(`Exporting ${reportType} as PDF file...`);
+  const handleExportPDF = () => {
+    alert("Exporting official PDF report document to downloads...");
   };
+
+  // Filtered Archive Records
+  const filteredArchive = archive.filter(item => {
+    if (archiveFilter === "Auto") return item.type === "AUTO";
+    if (archiveFilter === "Manual") return item.type === "MANUAL";
+    return true;
+  });
 
   return (
     <OICLayout>
-      <div className="pro-ra-page">
+      <div style={{ fontFamily: "Inter, sans-serif", color: "#1e293b" }}>
 
-        {/* PAGE TITLE & SUBTITLE */}
-        <div className="pro-ra-header">
-          <h1 className="pro-ra-title">Reports & Analytics</h1>
-          <p className="pro-ra-sub">
+        {/* TOAST NOTICE */}
+        {toastMessage && (
+          <div style={{
+            position: "fixed",
+            top: 20,
+            right: 20,
+            zIndex: 10000,
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            padding: "14px 22px",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: 600,
+            boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            border: "1px solid #3b82f6"
+          }}>
+            <FiCheckCircle2 size={18} color="#10b981" />
+            {toastMessage}
+          </div>
+        )}
+
+        {/* PAGE HEADER & TOP SWITCHER */}
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", margin: "0 0 6px 0" }}>
+            Reports & Analytics
+          </h1>
+          <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
             Live accident & violation analytics below — set a report type and date range, then generate a formatted report to export or print
           </p>
+
+          {/* TOP PILL SWITCHER TABS */}
+          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+            <button
+              onClick={() => setTopTab("live")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 18px",
+                borderRadius: "8px",
+                border: "1px solid",
+                borderColor: topTab === "live" ? "#cbd5e1" : "#e2e8f0",
+                backgroundColor: topTab === "live" ? "#ffffff" : "#f1f5f9",
+                color: topTab === "live" ? "#0f172a" : "#64748b",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: topTab === "live" ? "0 1px 3px rgba(0,0,0,0.08)" : "none"
+              }}
+            >
+              📊 Live Analytics
+            </button>
+            <button
+              onClick={() => setTopTab("scheduled")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 18px",
+                borderRadius: "8px",
+                border: "1px solid",
+                borderColor: topTab === "scheduled" ? "#cbd5e1" : "#e2e8f0",
+                backgroundColor: topTab === "scheduled" ? "#ffffff" : "#f1f5f9",
+                color: topTab === "scheduled" ? "#0f172a" : "#64748b",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: topTab === "scheduled" ? "0 1px 3px rgba(0,0,0,0.08)" : "none"
+              }}
+            >
+              🗓 Scheduled Reports
+              <span style={{
+                backgroundColor: "#2563eb",
+                color: "#ffffff",
+                fontSize: "10px",
+                fontWeight: 800,
+                padding: "2px 7px",
+                borderRadius: "12px",
+                letterSpacing: "0.5px"
+              }}>
+                AUTO
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* TOOLBAR CARD */}
-        <div className="pro-ra-toolbar-card">
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 1: LIVE ANALYTICS
+           ════════════════════════════════════════════════════════════════════ */}
+        {topTab === "live" && (
+          <div>
+            {/* CONTROLS CARD */}
+            <div style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "14px",
+              padding: "20px 24px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              marginBottom: 24,
+              border: "1px solid #e2e8f0"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.5px", margin: "0 0 8px 0" }}>
+                    DATE RANGE SELECTION
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    {["Today", "This Week", "This Month", "Custom"].map(preset => (
+                      <button
+                        key={preset}
+                        onClick={() => handleLivePresetChange(preset)}
+                        style={{
+                          padding: "7px 16px",
+                          borderRadius: "6px",
+                          border: "none",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          backgroundColor: liveDatePreset === preset ? "#1E2A3B" : "#f1f5f9",
+                          color: liveDatePreset === preset ? "#ffffff" : "#475569",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        {preset}
+                      </button>
+                    ))}
 
-          {/* FIRST ROW: CONTROLS */}
-          <div className="pro-ra-toolbar-row1">
-            <div className="pro-ra-ctrl-group">
-              <span className="pro-ra-ctrl-label">REPORT TYPE</span>
-              <select
-                className="pro-ra-select-box"
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
-              >
-                <option value="Summary Report">Summary Report</option>
-                <option value="Detailed Report">Detailed Report</option>
-                <option value="Incident Report">Incident Report</option>
-              </select>
-            </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 6 }}>
+                      <input
+                        type="text"
+                        value={fromDate}
+                        onChange={e => setFromDate(e.target.value)}
+                        style={{
+                          padding: "6px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          width: 105,
+                          textAlign: "center",
+                          color: "#1e293b",
+                          fontWeight: 600,
+                          outline: "none"
+                        }}
+                      />
+                      <span style={{ color: "#94a3b8" }}>—</span>
+                      <input
+                        type="text"
+                        value={toDate}
+                        onChange={e => setToDate(e.target.value)}
+                        style={{
+                          padding: "6px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          width: 105,
+                          textAlign: "center",
+                          color: "#1e293b",
+                          fontWeight: 600,
+                          outline: "none"
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-            <div className="pro-ra-ctrl-group">
-              <span className="pro-ra-ctrl-label">CATEGORIES</span>
-              <div className="pro-ra-checks">
-                <label className="pro-ra-check">
-                  <input
-                    type="checkbox"
-                    checked={catAccidents}
-                    onChange={(e) => setCatAccidents(e.target.checked)}
-                  />
-                  Accidents
-                </label>
-                <label className="pro-ra-check">
-                  <input
-                    type="checkbox"
-                    checked={catViolations}
-                    onChange={(e) => setCatViolations(e.target.checked)}
-                  />
-                  Violations
-                </label>
-              </div>
-            </div>
-
-            <div className="pro-ra-ctrl-group pro-ra-ctrl-right">
-              <span className="pro-ra-ctrl-label">DATE RANGE SELECTION</span>
-              <div className="pro-ra-pills-row">
-                {["Today", "This Week", "This Month", "Custom"].map((r) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <button
-                    key={r}
-                    className={`pro-ra-pill-btn ${dateRange === r ? "pill-dark" : ""}`}
-                    onClick={() => setDateRange(r)}
+                    onClick={handlePrint}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "9px 16px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      backgroundColor: "#ffffff",
+                      color: "#334155",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}
                   >
-                    {r}
+                    <FiPrinter size={15} /> Print
                   </button>
-                ))}
+                  <button
+                    onClick={handleExportPDF}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "9px 16px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      backgroundColor: "#ffffff",
+                      color: "#334155",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}
+                  >
+                    <FiDownload size={15} /> Export
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveModalReport({
+                        id: "RPT-NB-726306",
+                        title: "Summary Report",
+                        category: "Both",
+                        period: `${fromDate} — ${toDate}`,
+                        generated: "02 September 2026",
+                        by: officerName
+                      });
+                      setIsModalOpen(true);
+                    }}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: "8px",
+                      border: "none",
+                      backgroundColor: "#1E2A3B",
+                      color: "#ffffff",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 6px rgba(15,23,42,0.2)"
+                    }}
+                  >
+                    Generate Report
+                  </button>
+                </div>
+              </div>
 
-                <div className="pro-ra-date-box">
-                  <input
-                    type="text"
-                    className="pro-ra-date-field"
-                    value={customFrom}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                  />
-                  <span className="pro-ra-date-dash">—</span>
-                  <input
-                    type="text"
-                    className="pro-ra-date-field"
-                    value={customTo}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                  />
+              <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 18, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+                <p style={{ fontSize: 12, color: "#64748b", fontStyle: "italic", margin: 0 }}>
+                  Live analytics — showing current data.
+                </p>
+
+                {/* ACCIDENT / VIOLATION SECTION TOGGLE BUTTONS */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => setAnalyticsSection("accidents")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 18px",
+                      borderRadius: "8px",
+                      border: "1.5px solid",
+                      borderColor: analyticsSection === "accidents" ? "#ef4444" : "#e2e8f0",
+                      backgroundColor: analyticsSection === "accidents" ? "#fef2f2" : "#ffffff",
+                      color: analyticsSection === "accidents" ? "#dc2626" : "#64748b",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444", display: "inline-block" }} />
+                    Accident Analytics
+                  </button>
+
+                  <button
+                    onClick={() => setAnalyticsSection("violations")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 18px",
+                      borderRadius: "8px",
+                      border: "1.5px solid",
+                      borderColor: analyticsSection === "violations" ? "#2563eb" : "#e2e8f0",
+                      backgroundColor: analyticsSection === "violations" ? "#eff6ff" : "#ffffff",
+                      color: analyticsSection === "violations" ? "#2563eb" : "#64748b",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#2563eb", display: "inline-block" }} />
+                    Violation Analytics
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* SECOND ROW: ACTION BUTTONS */}
-          <div className="pro-ra-toolbar-row2">
-            <button className="pro-ra-btn-outline" onClick={handlePrint}>
-              <span style={{ fontSize: 13 }}>🖨️</span> Print
-            </button>
-            <button className="pro-ra-btn-outline" onClick={handleExport}>
-              <span style={{ fontSize: 13 }}>⬇</span> Export
-            </button>
-            <button className="pro-ra-btn-primary" onClick={() => setIsModalOpen(true)}>
-              Generate Report
-            </button>
-          </div>
+            {/* ── ACCIDENT ANALYTICS SECTION ── */}
+            {analyticsSection === "accidents" && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#ef4444" }} />
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: 0 }}>Accident Analytics</h2>
+                </div>
 
-          {/* THIRD ROW: SUB-INFO & SECTION JUMP */}
-          <div className="pro-ra-toolbar-row3">
-            <p className="pro-ra-sub-text">
-              Live analytics — showing current data. Generate a report to label and export a snapshot.
-            </p>
-            <div className="pro-ra-jump-links">
-              <a
-                href="#accidents"
-                className={`pro-ra-jump-link ${catAccidents ? "active-link" : ""}`}
-                onClick={(e) => { e.preventDefault(); setCatAccidents(true); }}
-              >
-                <span style={{ fontSize: 10 }}>ℹ</span> Accidents
-              </a>
-              <a
-                href="#violations"
-                className={`pro-ra-jump-link ${catViolations ? "active-link" : ""}`}
-                onClick={(e) => { e.preventDefault(); setCatViolations(true); }}
-              >
-                <span style={{ fontSize: 10 }}>ℹ</span> Violations
-              </a>
-            </div>
-          </div>
-
-        </div>
-
-        {/* SECTION: ACCIDENTS */}
-        {catAccidents && (
-          <div className="pro-ra-section-wrap" id="accidents">
-            <div className="pro-ra-sec-header">
-              <span className="pro-ra-red-dot">●</span>
-              <h2 className="pro-ra-sec-title">Accidents</h2>
-            </div>
-
-            <div className="pro-ra-stat-cards-grid">
-              <div className="pro-ra-stat-card">
-                <span className="pro-ra-card-label">TOTAL ACCIDENTS</span>
-                <p className="pro-ra-card-val">{totalAccidents.toLocaleString()}</p>
-                <p className="pro-ra-card-trend text-red">▲ 8.2% vs last period</p>
-              </div>
-
-              <div className="pro-ra-stat-card">
-                <span className="pro-ra-card-label">HIGH RISK ZONES</span>
-                <p className="pro-ra-card-val">4</p>
-                <p className="pro-ra-card-sub">Zones above threshold</p>
-              </div>
-
-              <div className="pro-ra-stat-card">
-                <span className="pro-ra-card-label">PEAK TIME</span>
-                <p className="pro-ra-card-val">5–7 PM</p>
-                <p className="pro-ra-card-sub">Highest frequency window</p>
-              </div>
-            </div>
-
-            <div className="pro-ra-warning-banner">
-              <span className="warning-icon">⚠️</span>
-              <div>
-                <strong className="warning-title">Accidents increased by 20% in Negombo this week</strong>
-                <p className="warning-desc">Critical threshold exceeded — immediate patrol reinforcement recommended in high-risk zones.</p>
-              </div>
-            </div>
-
-            <div className="pro-ra-charts-2x2">
-              <div className="pro-ra-chart-card">
-                <h3 className="pro-ra-card-head">ACCIDENTS BY LOCATION (HIGH ACCIDENT)</h3>
-                <LocationBarChart
-                  data={[
-                    { label: "Negombo Jn", value: 85 },
-                    { label: "Colombo Fort", value: 72 },
-                    { label: "Koppara Jn", value: 60 },
-                    { label: "Kandy Rd", value: 45 },
-                    { label: "Airport Rd", value: 30 },
-                  ]}
-                />
-              </div>
-
-              <div className="pro-ra-chart-card">
-                <h3 className="pro-ra-card-head">ACCIDENTS BY SEVERITY</h3>
-                <SeverityDonutChart
-                  slices={[
-                    { label: "Property Damage", value: 52, pct: 52, color: "#475569" },
-                    { label: "Minor Injury",    value: 28, pct: 28, color: "#f59e0b" },
-                    { label: "Major Injury",    value: 14, pct: 14, color: "#f97316" },
-                    { label: "Fatal",           value: 6,  pct: 6,  color: "#ef4444" },
-                  ]}
-                />
-              </div>
-
-              <div className="pro-ra-chart-card">
-                <h3 className="pro-ra-card-head">MONTHLY TREND</h3>
-                <MonthlyTrendLineChart
-                  data={[820, 845, 870, 920, 980, 1100, 1245]}
-                  labels={["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]}
-                />
-              </div>
-
-              <div className="pro-ra-chart-card">
-                <h3 className="pro-ra-card-head">TOP DANGER ZONES</h3>
-                <div className="pro-ra-dz-list">
-                  <div className="pro-ra-dz-item">
-                    <span className="pro-ra-dz-icon">⛔</span>
-                    <span className="pro-ra-dz-name">Negombo Junction</span>
-                    <span className="pro-ra-dz-tag tag-red">87/100</span>
+                {/* KPI CARDS */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+                  <div style={{ backgroundColor: "#ffffff", padding: "20px 22px", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0 }}>TOTAL ACCIDENTS</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#0f172a", margin: "6px 0 2px 0" }}>1,245</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", margin: 0 }}>▲ 8.2% vs last period</p>
                   </div>
-
-                  <div className="pro-ra-dz-item">
-                    <span className="pro-ra-dz-icon">⛔</span>
-                    <span className="pro-ra-dz-name">Colombo Fort</span>
-                    <span className="pro-ra-dz-tag tag-red">82/100</span>
+                  <div style={{ backgroundColor: "#ffffff", padding: "20px 22px", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0 }}>HIGH RISK ZONES</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#0f172a", margin: "6px 0 2px 0" }}>4</p>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Zones above threshold</p>
                   </div>
-
-                  <div className="pro-ra-dz-item">
-                    <span className="pro-ra-dz-icon">⛔</span>
-                    <span className="pro-ra-dz-name">Koppara Junction</span>
-                    <span className="pro-ra-dz-tag tag-orange">68/100</span>
+                  <div style={{ backgroundColor: "#ffffff", padding: "20px 22px", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0 }}>PEAK TIME</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#0f172a", margin: "6px 0 2px 0" }}>5–7 PM</p>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Highest frequency window</p>
                   </div>
                 </div>
 
-                <div className="pro-ra-risk-scale-box">
-                  <span className="risk-scale-head">RISK INDEX SCALE</span>
-                  <div className="risk-scale-items">
-                    <span className="scale-item"><span className="sq-dot sq-red" /> 80–100 Critical</span>
-                    <span className="scale-item"><span className="sq-dot sq-orange" /> 60–79 High</span>
-                    <span className="scale-item"><span className="sq-dot sq-yellow" /> 40–59 Med</span>
+                {/* RED ALERT BANNER */}
+                <div style={{
+                  backgroundColor: "#fef2f2",
+                  border: "1px solid #fca5a5",
+                  borderRadius: "12px",
+                  padding: "16px 20px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  marginBottom: 20
+                }}>
+                  <span style={{ fontSize: 18 }}>📍</span>
+                  <div>
+                    <strong style={{ color: "#991b1b", fontSize: 14, display: "block" }}>
+                      Accidents increased by 20% in Negombo this week
+                    </strong>
+                    <p style={{ color: "#7f1d1d", fontSize: 12, margin: "2px 0 0 0" }}>
+                      Critical threshold exceeded — immediate patrol reinforcement recommended in high-risk zones.
+                    </p>
                   </div>
+                </div>
+
+                {/* 2-COLUMN GRID 1 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                  {/* Accidents by Location */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      ACCIDENTS BY LOCATION
+                    </h3>
+                    <div style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={accidentLocationData}>
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#1E2A3B" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Accidents by Severity */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      ACCIDENTS BY SEVERITY
+                    </h3>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", height: 220 }}>
+                      <div style={{ width: 180, height: 180 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={accidentSeverityData} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={3}>
+                              {accidentSeverityData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {accidentSeverityData.map((item, idx) => (
+                          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+                            <span style={{ width: 10, height: 10, borderRadius: "2px", backgroundColor: item.color }} />
+                            <span style={{ color: "#475569", width: 120 }}>{item.name}</span>
+                            <strong style={{ color: "#0f172a" }}>{item.pct}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2-COLUMN GRID 2 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  {/* Monthly Trend */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      MONTHLY TREND
+                    </h3>
+                    <div style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={monthlyTrendData}>
+                          <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <Tooltip />
+                          <Area type="monotone" dataKey="val" stroke="#1E2A3B" fill="#1E2A3B" fillOpacity={0.15} strokeWidth={2.5} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Top Danger Zones */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      TOP DANGER ZONES
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {[
+                        { location: "Negombo Junction", score: "87/100", pct: 87, color: "#dc2626", badgeBg: "#fee2e2" },
+                        { location: "Colombo Fort", score: "82/100", pct: 82, color: "#dc2626", badgeBg: "#fee2e2" },
+                        { location: "Koppara Junction", score: "68/100", pct: 68, color: "#d97706", badgeBg: "#fef3c7" },
+                        { location: "Kandy Road", score: "54/100", pct: 54, color: "#ca8a04", badgeBg: "#fef9c3" },
+                        { location: "Airport Road", score: "41/100", pct: 41, color: "#ca8a04", badgeBg: "#fef9c3" },
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 12, color: "#64748b", width: 120, fontWeight: 600 }}>{item.location}</span>
+                          <div style={{ flex: 1, height: 10, backgroundColor: "#f1f5f9", borderRadius: 5, overflow: "hidden" }}>
+                            <div style={{ width: `${item.pct}%`, height: "100%", backgroundColor: item.color, borderRadius: 5 }} />
+                          </div>
+                          <span style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: "12px",
+                            backgroundColor: item.badgeBg,
+                            color: item.color
+                          }}>
+                            {item.score}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── VIOLATION ANALYTICS SECTION ── */}
+            {analyticsSection === "violations" && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#2563eb" }} />
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: 0 }}>Violations</h2>
+                </div>
+
+                {/* KPI CARDS */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+                  <div style={{ backgroundColor: "#ffffff", padding: "20px 22px", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0 }}>TOTAL VIOLATIONS (YTD)</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#0f172a", margin: "6px 0 2px 0" }}>12,847</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", margin: 0 }}>▲ 2.5% vs last month</p>
+                  </div>
+                  <div style={{ backgroundColor: "#ffffff", padding: "20px 22px", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0 }}>ISSUED THIS WEEK</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#0f172a", margin: "6px 0 2px 0" }}>312</p>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>This month: 1,350</p>
+                  </div>
+                  <div style={{ backgroundColor: "#ffffff", padding: "20px 22px", borderRadius: "14px", border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0 }}>PEAK HOUR</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#0f172a", margin: "6px 0 2px 0" }}>5:00–7:00 PM</p>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Most common: Speeding</p>
+                  </div>
+                </div>
+
+                {/* AMBER ALERT BANNER */}
+                <div style={{
+                  backgroundColor: "#fffbeb",
+                  border: "1px solid #fde68a",
+                  borderRadius: "12px",
+                  padding: "16px 20px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  marginBottom: 20
+                }}>
+                  <span style={{ fontSize: 18 }}>📍</span>
+                  <div>
+                    <strong style={{ color: "#92400e", fontSize: 14, display: "block" }}>
+                      Negombo Town Road has the highest violation density
+                    </strong>
+                    <p style={{ color: "#b45309", fontSize: 12, margin: "2px 0 0 0" }}>
+                      Colombo Fort (Main Rd) and Kurunegala Rd Terminal follow closely — consider targeted enforcement.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2-COLUMN GRID 1 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                  {/* Violations by Area */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      VIOLATIONS BY AREA
+                    </h3>
+                    <div style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={violationAreaData}>
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#1E2A3B" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Violations by Type */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      VIOLATIONS BY TYPE
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 6 }}>
+                      {violationTypeData.map((item, idx) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 12, color: "#475569", width: 110, fontWeight: 600 }}>{item.label}</span>
+                          <div style={{ flex: 1, height: 12, backgroundColor: "#f1f5f9", borderRadius: 6, overflow: "hidden" }}>
+                            <div style={{ width: `${item.pct}%`, height: "100%", backgroundColor: "#d97706", borderRadius: 6 }} />
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", width: 45, textAlign: "right" }}>
+                            {item.value.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2-COLUMN GRID 2 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  {/* Weekly / Yearly Trend */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      WEEKLY / YEARLY TREND
+                    </h3>
+                    <div style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weeklyYearlyTrendData}>
+                          <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <Tooltip />
+                          <Bar dataKey="val" fill="#1E2A3B" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Peak Hours Trend */}
+                  <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 22, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <h3 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 16px 0" }}>
+                      PEAK HOURS TREND
+                    </h3>
+                    <div style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={peakHoursData}>
+                          <XAxis dataKey="time" tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                          <Tooltip />
+                          <Area type="monotone" dataKey="val" stroke="#d97706" fill="#d97706" fillOpacity={0.2} strokeWidth={2.5} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── LONG TERM STRATEGIC TRENDS (ALWAYS VISIBLE) ── */}
+            <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 24, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 16 }}>📈</span>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", margin: 0 }}>Long-term Strategic Trends</h3>
+              </div>
+              <div style={{ height: 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={longTermStrategicData}>
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <Tooltip />
+                    <Line yAxisId="left" type="monotone" dataKey="accidents" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: "#ffffff", stroke: "#ef4444", strokeWidth: 2 }} name="Accidents" />
+                    <Line yAxisId="right" type="monotone" dataKey="violations" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: "#ffffff", stroke: "#3b82f6", strokeWidth: 2 }} name="Violations" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 12, fontSize: 12, fontWeight: 600 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#ef4444" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", border: "2px solid #ef4444", backgroundColor: "#ffffff" }} /> Accidents
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#3b82f6" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", border: "2px solid #3b82f6", backgroundColor: "#ffffff" }} /> Violations
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* FULL WIDTH STRATEGIC CHART */}
-        <div className="pro-ra-chart-card full-width-card">
-          <h3 className="pro-ra-card-head">📈 Long-term Strategic Trends</h3>
-          <DualLineStrategicChart
-            labels={["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]}
-            accidents={[820, 845, 870, 920, 980, 1100, 1245]}
-            violations={[9800, 10100, 10400, 10900, 11400, 12200, 12847]}
-          />
-        </div>
-
-        {/* GENERATED REPORT MODAL */}
-        {isModalOpen && (
-          <div className="modal-backdrop-overlay" onClick={() => setIsModalOpen(false)}>
-            <div className="modal-doc-container" onClick={(e) => e.stopPropagation()}>
-
-              {/* MODAL TOP FIXED BAR */}
-              <div className="modal-top-bar">
-                <div className="top-bar-left">
-                  <div className="blue-shield-icon">🛡️</div>
-                  <div>
-                    <h3 className="top-bar-title">Generated Report</h3>
-                    <p className="top-bar-sub">Ref: RPT-NB-005309 · 21 July 2026</p>
-                  </div>
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 2: SCHEDULED REPORTS
+           ════════════════════════════════════════════════════════════════════ */}
+        {topTab === "scheduled" && (
+          <div>
+            {/* SECTION 1: COMPULSORY MONTHLY REPORTS */}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 4px 0" }}>
+                    Compulsory Monthly Reports
+                  </h2>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+                    Auto-generated on the 1st of every month. Shows Vehicle × Accident/Violation type matrix.
+                  </p>
                 </div>
-
-                <div className="top-bar-actions">
-                  <button className="btn-top-bar" onClick={handlePrint}>
-                    🖨️ Print
-                  </button>
-                  <button className="btn-top-bar" onClick={handleExport}>
-                    ⬇ Export PDF
-                  </button>
-                  <button className="btn-top-bar btn-close-red" onClick={() => setIsModalOpen(false)}>
-                    ✕ Close
-                  </button>
-                </div>
+                <span style={{
+                  padding: "6px 14px",
+                  borderRadius: "20px",
+                  border: "1px solid #10b981",
+                  backgroundColor: "#ecfdf5",
+                  color: "#059669",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}>
+                  <FiRotateCw size={13} /> Next auto-run: Sep 1, 2026
+                </span>
               </div>
 
-              {/* MODAL PRINTABLE DOCUMENT CONTENT */}
-              <div className="modal-doc-body">
-
-                {/* DOCUMENT HEADER */}
-                <div className="doc-head-row">
-                  <div>
-                    <span className="doc-dept-title">SRI LANKA POLICE — TRAFFIC BRANCH</span>
-                    <h1 className="doc-main-title">{reportType}</h1>
-                    <p className="doc-period-sub">Negombo Division · Period: 06/30/2026 — 07/12/2026</p>
-                  </div>
-
-                  <div className="doc-head-right">
-                    <div className="doc-official-badge">OFFICIAL DOCUMENT</div>
-                    <p className="doc-meta-text">Generated: 21 July 2026</p>
-                    <p className="doc-meta-text">Officer: PS Perera · 256 556 656</p>
-                    <p className="doc-meta-text">Ref No: RPT-NB-005309</p>
-                  </div>
-                </div>
-
-                {/* PILLS ROW */}
-                <div className="doc-pills-row">
-                  <span className="doc-pill-red">● Accidents</span>
-                  <span className="doc-pill-blue">● Violations</span>
-                  <span className="doc-pill-text">Negombo Division · Live Data Snapshot</span>
-                </div>
-
-                <div className="doc-divider" />
-
-                {/* SECTION 1: EXECUTIVE SUMMARY */}
-                <div className="doc-sec">
-                  <div className="doc-sec-num-head">
-                    <span className="doc-sec-num">1</span>
-                    <h2 className="doc-sec-title">Executive Summary</h2>
-                  </div>
-
-                  <div className="doc-6kpi-grid">
-                    <div className="doc-kpi-card">
-                      <span className="kpi-title">TOTAL ACCIDENTS</span>
-                      <p className="kpi-val">1,245</p>
-                      <p className="kpi-sub kpi-red">▲ 8.2% vs last period</p>
-                    </div>
-
-                    <div className="doc-kpi-card">
-                      <span className="kpi-title">FATAL INCIDENTS</span>
-                      <p className="kpi-val">6</p>
-                      <p className="kpi-sub kpi-red">▲ 1 vs last period</p>
-                    </div>
-
-                    <div className="doc-kpi-card">
-                      <span className="kpi-title">HIGH RISK ZONES</span>
-                      <p className="kpi-val">4</p>
-                      <p className="kpi-sub kpi-gray">Zones above threshold</p>
-                    </div>
-
-                    <div className="doc-kpi-card">
-                      <span className="kpi-title">TOTAL VIOLATIONS (YTD)</span>
-                      <p className="kpi-val">12,847</p>
-                      <p className="kpi-sub kpi-red">▲ 2.5% vs last month</p>
-                    </div>
-
-                    <div className="doc-kpi-card">
-                      <span className="kpi-title">ISSUED THIS WEEK</span>
-                      <p className="kpi-val">312</p>
-                      <p className="kpi-sub kpi-gray">This month: 1,350</p>
-                    </div>
-
-                    <div className="doc-kpi-card">
-                      <span className="kpi-title">PEAK HOUR</span>
-                      <p className="kpi-val">5–7 PM</p>
-                      <p className="kpi-sub kpi-gray">Most common: Speeding</p>
+              {/* TWO CARDS SIDE BY SIDE */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                {/* Monthly Accident Report Card */}
+                <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 24, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", position: "relative" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <span style={{ backgroundColor: "#fee2e2", color: "#dc2626", fontSize: "11px", fontWeight: 800, padding: "3px 10px", borderRadius: "12px" }}>
+                      ● ACCIDENTS
+                    </span>
+                    {/* SVG Countdown ring */}
+                    <div style={{ width: 44, height: 44, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="44" height="44" viewBox="0 0 36 36">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831" fill="none" stroke="#2563eb" strokeWidth="3" strokeDasharray="80, 100" />
+                      </svg>
+                      <span style={{ position: "absolute", fontSize: "11px", fontWeight: 800, color: "#1e293b" }}>6d</span>
                     </div>
                   </div>
 
-                  {/* WARNING BOX 1 */}
-                  <div className="doc-banner-box banner-red">
-                    <span className="banner-icon">⚠️</span>
-                    <div>
-                      <strong className="banner-head">Critical: Accidents increased by 20% in Negombo this week</strong>
-                      <p className="banner-text">Critical threshold exceeded — immediate patrol reinforcement recommended in high-risk zones. Negombo Junction recorded 87 incidents this period, the highest in the division.</p>
-                    </div>
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", margin: "10px 0 2px 0" }}>Monthly Accident Report</h3>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Monthly · Vehicles × Accident Types</p>
+
+                  <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 16, paddingTop: 14, display: "flex", gap: 20, fontSize: 12 }}>
+                    <div><span style={{ color: "#94a3b8", display: "block", fontSize: 10, fontWeight: 700 }}>LAST RUN</span><strong style={{ color: "#334155" }}>Aug 1, 2026</strong></div>
+                    <div><span style={{ color: "#94a3b8", display: "block", fontSize: 10, fontWeight: 700 }}>NEXT RUN</span><strong style={{ color: "#334155" }}>Sep 1, 2026</strong></div>
+                    <div><span style={{ color: "#94a3b8", display: "block", fontSize: 10, fontWeight: 700 }}>STATUS</span><span style={{ color: "#16a34a", fontWeight: 700 }}>● Completed</span></div>
                   </div>
 
-                  {/* NOTICE BOX 2 */}
-                  <div className="doc-banner-box banner-yellow">
-                    <span className="banner-icon">📍</span>
-                    <div>
-                      <strong className="banner-head">Negombo Town Road has the highest violation density</strong>
-                      <p className="banner-text">Colombo Fort (Main Rd) and Kurunegala Rd Terminal follow closely — consider targeted enforcement operations during 5–7 PM peak window.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="doc-divider" />
-
-                {/* SECTION 2: ACCIDENT ANALYTICS OVERVIEW */}
-                <div className="doc-sec">
-                  <div className="doc-sec-num-head">
-                    <span className="doc-sec-num">2</span>
-                    <h2 className="doc-sec-title">Accident Analytics Overview</h2>
-                  </div>
-
-                  <div className="doc-2col-grid">
-                    <div>
-                      <h4 className="doc-chart-head">ACCIDENTS BY LOCATION</h4>
-                      <LocationBarChart
-                        data={[
-                          { label: "Negombo Jn", value: 85 },
-                          { label: "Colombo Fort", value: 72 },
-                          { label: "Koppara Jn", value: 60 },
-                          { label: "Kandy Rd", value: 45 },
-                          { label: "Airport Rd", value: 30 },
-                        ]}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 18 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#475569" }}>
+                      <input
+                        type="checkbox"
+                        checked={autoAccidentsEnabled}
+                        onChange={e => setAutoAccidentsEnabled(e.target.checked)}
+                        style={{ accentColor: "#2563eb", width: 16, height: 16 }}
                       />
-                    </div>
+                      Auto-enabled
+                    </label>
 
-                    <div>
-                      <h4 className="doc-chart-head">ACCIDENTS BY SEVERITY</h4>
-                      <SeverityDonutChart
-                        slices={[
-                          { label: "Property Damage", value: 52, pct: 52, color: "#475569" },
-                          { label: "Minor Injury",    value: 28, pct: 28, color: "#f59e0b" },
-                          { label: "Major Injury",    value: 14, pct: 14, color: "#f97316" },
-                          { label: "Fatal",           value: 6,  pct: 6,  color: "#ef4444" },
-                        ]}
-                      />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => handleRunMonthlyReport("accidents")}
+                        disabled={runningReportId === "accidents"}
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: "8px",
+                          border: "1px solid #cbd5e1",
+                          backgroundColor: "#ffffff",
+                          color: "#1e293b",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer"
+                        }}
+                      >
+                        {runningReportId === "accidents" ? "⏳ Running..." : "▶ Run Now"}
+                      </button>
+                      <button
+                        onClick={() => openModalForReport(archive[0])}
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: "8px",
+                          border: "none",
+                          backgroundColor: "#1E2A3B",
+                          color: "#ffffff",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer"
+                        }}
+                      >
+                        View Last
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Monthly Violation Report Card */}
+                <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 24, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", position: "relative" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <span style={{ backgroundColor: "#dbeafe", color: "#2563eb", fontSize: "11px", fontWeight: 800, padding: "3px 10px", borderRadius: "12px" }}>
+                      ● VIOLATIONS
+                    </span>
+                    {/* SVG Countdown ring */}
+                    <div style={{ width: 44, height: 44, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="44" height="44" viewBox="0 0 36 36">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831" fill="none" stroke="#2563eb" strokeWidth="3" strokeDasharray="80, 100" />
+                      </svg>
+                      <span style={{ position: "absolute", fontSize: "11px", fontWeight: 800, color: "#1e293b" }}>6d</span>
                     </div>
                   </div>
 
-                  <div style={{ marginTop: "20px" }}>
-                    <h4 className="doc-chart-head">MONTHLY INCIDENT TREND</h4>
-                    <MonthlyTrendLineChart
-                      data={[820, 845, 870, 920, 980, 1100, 1245]}
-                      labels={["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]}
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", margin: "10px 0 2px 0" }}>Monthly Violation Report</h3>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Monthly · Vehicles × Violation Types</p>
+
+                  <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 16, paddingTop: 14, display: "flex", gap: 20, fontSize: 12 }}>
+                    <div><span style={{ color: "#94a3b8", display: "block", fontSize: 10, fontWeight: 700 }}>LAST RUN</span><strong style={{ color: "#334155" }}>Aug 1, 2026</strong></div>
+                    <div><span style={{ color: "#94a3b8", display: "block", fontSize: 10, fontWeight: 700 }}>NEXT RUN</span><strong style={{ color: "#334155" }}>Sep 1, 2026</strong></div>
+                    <div><span style={{ color: "#94a3b8", display: "block", fontSize: 10, fontWeight: 700 }}>STATUS</span><span style={{ color: "#16a34a", fontWeight: 700 }}>● Completed</span></div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 18 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#475569" }}>
+                      <input
+                        type="checkbox"
+                        checked={autoViolationsEnabled}
+                        onChange={e => setAutoViolationsEnabled(e.target.checked)}
+                        style={{ accentColor: "#2563eb", width: 16, height: 16 }}
+                      />
+                      Auto-enabled
+                    </label>
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => handleRunMonthlyReport("violations")}
+                        disabled={runningReportId === "violations"}
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: "8px",
+                          border: "1px solid #cbd5e1",
+                          backgroundColor: "#ffffff",
+                          color: "#1e293b",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer"
+                        }}
+                      >
+                        {runningReportId === "violations" ? "⏳ Running..." : "▶ Run Now"}
+                      </button>
+                      <button
+                        onClick={() => openModalForReport(archive[1] || archive[0])}
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: "8px",
+                          border: "none",
+                          backgroundColor: "#1E2A3B",
+                          color: "#ffffff",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer"
+                        }}
+                      >
+                        View Last
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: REQUEST A CUSTOM REPORT */}
+            <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 26, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", marginBottom: 28 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 4px 0" }}>
+                Request a Custom Report
+              </h2>
+              <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px 0" }}>
+                Choose category, date range, accident/violation types, and vehicle types. Report shows the same vehicle × type matrix.
+              </p>
+
+              {/* 3-COLUMN PARAMETER SELECTION */}
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr 1fr", gap: 20, marginBottom: 20 }}>
+                {/* Category Selection */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", display: "block", marginBottom: 8, letterSpacing: "0.5px" }}>CATEGORY</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      { id: "accidents", label: "Accidents", color: "#ef4444", bg: "#fef2f2" },
+                      { id: "violations", label: "Violations", color: "#2563eb", bg: "#eff6ff" },
+                      { id: "both", label: "Both (Summary)", color: "#8b5cf6", bg: "#f5f3ff" }
+                    ].map(cat => (
+                      <div
+                        key={cat.id}
+                        onClick={() => setCustomCategory(cat.id)}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          border: "1.5px solid",
+                          borderColor: customCategory === cat.id ? cat.color : "#e2e8f0",
+                          backgroundColor: customCategory === cat.id ? cat.bg : "#ffffff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="customCategory"
+                          checked={customCategory === cat.id}
+                          onChange={() => setCustomCategory(cat.id)}
+                          style={{ accentColor: cat.color }}
+                        />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: customCategory === cat.id ? cat.color : "#334155" }}>
+                          {cat.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date Preset Selection */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", display: "block", marginBottom: 8, letterSpacing: "0.5px" }}>DATE PRESET</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {["Last 7 days", "Last 2 weeks", "Last 30 days", "Last 90 days", "Custom"].map(preset => (
+                      <button
+                        key={preset}
+                        onClick={() => handleCustomPresetChange(preset)}
+                        style={{
+                          padding: "7px 14px",
+                          borderRadius: "6px",
+                          border: "none",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          backgroundColor: customDatePreset === preset ? "#1E2A3B" : "#f1f5f9",
+                          color: customDatePreset === preset ? "#ffffff" : "#475569",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6
+                        }}
+                      >
+                        {preset}
+                        {preset === "Last 2 weeks" && (
+                          <span style={{ backgroundColor: "#ef4444", color: "#ffffff", fontSize: "9px", fontWeight: 800, padding: "1px 5px", borderRadius: "10px" }}>POPULAR</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date Range Inputs */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", display: "block", marginBottom: 8, letterSpacing: "0.5px" }}>DATE RANGE</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={customFromDate}
+                      onChange={e => setCustomFromDate(e.target.value)}
+                      placeholder="From (MM/DD/YYYY)"
+                      style={{ padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", outline: "none", fontWeight: 600 }}
+                    />
+                    <input
+                      type="text"
+                      value={customToDate}
+                      onChange={e => setCustomToDate(e.target.value)}
+                      placeholder="To (MM/DD/YYYY)"
+                      style={{ padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", outline: "none", fontWeight: 600 }}
                     />
                   </div>
                 </div>
+              </div>
 
-                <div className="doc-divider" />
+              <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: 20, marginBottom: 20 }}>
+                <div style={{ display: "grid", gridTemplateColumns: customCategory === "both" ? "1fr 1fr 1fr" : "1fr 1fr", gap: 24 }}>
 
-                {/* SECTION 3: VIOLATION ANALYTICS OVERVIEW */}
-                <div className="doc-sec">
-                  <div className="doc-sec-num-head">
-                    <span className="doc-sec-num">3</span>
-                    <h2 className="doc-sec-title">Violation Analytics Overview</h2>
-                  </div>
-
-                  <div className="doc-2col-grid">
+                  {/* ACCIDENT TYPES FILTER */}
+                  {(customCategory === "accidents" || customCategory === "both") && (
                     <div>
-                      <h4 className="doc-chart-head">VIOLATIONS BY TYPE</h4>
-                      <OrangeHBarChart
-                        data={[
-                          { label: "Speeding",       value: 3850 },
-                          { label: "No Helmet",      value: 3200 },
-                          { label: "Signal Jump",    value: 2450 },
-                          { label: "Illegal Parking",value: 1980 },
-                          { label: "No License",     value: 1367 },
-                        ]}
-                      />
+                      <label style={{ fontSize: 11, fontWeight: 800, color: "#ef4444", display: "block", marginBottom: 10, letterSpacing: "0.5px" }}>
+                        ● ACCIDENT TYPES & CAUSES
+                      </label>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: "0 0 6px 0" }}>SEVERITY</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                        {["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"].map(sev => (
+                          <label key={sev} style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={accidentSeverities.includes(sev)}
+                              onChange={e => {
+                                if (e.target.checked) setAccidentSeverities([...accidentSeverities, sev]);
+                                else setAccidentSeverities(accidentSeverities.filter(s => s !== sev));
+                              }}
+                              style={{ accentColor: "#ef4444" }}
+                            />
+                            {sev}
+                          </label>
+                        ))}
+                      </div>
                     </div>
+                  )}
 
+                  {/* VIOLATION TYPES FILTER */}
+                  {(customCategory === "violations" || customCategory === "both") && (
                     <div>
-                      <h4 className="doc-chart-head">PEAK HOURS DISTRIBUTION</h4>
-                      <OrangePeakHoursChart />
+                      <label style={{ fontSize: 11, fontWeight: 800, color: "#2563eb", display: "block", marginBottom: 10, letterSpacing: "0.5px" }}>
+                        ● VIOLATION TYPES & ACTIONS
+                      </label>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b", margin: "0 0 6px 0" }}>ACTION TYPE</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                        {["Judicial Cases (Court)", "Fine-based Offences", "Warnings"].map(act => (
+                          <label key={act} style={{ fontSize: 12, color: "#334155", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={violationActions.includes(act)}
+                              onChange={e => {
+                                if (e.target.checked) setViolationActions([...violationActions, act]);
+                                else setViolationActions(violationActions.filter(a => a !== act));
+                              }}
+                              style={{ accentColor: "#2563eb" }}
+                            />
+                            {act}
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                <div className="doc-divider" />
-
-                {/* SECTION 4: TOP DANGER ZONES - RISK INDEX */}
-                <div className="doc-sec">
-                  <div className="doc-sec-num-head">
-                    <span className="doc-sec-num">4</span>
-                    <h2 className="doc-sec-title">Top Danger Zones — Risk Index</h2>
-                  </div>
-
-                  <table className="doc-table-styled">
-                    <thead>
-                      <tr>
-                        <th>RANK</th>
-                        <th>LOCATION</th>
-                        <th>RISK SCORE</th>
-                        <th>INCIDENTS</th>
-                        <th>STATUS</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>#1</td>
-                        <td><strong>Negombo Junction</strong></td>
-                        <td><div className="score-bar-wrap"><div className="bar-fill fill-red" style={{ width: "87%" }} /><span className="score-text text-red">87/100</span></div></td>
-                        <td>312</td>
-                        <td><span className="tbl-pill pill-red">CRITICAL</span></td>
-                      </tr>
-                      <tr>
-                        <td>#2</td>
-                        <td><strong>Colombo Fort</strong></td>
-                        <td><div className="score-bar-wrap"><div className="bar-fill fill-red" style={{ width: "82%" }} /><span className="score-text text-red">82/100</span></div></td>
-                        <td>278</td>
-                        <td><span className="tbl-pill pill-red">CRITICAL</span></td>
-                      </tr>
-                      <tr>
-                        <td>#3</td>
-                        <td><strong>Koppara Junction</strong></td>
-                        <td><div className="score-bar-wrap"><div className="bar-fill fill-orange" style={{ width: "68%" }} /><span className="score-text text-orange">68/100</span></div></td>
-                        <td>194</td>
-                        <td><span className="tbl-pill pill-orange">HIGH</span></td>
-                      </tr>
-                      <tr>
-                        <td>#4</td>
-                        <td><strong>Kandy Road</strong></td>
-                        <td><div className="score-bar-wrap"><div className="bar-fill fill-yellow" style={{ width: "54%" }} /><span className="score-text text-yellow">54/100</span></div></td>
-                        <td>143</td>
-                        <td><span className="tbl-pill pill-yellow">MEDIUM</span></td>
-                      </tr>
-                      <tr>
-                        <td>#5</td>
-                        <td><strong>Airport Road</strong></td>
-                        <td><div className="score-bar-wrap"><div className="bar-fill fill-yellow" style={{ width: "41%" }} /><span className="score-text text-yellow">41/100</span></div></td>
-                        <td>97</td>
-                        <td><span className="tbl-pill pill-yellow">MEDIUM</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="doc-divider" />
-
-                {/* SECTION 5: RECENT INCIDENT LOG */}
-                <div className="doc-sec">
-                  <div className="doc-sec-num-head">
-                    <span className="doc-sec-num">5</span>
-                    <h2 className="doc-sec-title">Recent Incident Log</h2>
-                  </div>
-
-                  <table className="doc-table-styled">
-                    <thead>
-                      <tr>
-                        <th>INCIDENT ID</th>
-                        <th>DATE</th>
-                        <th>TIME</th>
-                        <th>LOCATION</th>
-                        <th>TYPE</th>
-                        <th>SEVERITY</th>
-                        <th>OFFICER</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><strong>ACC-2026-0847</strong></td>
-                        <td>07/11/2026</td>
-                        <td>17:32</td>
-                        <td><strong>Negombo Junction</strong></td>
-                        <td>Collision</td>
-                        <td><span className="tbl-pill pill-orange">Major Injury</span></td>
-                        <td>PC 4521 Silva</td>
-                      </tr>
-                      <tr>
-                        <td><strong>ACC-2026-0846</strong></td>
-                        <td>07/11/2026</td>
-                        <td>14:15</td>
-                        <td><strong>Colombo Fort</strong></td>
-                        <td>Rear-end</td>
-                        <td><span className="tbl-pill pill-yellow">Minor Injury</span></td>
-                        <td>PC 3812 Perera</td>
-                      </tr>
-                      <tr>
-                        <td><strong>VIO-2026-3291</strong></td>
-                        <td>07/11/2026</td>
-                        <td>09:42</td>
-                        <td><strong>Kurunegala Terminal</strong></td>
-                        <td>Speeding</td>
-                        <td>—</td>
-                        <td>PC 5501 Fernando</td>
-                      </tr>
-                      <tr>
-                        <td><strong>ACC-2026-0845</strong></td>
-                        <td>07/10/2026</td>
-                        <td>18:55</td>
-                        <td><strong>Kandy Rd</strong></td>
-                        <td>Hit & Run</td>
-                        <td><span className="tbl-pill pill-red">Fatal</span></td>
-                        <td>PS 1204 Rathnayake</td>
-                      </tr>
-                      <tr>
-                        <td><strong>VIO-2026-3288</strong></td>
-                        <td>07/10/2026</td>
-                        <td>07:30</td>
-                        <td><strong>Negombo Town</strong></td>
-                        <td>No Helmet</td>
-                        <td>—</td>
-                        <td>PC 4521 Silva</td>
-                      </tr>
-                      <tr>
-                        <td><strong>VIO-2026-3287</strong></td>
-                        <td>07/10/2026</td>
-                        <td>06:58</td>
-                        <td><strong>Negombo Town</strong></td>
-                        <td>Signal Jump</td>
-                        <td>—</td>
-                        <td>PC 3812 Perera</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="doc-divider" />
-
-                {/* SECTION 6: LONG TERM STRATEGIC TREND */}
-                <div className="doc-sec">
-                  <div className="doc-sec-num-head">
-                    <span className="doc-sec-num">6</span>
-                    <h2 className="doc-sec-title">Long-term Strategic Trend</h2>
-                  </div>
-
-                  <DualLineStrategicChart
-                    labels={["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]}
-                    accidents={[820, 845, 870, 920, 980, 1100, 1245]}
-                    violations={[9800, 10100, 10400, 10900, 11400, 12200, 12847]}
-                  />
-                </div>
-
-                <div className="doc-divider" />
-
-                {/* DOCUMENT FOOTER SIGNATURE */}
-                <div className="doc-footer-sign-row">
+                  {/* VEHICLE TYPES FILTER */}
                   <div>
-                    <strong className="sign-prep">Prepared by: PS Perera, Traffic Officer</strong>
-                    <p className="sign-sub">Sri Lanka Police — Traffic Branch, Negombo Division</p>
-                    <p className="sign-sub">Tel: 256 556 656 · Generated: 21 July 2026</p>
-                  </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <label style={{ fontSize: 11, fontWeight: 800, color: "#0f172a", margin: 0, letterSpacing: "0.5px" }}>
+                        VEHICLE TYPES ({selectedVehicles.length}/{vehicleList.length})
+                      </label>
+                      <button
+                        onClick={toggleAllVehicles}
+                        style={{ background: "none", border: "none", color: "#2563eb", fontSize: "11px", fontWeight: 700, cursor: "pointer", padding: 0 }}
+                      >
+                        {selectedVehicles.length === vehicleList.length ? "Deselect All" : "Select All"}
+                      </button>
+                    </div>
 
-                  <div style={{ textAlign: "right" }}>
-                    <div className="sign-line" />
-                    <strong className="sign-prep">Authorised Signature</strong>
-                    <p className="sign-sub">Officer in Charge, Traffic Branch</p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {vehicleList.map(v => {
+                        const isChecked = selectedVehicles.includes(v.name);
+                        return (
+                          <div
+                            key={v.name}
+                            onClick={() => toggleVehicle(v.name)}
+                            style={{
+                              padding: "7px 10px",
+                              borderRadius: "6px",
+                              border: "1px solid",
+                              borderColor: isChecked ? "#3b82f6" : "#e2e8f0",
+                              backgroundColor: isChecked ? "#eff6ff" : "#f8fafc",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              fontSize: "12px",
+                              color: isChecked ? "#1d4ed8" : "#475569",
+                              fontWeight: isChecked ? 700 : 500
+                            }}
+                          >
+                            <span>{v.emoji}</span>
+                            <span style={{ flex: 1 }}>{v.name}</span>
+                            {isChecked && <FiCheck size={14} color="#1d4ed8" />}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* OFFICIAL POLICE REPORT WATERMARK BOX */}
-                <div className="doc-watermark-box">
-                  This document is an official police report. Ref: RPT-NB-005309 · Negombo Division · 21 July 2026 · Dharma Integrity Traffic Branch Management System
+              {/* GENERATE CUSTOM REPORT BUTTON */}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={handleGenerateCustomReport}
+                  disabled={isCustomGenerating}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#1E2A3B",
+                    color: "#ffffff",
+                    fontSize: "14px",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(15,23,42,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10
+                  }}
+                >
+                  {isCustomGenerating ? (
+                    <>⏳ Compiling Matrix Report...</>
+                  ) : (
+                    <>📊 Generate Custom Report</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* SECTION 3: REPORT ARCHIVE */}
+            <div style={{ backgroundColor: "#ffffff", borderRadius: "14px", padding: 24, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", margin: "0 0 2px 0" }}>Report Archive</h3>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>View, download, or inspect generated snapshot documents</p>
                 </div>
 
+                {/* Filter Tabs */}
+                <div style={{ display: "flex", gap: 6, backgroundColor: "#f1f5f9", padding: "4px", borderRadius: "8px" }}>
+                  {["All", "Auto", "Manual"].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setArchiveFilter(tab)}
+                      style={{
+                        padding: "4px 14px",
+                        borderRadius: "6px",
+                        border: "none",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        backgroundColor: archiveFilter === tab ? "#ffffff" : "transparent",
+                        color: archiveFilter === tab ? "#0f172a" : "#64748b",
+                        boxShadow: archiveFilter === tab ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
+                      }}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ARCHIVE TABLE */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>REPORT ID</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>TITLE</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>CATEGORY</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>TYPE</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>PERIOD</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>GENERATED</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>BY</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>STATUS</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700, textAlign: "right" }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredArchive.map(item => (
+                    <tr
+                      key={item.id}
+                      style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = "#f8fafc"}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                    >
+                      <td style={{ padding: "12px", fontFamily: "monospace", fontWeight: 700, color: "#1e293b" }}>{item.id}</td>
+                      <td style={{ padding: "12px", fontWeight: 700, color: "#0f172a" }}>{item.title}</td>
+                      <td style={{ padding: "12px" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: item.categoryColor }}>
+                          <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: item.categoryColor }} />
+                          {item.category}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px" }}>
+                        <span style={{
+                          fontSize: "10px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "10px",
+                          backgroundColor: item.type === "AUTO" ? "#f3e8ff" : "#dcfce7",
+                          color: item.type === "AUTO" ? "#7e22ce" : "#15803d"
+                        }}>
+                          {item.type}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px", color: "#475569", fontSize: 12 }}>{item.period}</td>
+                      <td style={{ padding: "12px", color: "#475569", fontSize: 12 }}>{item.generated}</td>
+                      <td style={{ padding: "12px", color: "#475569", fontSize: 12 }}>{item.by}</td>
+                      <td style={{ padding: "12px" }}>
+                        <span style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: "12px",
+                          backgroundColor: item.status === "Completed" ? "#dcfce7" : item.status === "Processing" ? "#dbeafe" : "#fee2e2",
+                          color: item.status === "Completed" ? "#16a34a" : item.status === "Processing" ? "#2563eb" : "#ef4444"
+                        }}>
+                          ● {item.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "right" }}>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                          <button
+                            onClick={() => openModalForReport(item)}
+                            style={{
+                              padding: "5px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #cbd5e1",
+                              backgroundColor: "#ffffff",
+                              color: "#1e293b",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={handleExportPDF}
+                            style={{
+                              padding: "5px 10px",
+                              borderRadius: "6px",
+                              border: "none",
+                              backgroundColor: "#f1f5f9",
+                              color: "#475569",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer"
+                            }}
+                          >
+                            PDF ({item.size})
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+                <button style={{ background: "none", border: "1px solid #cbd5e1", padding: "8px 20px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, color: "#475569", cursor: "pointer" }}>
+                  Load older records
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            GENERATE REPORT MODAL (DOCUMENT OVERLAY)
+           ════════════════════════════════════════════════════════════════════ */}
+        {isModalOpen && (
+          <div
+            onClick={() => setIsModalOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(15, 23, 42, 0.75)",
+              backdropFilter: "blur(6px)",
+              zIndex: 9999,
+              display: "flex",
+              flexDirection: "column",
+              overflowY: "auto"
+            }}
+          >
+            {/* MODAL TOP FIXED TOOLBAR */}
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                backgroundColor: "#1E2A3B",
+                color: "#ffffff",
+                padding: "14px 28px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                zIndex: 10000,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 34, height: 34, borderRadius: "8px", backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyCenter: "center", color: "#ffffff", fontWeight: 800 }}>
+                  <FiShield size={18} style={{ margin: "auto" }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>
+                    {activeModalReport?.title || "Summary Report"}
+                  </h3>
+                  <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0 0" }}>
+                    Ref: {activeModalReport?.id || "RPT-NB-726306"} · {activeModalReport?.generated || "02 September 2026"} · Negombo Division
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={handlePrint}
+                  style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #475569", backgroundColor: "transparent", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <FiPrinter size={14} /> Print
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #475569", backgroundColor: "transparent", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <FiDownload size={14} /> Export PDF
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  style={{ padding: "8px 16px", borderRadius: "6px", border: "none", backgroundColor: "#ef4444", color: "#ffffff", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <FiX size={16} /> Close
+                </button>
+              </div>
+            </div>
+
+            {/* MODAL PRINTABLE DOCUMENT CARD */}
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: 960,
+                width: "92%",
+                margin: "30px auto 50px auto",
+                backgroundColor: "#ffffff",
+                borderRadius: "16px",
+                padding: "40px 44px",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+                color: "#0f172a"
+              }}
+            >
+              {/* DOCUMENT HEADER */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, borderBottom: "2px solid #0f172a", paddingBottom: 20 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: "1px" }}>
+                    SRI LANKA POLICE — TRAFFIC BRANCH, NEGOMBO DIVISION
+                  </span>
+                  <h1 style={{ fontSize: 26, fontWeight: 900, color: "#0f172a", margin: "4px 0" }}>
+                    {activeModalReport?.title || "Summary Report"}
+                  </h1>
+                  <p style={{ fontSize: 13, color: "#475569", margin: 0, fontWeight: 600 }}>
+                    Period: {activeModalReport?.period || `${fromDate} — ${toDate}`}
+                  </p>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={{
+                    display: "inline-block",
+                    padding: "4px 12px",
+                    borderRadius: "6px",
+                    border: "1.5px solid #10b981",
+                    backgroundColor: "#ecfdf5",
+                    color: "#047857",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    letterSpacing: "0.5px",
+                    marginBottom: 8
+                  }}>
+                    OFFICIAL DOCUMENT
+                  </div>
+                  <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0" }}>Generated: {activeModalReport?.generated || "02 September 2026"}</p>
+                  <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0" }}>Officer: {officerName} · {badgeNo}</p>
+                  <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0", fontFamily: "monospace", fontWeight: 700 }}>Ref: {activeModalReport?.id || "RPT-NB-726306"}</p>
+                </div>
+              </div>
+
+              {/* MODAL TABS / INDICATORS */}
+              <div style={{ display: "flex", gap: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 12, marginBottom: 20 }}>
+                <button
+                  onClick={() => setModalTab("accidents")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "14px",
+                    fontWeight: 800,
+                    color: modalTab === "accidents" ? "#ef4444" : "#94a3b8",
+                    cursor: "pointer",
+                    borderBottom: modalTab === "accidents" ? "3px solid #ef4444" : "none",
+                    paddingBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} /> Accidents
+                </button>
+                <button
+                  onClick={() => setModalTab("violations")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "14px",
+                    fontWeight: 800,
+                    color: modalTab === "violations" ? "#2563eb" : "#94a3b8",
+                    cursor: "pointer",
+                    borderBottom: modalTab === "violations" ? "3px solid #2563eb" : "none",
+                    paddingBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#2563eb" }} /> Violations
+                </button>
+              </div>
+
+              {/* VEHICLE FILTER BANNER */}
+              <div style={{ backgroundColor: "#f8fafc", padding: "10px 16px", borderRadius: "8px", fontSize: 12, color: "#475569", marginBottom: 20, border: "1px solid #f1f5f9" }}>
+                <strong>VEHICLES:</strong> {(activeModalReport?.filterData?.vehicles || selectedVehicles).join(" · ")}
+              </div>
+
+              {/* MATRIX TABLE: ACCIDENTS */}
+              {modalTab === "accidents" && (
+                <div>
+                  <h4 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 12px 0" }}>
+                    ACCIDENT SUMMARY — BY TYPE & VEHICLE
+                  </h4>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0", textTransform: "uppercase" }}>
+                        <th style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, color: "#64748b" }}>OFFENCE / ACCIDENT TYPE</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>MOTOR CAR</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>VAN</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>BUS</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>LORRY</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>THREE-WHEELER</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>MOTORCYCLE</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>BICYCLE</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#ffffff", backgroundColor: "#1E2A3B" }}>TOTAL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { type: "Deaths", color: "#ef4444", car: 4, van: 1, bus: 0, lorry: 1, tw: 2, mc: 3, bike: 0, total: 11 },
+                        { type: "Major Injuries", color: "#f97316", car: 9, van: 4, bus: 1, lorry: 2, tw: 5, mc: 8, bike: 1, total: 30 },
+                        { type: "Minor Injuries", color: "#f59e0b", car: 17, van: 6, bus: 2, lorry: 3, tw: 8, mc: 14, bike: 2, total: 52 },
+                        { type: "Property Damage", color: "#64748b", car: 31, van: 8, bus: 3, lorry: 6, tw: 12, mc: 18, bike: 3, total: 81 },
+                      ].map((row, idx) => (
+                        <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "12px 14px", fontWeight: 700, color: "#1e293b", borderLeft: `3.5px solid ${row.color}` }}>
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: row.color, display: "inline-block", marginRight: 8 }} />
+                            {row.type}
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.car || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.van || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.bus || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.lorry || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.tw || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.mc || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.bike || "—"}</td>
+                          <td style={{ padding: "12px", textAlign: "center", fontWeight: 800, backgroundColor: "#f8fafc" }}>{row.total}</td>
+                        </tr>
+                      ))}
+                      {/* GRAND TOTAL ROW */}
+                      <tr style={{ backgroundColor: "#1E2A3B", color: "#ffffff", fontWeight: 800 }}>
+                        <td style={{ padding: "14px", letterSpacing: "0.5px" }}>GRAND TOTAL</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>61</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>19</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>6</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>12</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>27</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>43</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>6</td>
+                        <td style={{ padding: "14px", textAlign: "center", fontSize: 15 }}>174</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* MATRIX TABLE: VIOLATIONS */}
+              {modalTab === "violations" && (
+                <div>
+                  <h4 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 12px 0" }}>
+                    VIOLATION SUMMARY — BY TYPE & VEHICLE
+                  </h4>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0", textTransform: "uppercase" }}>
+                        <th style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, color: "#64748b" }}>ACTION / OFFENCE TYPE</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>MOTOR CAR</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>VAN</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>BUS</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>LORRY</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>THREE-WHEELER</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>MOTORCYCLE</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>BICYCLE</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#ffffff", backgroundColor: "#1E2A3B" }}>TOTAL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { type: "Judicial Cases (Court)", color: "#8b5cf6", car: 142, van: 58, bus: 24, lorry: 38, tw: 112, mc: 195, bike: 12, total: 581 },
+                        { type: "Fine-based Offences", color: "#f59e0b", car: 310, van: 145, bus: 62, lorry: 88, tw: 245, mc: 410, bike: 35, total: 1295 },
+                        { type: "Warnings Issued", color: "#06b6d4", car: 85, van: 32, bus: 12, lorry: 18, tw: 64, mc: 98, bike: 15, total: 324 },
+                      ].map((row, idx) => (
+                        <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "12px 14px", fontWeight: 700, color: "#1e293b", borderLeft: `3.5px solid ${row.color}` }}>
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: row.color, display: "inline-block", marginRight: 8 }} />
+                            {row.type}
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.car}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.van}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.bus}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.lorry}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.tw}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.mc}</td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>{row.bike}</td>
+                          <td style={{ padding: "12px", textAlign: "center", fontWeight: 800, backgroundColor: "#f8fafc" }}>{row.total}</td>
+                        </tr>
+                      ))}
+                      {/* GRAND TOTAL ROW */}
+                      <tr style={{ backgroundColor: "#1E2A3B", color: "#ffffff", fontWeight: 800 }}>
+                        <td style={{ padding: "14px", letterSpacing: "0.5px" }}>GRAND TOTAL</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>537</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>235</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>98</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>144</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>421</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>703</td>
+                        <td style={{ padding: "14px", textAlign: "center" }}>62</td>
+                        <td style={{ padding: "14px", textAlign: "center", fontSize: 15 }}>2,200</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* DOCUMENT FOOTER SIGNATURES */}
+              <div style={{ marginTop: 50, paddingTop: 20, borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                <div>
+                  <p style={{ margin: "0 0 35px 0", color: "#64748b" }}>Prepared by: <strong>{officerName}</strong>, Traffic Officer</p>
+                  <div style={{ width: 220, borderBottom: "1.5px solid #0f172a" }} />
+                  <p style={{ fontSize: 11, color: "#64748b", margin: "4px 0 0 0" }}>Officer Signature & Date</p>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <p style={{ margin: "0 0 35px 0", color: "#64748b" }}>Officer in Charge (OIC) Approval & Seal</p>
+                  <div style={{ width: 220, borderBottom: "1.5px solid #0f172a", marginLeft: "auto" }} />
+                  <p style={{ fontSize: 11, color: "#64748b", margin: "4px 0 0 0" }}>Authorized Signature</p>
+                </div>
               </div>
 
             </div>
