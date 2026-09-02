@@ -3,7 +3,7 @@ import OICLayout from "../layouts/OICLayout";
 import {
   FiPrinter, FiDownload, FiCheckSquare, FiAlertTriangle, FiFileText, FiX,
   FiCalendar, FiShield, FiMapPin, FiPlay, FiEye, FiClock, FiCheck, FiFilter,
-  FiRotateCw, FiGrid, FiLayers, FiAlertCircle, FiCheckCircle2, FiChevronRight, FiList
+  FiRotateCw, FiGrid, FiLayers, FiAlertCircle, FiCheckCircle, FiChevronRight, FiList
 } from "react-icons/fi";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -360,7 +360,7 @@ function Reports() {
             gap: 10,
             border: "1px solid #3b82f6"
           }}>
-            <FiCheckCircle2 size={18} color="#10b981" />
+            <FiCheckCircle size={18} color="#10b981" />
             {toastMessage}
           </div>
         )}
@@ -1392,13 +1392,13 @@ function Reports() {
                   <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
                     <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>REPORT ID</th>
                     <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>TITLE</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>CATEGORY</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>TYPE</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>PERIOD</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>GENERATED</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>BY</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700 }}>STATUS</th>
-                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight 700, textAlign: "right" }}>ACTIONS</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>CATEGORY</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>TYPE</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>PERIOD</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>GENERATED</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>BY</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>STATUS</th>
+                    <th style={{ padding: "10px 12px", fontSize: "11px", color: "#64748b", fontWeight: 700, textAlign: "right" }}>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1526,7 +1526,7 @@ function Reports() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 34, height: 34, borderRadius: "8px", backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyCenter: "center", color: "#ffffff", fontWeight: 800 }}>
+                <div style={{ width: 34, height: 34, borderRadius: "8px", backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: 800 }}>
                   <FiShield size={18} style={{ margin: "auto" }} />
                 </div>
                 <div>
