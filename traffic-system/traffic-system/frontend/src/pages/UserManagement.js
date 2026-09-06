@@ -158,14 +158,9 @@ function UserManagement() {
             </p>
           </div>
           {userRole === "IT Officer" && (
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="um-register-btn" style={{ backgroundColor: "#0f172a" }} onClick={() => setLeaveModalOfficer({})}>
-                <FiCalendar size={15} style={{ marginRight: 6 }} /> Mark Leave
-              </button>
-              <button className="um-register-btn" onClick={() => setShowRegister(true)}>
-                <FiUserPlus size={15} style={{ marginRight: 6 }} /> Register Officer
-              </button>
-            </div>
+            <button className="um-register-btn" onClick={() => setShowRegister(true)}>
+              <FiUserPlus size={15} style={{ marginRight: 6 }} /> Register Officer
+            </button>
           )}
         </div>
 

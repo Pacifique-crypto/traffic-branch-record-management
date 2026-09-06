@@ -105,7 +105,7 @@ function Login() {
         </form>
 
         <p className="login-footer-pro">
-          © 2024 Sri Lanka Police Traffic Branch<br />All rights reserved.
+          © 2026 Sri Lanka Police Traffic Branch<br />All rights reserved.
         </p>
       </div>
     </div>
