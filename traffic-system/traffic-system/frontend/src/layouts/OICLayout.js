@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FiGrid, FiAlertTriangle, FiAlertCircle,
   FiFileText, FiCalendar, FiSettings,
-  FiLogOut, FiBell, FiUsers, FiTruck
+  FiLogOut, FiBell, FiUsers, FiTruck, FiClock
 } from "react-icons/fi";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -23,6 +23,7 @@ function OICLayout({ children }) {
     { label: t("violations"),         path: "/tor",                icon: <FiAlertCircle /> },
     { label: t("reports"),            path: "/reports",            icon: <FiFileText /> },
     { label: t("dutyRoster"),         path: "/duty-roster",        icon: <FiCalendar /> },
+    { label: t("leaveManagement"),    path: "/leave-management",   icon: <FiClock /> },
     { label: t("vehicleLog"),         path: "/vehicle-management", icon: <FiTruck /> },
     { label: t("userManagement"),     path: "/user-management",    icon: <FiUsers /> },
   ];
