@@ -12,6 +12,7 @@ import {
   Alert
 } from 'react-native';
 import { LanguageContext } from '../context/LanguageContext';
+import { Picker } from '@react-native-picker/picker';
 
 export default function OfficerDashboard({ navigation }) {
 
@@ -21,7 +22,7 @@ export default function OfficerDashboard({ navigation }) {
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [myRequestsModalVisible, setMyRequestsModalVisible] = useState(false);
   const [myRequestsFilter, setMyRequestsFilter] = useState('All');
-  
+
   // Form fields
   const [leaveType, setLeaveType] = useState('');
   const [contactNumber, setContactNumber] = useState('');
@@ -123,7 +124,7 @@ export default function OfficerDashboard({ navigation }) {
       tot28: "Tot: 28",
       tot21: "Tot: 21",
       quota14: "Quota: 14",
-      requestLeave: "+ REQUEST LEAVE",
+      requestLeave: "REQUEST LEAVE",
       myRequests: "My Requests",
 
       // Full Leave Request Form
@@ -189,7 +190,7 @@ export default function OfficerDashboard({ navigation }) {
       tot28: "එකතුව: 28",
       tot21: "එකතුව: 21",
       quota14: "කෝටාව: 14",
-      requestLeave: "+ නිවාඩු ඉල්ලන්න",
+      requestLeave: "නිවාඩු ඉල්ලන්න",
       myRequests: "මාගේ ඉල්ලීම්",
 
       // Full Leave Request Form
@@ -294,18 +295,18 @@ export default function OfficerDashboard({ navigation }) {
 
           {/* RIGHT - ICONS */}
           <View style={styles.topIcons}>
-            <Ionicons 
-              name="notifications-outline" 
-              size={22} 
-              color="#fff" 
-              style={{ marginRight: 15 }} 
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color="#fff"
+              style={{ marginRight: 15 }}
               onPress={() => navigation.navigate('Notifications')}
             />
 
-            <Ionicons 
-              name="person-circle-outline" 
-              size={24} 
-              color="#fff" 
+            <Ionicons
+              name="person-circle-outline"
+              size={24}
+              color="#fff"
               onPress={() => navigation.navigate('Profile')}
             />
           </View>
@@ -354,9 +355,6 @@ export default function OfficerDashboard({ navigation }) {
               <Ionicons name="calendar-outline" size={18} color="#1e3a8a" style={{ marginRight: 6 }} />
               <Text style={styles.leaveCardTitle}>{t.leaveBalanceTitle}</Text>
             </View>
-            <View style={styles.officialQuotaBadge}>
-              <Text style={styles.officialQuotaText}>{t.officialQuota}</Text>
-            </View>
           </View>
 
           {/* 3 LEAVE SUB-CARDS */}
@@ -364,38 +362,26 @@ export default function OfficerDashboard({ navigation }) {
             {/* PERSONAL */}
             <View style={styles.leaveSubCard}>
               <Text style={styles.leaveTypeTitle}>{t.personal}</Text>
-              <Text style={styles.leaveSubtitle}>{t.vacationLabel}</Text>
               <Text style={styles.leaveDaysNumber}>18</Text>
               <Text style={styles.daysLeftLabel}>{t.daysLeft}</Text>
               <Text style={styles.leaveFootnote}>{t.tot28}</Text>
             </View>
 
-            {/* CASUAL */}
-            <View style={styles.leaveSubCard}>
-              <Text style={styles.leaveTypeTitle}>{t.casual}</Text>
-              <Text style={styles.leaveSubtitle}>{t.annualLabel}</Text>
-              <Text style={styles.leaveDaysNumber}>9</Text>
-              <Text style={styles.daysLeftLabel}>{t.daysLeft}</Text>
-              <Text style={styles.leaveFootnote}>{t.tot21}</Text>
-            </View>
-
             {/* MEDICAL */}
             <View style={styles.leaveSubCard}>
               <Text style={styles.leaveTypeTitle}>{t.medical}</Text>
-              <Text style={styles.leaveSubtitle}>{t.sickHospitalLabel}</Text>
               <Text style={styles.leaveDaysNumber}>14</Text>
               <Text style={styles.daysLeftLabel}>{t.daysLeft}</Text>
-              <Text style={styles.leaveFootnote}>{t.quota14}</Text>
+              <Text style={styles.leaveFootnote}>{t.tot28 || "Tot: 28"}</Text>
             </View>
           </View>
 
           {/* REQUEST LEAVE BUTTON */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.requestLeaveButton}
             onPress={() => setLeaveModalVisible(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add-circle-outline" size={20} color="#fff" style={{ marginRight: 6 }} />
             <Text style={styles.requestLeaveBtnText}>{t.requestLeave}</Text>
           </TouchableOpacity>
 
@@ -444,13 +430,13 @@ export default function OfficerDashboard({ navigation }) {
           </View>
 
           {/* SCROLLABLE FORM CONTAINER */}
-          <ScrollView 
+          <ScrollView
             style={styles.fullModalScrollView}
             contentContainerStyle={styles.fullModalScrollContent}
             showsVerticalScrollIndicator={true}
           >
             {/* 1. LEAVE RULES ACCORDION */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.accordionHeader}
               onPress={() => setShowLeaveRules(!showLeaveRules)}
               activeOpacity={0.8}
@@ -459,103 +445,46 @@ export default function OfficerDashboard({ navigation }) {
                 <Ionicons name="clipboard-outline" size={20} color="#1e3a8a" style={{ marginRight: 10 }} />
                 <View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={styles.accordionTitle}>{t.viewLeaveRules || "View Leave Rules"}</Text>
-                    <Ionicons name="chevron-down" size={14} color="#475569" style={{ marginLeft: 4 }} />
+                    <Text style={styles.accordionTitle}>{t.viewLeaveRules || "Submission Rules"}</Text>
                   </View>
                   <Text style={styles.accordionSubTitle}>
-                    {t.viewLeaveRulesSub || "View leave rules before submitting your application."}
+                    {t.viewLeaveRulesSub || "View rules before submitting your application.."}
                   </Text>
                 </View>
               </View>
-              <Ionicons 
-                name={showLeaveRules ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#64748b" 
+              <Ionicons
+                name={showLeaveRules ? "chevron-up" : "chevron-down"}
+                size={20}
+                color="#64748b"
               />
             </TouchableOpacity>
 
             {showLeaveRules && (
               <View style={styles.rulesCardsContainer}>
-                {/* PERSONAL LEAVE RULE CARD */}
-                <TouchableOpacity 
-                  style={[
-                    styles.ruleCard,
-                    (leaveType === 'Personal' || !leaveType) && styles.ruleCardActive
-                  ]}
-                  onPress={() => setLeaveType('Personal')}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.ruleCardHeader}>
-                    <Text style={[
-                      styles.ruleCardTitle,
-                      (leaveType === 'Personal' || !leaveType) && styles.ruleCardTitleActive
-                    ]}>
-                      {t.personalLeaveRuleTitle || "Personal Leave"} <Text style={styles.ruleSubArrow}>v</Text> {(leaveType === 'Personal' || !leaveType) ? (t.selectedActive || "(Selected Active)") : ""}
-                    </Text>
-                    {(leaveType === 'Personal' || !leaveType) && (
-                      <Ionicons name="checkmark-circle" size={18} color="#0284c7" />
-                    )}
-                  </View>
-                  <Text style={styles.ruleCardBody}>
-                    {t.personalLeaveRuleDesc || "Based on Vacation/Recreation Leave. Normal entitlement of 28 days per calendar year with full pay, strictly subject to operational service requirements and station OIC approval."}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.ruleCard}>
+                  <Text style={styles.ruleCardTitle}>Personal Leave</Text>
+                  <Text style={styles.ruleCardBody}>Advance Notice: Personal leave applications must be submitted at least 7 days before the requested leave start date.</Text>
+                </View>
 
-                {/* CASUAL LEAVE RULE CARD */}
-                <TouchableOpacity 
-                  style={[
-                    styles.ruleCard,
-                    leaveType === 'Casual' && styles.ruleCardActive
-                  ]}
-                  onPress={() => setLeaveType('Casual')}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.ruleCardHeader}>
-                    <Text style={[
-                      styles.ruleCardTitle,
-                      leaveType === 'Casual' && styles.ruleCardTitleActive
-                    ]}>
-                      {t.casualLeaveRuleTitle || "Casual Leave"} <Text style={styles.ruleSubArrow}>v</Text>
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={styles.ruleBadgeText}>{t.daysYr21 || "21 Days/Yr"}</Text>
-                      {leaveType === 'Casual' && (
-                        <Ionicons name="checkmark-circle" size={18} color="#0284c7" style={{ marginLeft: 6 }} />
-                      )}
-                    </View>
-                  </View>
-                  <Text style={styles.ruleCardBody}>
-                    {t.casualLeaveRuleDesc || "Available to eligible officers according to applicable national police rules, subject to station manpower roster."}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.ruleCard}>
+                  <Text style={styles.ruleCardTitle}>Casual Leave</Text>
+                  <Text style={styles.ruleCardBody}>Advance Notice: Casual leave applications must be submitted at least 3 days before the requested leave start date.</Text>
+                </View>
 
-                {/* MEDICAL LEAVE RULE CARD */}
-                <TouchableOpacity 
-                  style={[
-                    styles.ruleCard,
-                    leaveType === 'Medical' && styles.ruleCardActive
-                  ]}
-                  onPress={() => setLeaveType('Medical')}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.ruleCardHeader}>
-                    <Text style={[
-                      styles.ruleCardTitle,
-                      leaveType === 'Medical' && styles.ruleCardTitleActive
-                    ]}>
-                      {t.medicalLeaveRuleTitle || "Medical Leave"} <Text style={styles.ruleSubArrow}>v</Text>
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={styles.ruleBadgeText}>{t.certifiedBadge || "Certified"}</Text>
-                      {leaveType === 'Medical' && (
-                        <Ionicons name="checkmark-circle" size={18} color="#0284c7" style={{ marginLeft: 6 }} />
-                      )}
-                    </View>
-                  </View>
-                  <Text style={styles.ruleCardBody}>
-                    {t.medicalLeaveRuleDesc || "Based on applicable hospital/medical leave provisions. Government Medical Officer (GMO) certificate required."}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.ruleCard}>
+                  <Text style={styles.ruleCardTitle}>Medical Leave</Text>
+                  <Text style={styles.ruleCardBody}>Medical Evidence: Medical leave applications must include the required Government Medical Officer (GMO) medical certificate/document according to the applicable medical leave provisions.</Text>
+                </View>
+
+                <View style={styles.ruleCard}>
+                  <Text style={styles.ruleCardTitle}>Duty Handover</Text>
+                  <Text style={styles.ruleCardBody}>Acting Officer: Applicants must identify an Acting Officer who has confirmed availability for the requested leave period.</Text>
+                </View>
+
+                <View style={styles.ruleCard}>
+                  <Text style={styles.ruleCardTitle}>Blackout Dates</Text>
+                  <Text style={styles.ruleCardBody}>Restricted Periods: Leave may be restricted during high-security alerts or national holidays according to Department instructions.</Text>
+                </View>
               </View>
             )}
 
@@ -579,8 +508,8 @@ export default function OfficerDashboard({ navigation }) {
 
               <View style={[styles.gridTwoCol, { marginTop: 10 }]}>
                 <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.rankLabel}</Text>
-                  <Text style={styles.fieldMetaValue}>Traffic Officer</Text>
+                  <Text style={styles.fieldMetaLabel}>{t.lastLeaveLabel || "LAST LEAVE"}</Text>
+                  <Text style={styles.fieldMetaValue}>10-12 Aug 2026</Text>
                 </View>
               </View>
 
@@ -590,53 +519,22 @@ export default function OfficerDashboard({ navigation }) {
               </View>
             </View>
 
-            {/* 3. SERVICE RECORD CARD */}
-            <View style={styles.formCard}>
-              <View style={styles.cardHeaderRow}>
-                <Ionicons name="briefcase-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
-                <Text style={styles.cardHeaderTitle}>{t.serviceRecord}</Text>
-              </View>
-
-              <View style={styles.gridTwoCol}>
-                <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.dateOfApptLabel}</Text>
-                  <Text style={styles.fieldMetaValue}>15 Mar 2022</Text>
-                </View>
-                <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.lastLeaveLabel}</Text>
-                  <Text style={styles.fieldMetaValue}>10-12 Aug 2026</Text>
-                </View>
-              </View>
-
-              <View style={styles.takenThisYearRow}>
-                <Text style={styles.takenThisYearLabel}>{t.takenThisYearLabel}</Text>
-                <Text style={styles.takenThisYearValue}>12 Days</Text>
-              </View>
-            </View>
-
             {/* 4. LEAVE CONFIGURATION CARD */}
             <View style={styles.formCard}>
               <Text style={styles.cardHeaderTitle}>{t.leaveConfig}</Text>
 
               <Text style={styles.formInputLabel}>{t.leaveTypeLabel}</Text>
-              <View style={styles.typeSelectorRow}>
-                {['Personal', 'Casual', 'Medical', 'Emergency'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.typeChip,
-                      leaveType === type && styles.typeChipActive
-                    ]}
-                    onPress={() => setLeaveType(type)}
-                  >
-                    <Text style={[
-                      styles.typeChipText,
-                      leaveType === type && styles.typeChipTextActive
-                    ]}>
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={[styles.inputWithIconRow, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                <Picker
+                  selectedValue={leaveType}
+                  onValueChange={(itemValue) => setLeaveType(itemValue)}
+                  style={{ flex: 1, height: 50, backgroundColor: 'transparent' }}
+                >
+                  <Picker.Item label="Select Leave Type" value="" color="#94a3b8" />
+                  <Picker.Item label="Personal" value="Personal" />
+                  <Picker.Item label="Casual" value="Casual" />
+                  <Picker.Item label="Medical" value="Medical" />
+                </Picker>
               </View>
 
               <Text style={styles.formInputLabel}>{t.contactNoLabel}</Text>
@@ -726,30 +624,48 @@ export default function OfficerDashboard({ navigation }) {
                   onChangeText={setActingOfficer}
                 />
               </View>
+            </View>
 
-              <Text style={styles.formInputLabel}>{t.handoverNotesLabel}</Text>
-              <View style={styles.inputWithIconRow}>
-                <Ionicons name="list-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
-                <TextInput
-                  style={styles.iconTextInput}
-                  placeholder="Key responsibilities handed over..."
-                  value={handoverNotes}
-                  onChangeText={setHandoverNotes}
-                />
+            {/* 7. ATTACHMENTS CARD */}
+            <View style={styles.formCard}>
+              <View style={styles.cardHeaderRow}>
+                <Ionicons name="attach-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
+                <Text style={styles.cardHeaderTitle}>Supporting Documents</Text>
+              </View>
+
+              <TouchableOpacity style={styles.uploadArea}>
+                <Ionicons name="cloud-upload-outline" size={24} color="#0284c7" />
+                <Text style={styles.uploadTextPrimary}>[ + Upload Medical Certificate or Duty Memo ]</Text>
+                <Text style={styles.uploadTextSecondary}>Accepted Formats: PDF, JPG, PNG (Max 5MB)</Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.formInputLabel, { marginTop: 16 }]}>ATTACHED FILE PREVIEW</Text>
+              <View style={styles.filePreviewItem}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="document-text" size={24} color="#dc2626" />
+                  <View style={{ marginLeft: 10 }}>
+                    <Text style={styles.fileName}>duty_handover_memo.pdf</Text>
+                    <Text style={styles.fileSize}>420 KB · Uploaded Just Now</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.viewLink}>View</Text>
+                  <Text style={styles.removeLink}><Ionicons name="close" size={12} /> Remove</Text>
+                </View>
               </View>
             </View>
 
             {/* BOTTOM ACTION BUTTONS */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.proceedReviewBtn}
               onPress={handleSubmitLeave}
               activeOpacity={0.8}
             >
-              <Text style={styles.proceedReviewBtnText}>{t.proceedReview}</Text>
+              <Text style={styles.proceedReviewBtnText}>{t.submitLeaveRequest || "Submit leave request"}</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelFullBtn}
               onPress={() => setLeaveModalVisible(false)}
               activeOpacity={0.7}
@@ -778,7 +694,7 @@ export default function OfficerDashboard({ navigation }) {
               </TouchableOpacity>
             </View>
             <Text style={styles.myReqHeaderSubTitle}>Track status, history, and official endorsements.</Text>
-            
+
             <View style={styles.myReqLocationPill}>
               <View style={styles.blueDot} />
               <Text style={styles.myReqLocationText}>Traffic HQ • Negombo PS (Div-02)</Text>
@@ -814,7 +730,7 @@ export default function OfficerDashboard({ navigation }) {
           </View>
 
           {/* SCROLLABLE CARDS LIST */}
-          <ScrollView 
+          <ScrollView
             style={{ flex: 1, backgroundColor: '#f8fafc' }}
             contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           >
@@ -912,7 +828,7 @@ export default function OfficerDashboard({ navigation }) {
                         <Text style={styles.rejectionHeaderText}>REJECTION REASON CALLOUT</Text>
                       </View>
                       <Text style={styles.rejectionBodyText}>"{item.rejectionReason}"</Text>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => {
                           setMyRequestsModalVisible(false);
                           setLeaveModalVisible(true);
@@ -1058,7 +974,7 @@ const styles = StyleSheet.create({
   },
 
   leaveSubCard: {
-    width: '31.5%',
+    width: '48%',
     backgroundColor: '#f8fafc',
     borderRadius: 8,
     paddingVertical: 10,
@@ -1180,6 +1096,7 @@ const styles = StyleSheet.create({
 
   fullModalScrollContent: {
     padding: 16,
+    paddingTop: 4,
     paddingBottom: 40
   },
 
@@ -1350,7 +1267,7 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center'
   },
@@ -1367,13 +1284,62 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 6,
     fontSize: 13,
     color: '#0f172a',
-    minHeight: 70,
+    minHeight: 50,
     textAlignVertical: 'top'
   },
 
+  uploadArea: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#f8fafc'
+  },
+  uploadTextPrimary: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginTop: 8
+  },
+  uploadTextSecondary: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 4
+  },
+  filePreviewItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f1f5f9',
+    padding: 10,
+    borderRadius: 6,
+    marginTop: 4
+  },
+  fileName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f2942'
+  },
+  fileSize: {
+    fontSize: 10,
+    color: '#64748b'
+  },
+  viewLink: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284c7',
+    marginRight: 10
+  },
+  removeLink: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#dc2626'
+  },
   totalDurationBar: {
     backgroundColor: '#0f2942',
     borderRadius: 8,
@@ -1704,4 +1670,4 @@ const styles = StyleSheet.create({
 });
 
 
-
+
