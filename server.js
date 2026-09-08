@@ -173,6 +173,16 @@ app.get("/api/version", (req, res) => {
   res.json({ version: "stage-2-v2", timestamp: Date.now() });
 });
 
+app.get("/api/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const isConnected = mongoose.connection.readyState === 1;
+  res.json({
+    success: isConnected,
+    database: isConnected ? "connected" : "unavailable",
+    timestamp: new Date().toISOString()
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
