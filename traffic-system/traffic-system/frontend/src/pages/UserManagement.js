@@ -2,9 +2,13 @@ import React, { useState, useEffect } from "react";
 import {
   FiUsers, FiCheckCircle, FiXCircle, FiMoreVertical,
   FiUserPlus, FiEye, FiEyeOff, FiCheck, FiX, FiSearch,
-  FiDownload, FiPrinter, FiFilter, FiAlertTriangle, FiCalendar, FiTrash2
+  FiDownload, FiPrinter, FiFilter, FiAlertTriangle, FiCalendar, FiTrash2, FiLock
 } from "react-icons/fi";
-import { getOfficers, registerOfficer, updateOfficer, deleteOfficer, getLeavesByOfficer, deleteOfficerLeave } from "../api";
+import {
+  getOfficers, registerOfficer, updateOfficer, deleteOfficer,
+  getLeavesByOfficer, deleteOfficerLeave, requestPasswordReset,
+  getPasswordResetRequests, approvePasswordReset, rejectPasswordReset, retryResetEmail
+} from "../api";
 import MarkOfficerLeaveModal from "../components/MarkOfficerLeaveModal";
 
 const PAGE_SIZE = 5;
@@ -28,6 +32,8 @@ function UserManagement() {
 
   const [officers, setOfficers]           = useState([]);
   const [approvals, setApprovals]         = useState([]);
+  const [resetRequests, setResetRequests] = useState([]);
+  const [processingResetId, setProcessingResetId] = useState(null);
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("All");
   const [page, setPage]                   = useState(1);
@@ -71,9 +77,82 @@ function UserManagement() {
     }
   };
 
+  const fetchResetRequests = async () => {
+    try {
+      const res = await getPasswordResetRequests();
+      if (Array.isArray(res)) {
+        setResetRequests(res);
+      }
+    } catch (err) {
+      console.error("Failed to fetch password reset requests:", err);
+    }
+  };
+
   useEffect(() => {
     fetchOfficers();
+    fetchResetRequests();
   }, []);
+
+  const handleApproveReset = async (requestId) => {
+    if (!window.confirm("Approve password reset request? A temporary password will be generated and sent to the registered email.")) {
+      return;
+    }
+    setProcessingResetId(requestId);
+    try {
+      const res = await approvePasswordReset(requestId);
+      if (res && res.success) {
+        alert(res.message || "Password reset approved successfully and email sent.");
+      } else {
+        alert(res.message || res.error || "Failed to approve password reset request.");
+      }
+      fetchOfficers();
+      fetchResetRequests();
+    } catch (err) {
+      console.error(err);
+      alert("Error approving password reset request.");
+    } finally {
+      setProcessingResetId(null);
+    }
+  };
+
+  const handleRejectReset = async (requestId) => {
+    const remarks = window.prompt("Reason for rejecting password reset request (optional):", "Rejected by OIC");
+    if (remarks === null) return;
+    setProcessingResetId(requestId);
+    try {
+      const res = await rejectPasswordReset(requestId, remarks);
+      if (res && res.success) {
+        alert(res.message || "Password reset request rejected.");
+      } else {
+        alert(res.message || res.error || "Failed to reject password reset request.");
+      }
+      fetchOfficers();
+      fetchResetRequests();
+    } catch (err) {
+      console.error(err);
+      alert("Error rejecting password reset request.");
+    } finally {
+      setProcessingResetId(null);
+    }
+  };
+
+  const handleRetryEmail = async (requestId) => {
+    setProcessingResetId(requestId);
+    try {
+      const res = await retryResetEmail(requestId);
+      if (res && res.success) {
+        alert(res.message || "Email re-sent successfully.");
+      } else {
+        alert(res.message || "Retry failed.");
+      }
+      fetchResetRequests();
+    } catch (err) {
+      console.error(err);
+      alert("Error retrying email dispatch.");
+    } finally {
+      setProcessingResetId(null);
+    }
+  };
 
   // Stats
   const total    = officers.length;
@@ -281,6 +360,134 @@ function UserManagement() {
           </div>
         )}
 
+        {/* ── Password Reset Requests (OIC & IT Officer View) ── */}
+        {resetRequests.length > 0 && (
+          <div className="um-section-card" style={{ marginBottom: 24 }}>
+            <div className="um-section-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <FiLock size={18} color="#2563eb" />
+                <h3 className="um-section-title">Password Reset Requests</h3>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#b45309", backgroundColor: "#fef3c7", padding: "4px 10px", borderRadius: "12px" }}>
+                {resetRequests.filter(r => r.status === "PENDING").length} Pending OIC Approval
+              </span>
+            </div>
+            <table className="um-table">
+              <thead>
+                <tr>
+                  <th>TRAFFIC OFFICER</th>
+                  <th>POLICE ID</th>
+                  <th>REGISTERED EMAIL</th>
+                  <th>REQUESTED BY</th>
+                  <th>REQUESTED AT</th>
+                  <th>STATUS</th>
+                  <th>ACTION / DETAILS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resetRequests.map(r => (
+                  <tr key={r._id} className="um-tr">
+                    <td>
+                      <p className="um-officer-name" style={{ color: "#1e3a8a", fontWeight: "bold", margin: 0 }}>
+                        {r.targetOfficerName}
+                      </p>
+                    </td>
+                    <td>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "#1e293b", margin: 0 }}>
+                        {r.targetOfficerPoliceId || "-"}
+                      </p>
+                    </td>
+                    <td>
+                      <p style={{ fontWeight: 500, fontSize: 13, color: "#475569", margin: 0 }}>
+                        {r.targetOfficerEmail || "-"}
+                      </p>
+                    </td>
+                    <td>
+                      <span className="um-role-badge" style={{ backgroundColor: "#f1f5f9", color: "#475569" }}>
+                        {r.requestedBy}
+                      </span>
+                    </td>
+                    <td>
+                      <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+                        {new Date(r.requestedAt || r.createdAt).toLocaleString()}
+                      </p>
+                    </td>
+                    <td>
+                      <span style={{
+                        padding: "4px 10px",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        backgroundColor:
+                          r.status === "PENDING" ? "#fef3c7" :
+                          r.status === "APPROVED" ? "#dcfce7" :
+                          r.status === "REJECTED" ? "#fee2e2" : "#fee2e2",
+                        color:
+                          r.status === "PENDING" ? "#b45309" :
+                          r.status === "APPROVED" ? "#16a34a" :
+                          r.status === "REJECTED" ? "#dc2626" : "#dc2626"
+                      }}>
+                        {r.status === "PENDING" ? "PENDING" :
+                         r.status === "APPROVED" ? "APPROVED" :
+                         r.status === "REJECTED" ? "REJECTED" :
+                         r.status === "EMAIL_FAILED" ? "EMAIL FAILED" : r.status}
+                      </span>
+                    </td>
+                    <td>
+                      {userRole === "OIC" && r.status === "PENDING" && (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            className="um-approve-btn"
+                            onClick={() => handleApproveReset(r._id)}
+                            disabled={processingResetId === r._id}
+                            style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 4 }}
+                            title="Approve & Send Temporary Password Email"
+                          >
+                            <FiCheck size={14} /> Approve
+                          </button>
+                          <button
+                            className="um-reject-btn"
+                            onClick={() => handleRejectReset(r._id)}
+                            disabled={processingResetId === r._id}
+                            style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 4 }}
+                            title="Reject Reset Request"
+                          >
+                            <FiX size={14} /> Reject
+                          </button>
+                        </div>
+                      )}
+                      {userRole === "OIC" && r.status === "EMAIL_FAILED" && (
+                        <button
+                          className="um-approve-btn"
+                          onClick={() => handleRetryEmail(r._id)}
+                          style={{ backgroundColor: "#d97706", padding: "6px 12px" }}
+                        >
+                          Retry Email
+                        </button>
+                      )}
+                      {r.status === "APPROVED" && (
+                        <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>
+                          Approved by {r.approvedBy || "OIC"}
+                        </span>
+                      )}
+                      {r.status === "REJECTED" && (
+                        <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>
+                          Rejected by {r.rejectedBy || "OIC"} {r.rejectionRemarks ? `(${r.rejectionRemarks})` : ""}
+                        </span>
+                      )}
+                      {userRole !== "OIC" && r.status === "PENDING" && (
+                        <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
+                          Waiting for OIC Approval
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* ── Officer Registry / List ── */}
         <div className="um-section-card">
           <div className="um-section-header">
@@ -376,14 +583,35 @@ function UserManagement() {
                     </td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        {userRole === "IT Officer" && (
-                          <span 
-                            onClick={() => setResetTarget(o)} 
-                            style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
-                          >
-                            Reset PW
-                          </span>
-                        )}
+                        {userRole === "IT Officer" && (() => {
+                          const pendingReq = resetRequests.find(r => String(r.targetOfficerId) === String(o.id || o._id) && r.status === "PENDING");
+                          if (pendingReq) {
+                            return (
+                              <span
+                                style={{
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  backgroundColor: "#fef3c7",
+                                  color: "#b45309",
+                                  border: "1px solid #fde68a"
+                                }}
+                                title="Password reset request sent to OIC and waiting for approval"
+                              >
+                                Request Pending
+                              </span>
+                            );
+                          }
+                          return (
+                            <span 
+                              onClick={() => setResetTarget(o)} 
+                              style={{ color: "#2563eb", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+                            >
+                              Reset PW
+                            </span>
+                          );
+                        })()}
                         <FiMoreVertical 
                           size={16} 
                           onClick={() => setDetailsOfficer(o)} 
@@ -492,6 +720,10 @@ function UserManagement() {
         <ResetPwModal
           officer={resetTarget}
           onClose={() => setResetTarget(null)}
+          onSuccess={() => {
+            fetchOfficers();
+            fetchResetRequests();
+          }}
         />
       )}
 
@@ -1079,70 +1311,76 @@ function EditModal({ officer, onClose, onSave }) {
 }
 
 // ─── Reset Password Modal ────────────────────────────────────────
-function ResetPwModal({ officer, onClose }) {
-  const [newPw, setNewPw]   = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [error, setError]   = useState("");
-  const [done, setDone]     = useState(false);
+// ─── Reset Password Request Modal (IT Officer) ───────────────────
+function ResetPwModal({ officer, onClose, onSuccess }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
+  const [done, setDone]       = useState(false);
 
-  const handleSet = async () => {
-    if (!newPw) { setError("Please enter a temporary password."); return; }
-    if (newPw.length < 6) { setError("Password must be at least 6 characters."); return; }
+  const handleRequest = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const res = await updateOfficer(officer.id || officer._id, { password: newPw });
-      if (res && !res.error) {
-        setError("");
+      const res = await requestPasswordReset(officer.id || officer._id);
+      if (res && !res.error && res.message) {
         setDone(true);
-        setTimeout(() => { onClose(); }, 1200);
+        if (onSuccess) onSuccess();
+        setTimeout(() => { onClose(); }, 2000);
       } else {
-        setError(res.error || "Failed to reset password.");
+        setError(res.message || res.error || "Failed to create password reset request.");
       }
     } catch (err) {
       console.error(err);
       setError("Error connecting to server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="um-modal-overlay">
-      <div className="um-modal" style={{ maxWidth: 420 }}>
+      <div className="um-modal" style={{ maxWidth: 460 }}>
         <div className="um-modal-header">
-          <h2 className="um-modal-title">Reset Password for {officer.username || officer.policeId || officer.fullName}</h2>
+          <h2 className="um-modal-title">Request Password Reset</h2>
           <button className="um-modal-close" onClick={onClose}><FiX size={18} /></button>
         </div>
         <div className="um-modal-body">
           {done ? (
             <div style={{ textAlign: "center", padding: "20px 0", color: "#16a34a" }}>
-              <FiCheckCircle size={40} />
-              <p style={{ marginTop: 10, fontWeight: 600 }}>Password reset successfully!</p>
+              <FiCheckCircle size={44} />
+              <p style={{ marginTop: 12, fontWeight: 700, fontSize: 16 }}>Request Submitted!</p>
+              <p style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
+                Password reset request sent to OIC for approval.
+              </p>
             </div>
           ) : (
-            <>
-              <div className="um-field-full">
-                <label className="um-field-label">NEW PASSWORD</label>
-                <div className="um-pw-wrap">
-                  <input
-                    className="um-field-input"
-                    type={showPw ? "text" : "password"}
-                    placeholder="Enter temporary password"
-                    value={newPw}
-                    onChange={e => { setNewPw(e.target.value); setError(""); }}
-                    style={{ paddingRight: 40 }}
-                  />
-                  <button type="button" className="um-pw-eye" onClick={() => setShowPw(!showPw)}>
-                    {showPw ? <FiEyeOff size={15} /> : <FiEye size={15} />}
-                  </button>
-                </div>
-                <p className="um-field-hint">Password must be at least 6 characters with a mix of alphanumeric symbols.</p>
+            <div style={{ padding: "8px 0" }}>
+              <p style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.5, margin: "0 0 12px 0" }}>
+                Are you sure you want to request a password reset for <strong>{officer.fullName}</strong> ({officer.policeId || officer.username})?
+              </p>
+              <div style={{ backgroundColor: "#f0f9ff", borderLeft: "4px solid #0284c7", padding: "12px 14px", borderRadius: 4, marginBottom: 14 }}>
+                <p style={{ margin: 0, fontSize: 13, color: "#0369a1", fontWeight: 700 }}>Approval Workflow:</p>
+                <ul style={{ margin: "6px 0 0 16px", padding: 0, fontSize: 12, color: "#0c4a6e", lineHeight: 1.5 }}>
+                  <li>Password will <strong>NOT</strong> be changed immediately.</li>
+                  <li>Request will be submitted to the <strong>OIC for approval</strong>.</li>
+                  <li>Upon approval, a secure temporary password will be sent to the officer's registered email (<code>{officer.email || "Registered Email"}</code>).</li>
+                </ul>
               </div>
-              {error && <p className="um-error">{error}</p>}
-            </>
+              {error && <p className="um-error" style={{ color: "#dc2626", fontWeight: 600, fontSize: 13 }}>{error}</p>}
+            </div>
           )}
         </div>
         {!done && (
           <div className="um-modal-footer">
-            <button className="um-cancel-btn" onClick={onClose}>Cancel</button>
-            <button className="um-submit-btn" onClick={handleSet}>Set New Password</button>
+            <button className="um-cancel-btn" onClick={onClose} disabled={loading}>Cancel</button>
+            <button
+              className="um-submit-btn"
+              onClick={handleRequest}
+              disabled={loading}
+              style={{ backgroundColor: "#2563eb" }}
+            >
+              {loading ? "Submitting..." : "Send Request to OIC"}
+            </button>
           </div>
         )}
       </div>

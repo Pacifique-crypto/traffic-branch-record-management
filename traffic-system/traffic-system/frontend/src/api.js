@@ -126,6 +126,55 @@ export const deleteOfficer = async (id) => {
   return res.json();
 };
 
+export const requestPasswordReset = async (officerId) => {
+  const res = await fetch(`${BASE_URL}/officers/password-reset-request`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ officerId }),
+  });
+  return res.json();
+};
+
+export const getPasswordResetRequests = async () => {
+  const res = await fetch(`${BASE_URL}/officers/password-reset-requests`, {
+    headers: getHeaders(),
+  });
+  return res.json();
+};
+
+export const approvePasswordReset = async (requestId) => {
+  const res = await fetch(`${BASE_URL}/officers/approve-password-reset/${requestId}`, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  return res.json();
+};
+
+export const rejectPasswordReset = async (requestId, remarks) => {
+  const res = await fetch(`${BASE_URL}/officers/reject-password-reset/${requestId}`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ remarks }),
+  });
+  return res.json();
+};
+
+export const retryResetEmail = async (requestId) => {
+  const res = await fetch(`${BASE_URL}/officers/retry-reset-email/${requestId}`, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  return res.json();
+};
+
+export const changePassword = async (currentPassword, newPassword) => {
+  const res = await fetch(`${BASE_URL}/officers/change-password`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return res.json();
+};
 
 export const getVehicles = async () => {
   const res = await fetch(`${BASE_URL}/vehicles`, { headers: getHeaders() });

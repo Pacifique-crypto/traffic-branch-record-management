@@ -2876,7 +2876,7 @@ export default function DutyRoster() {
                     onClick={() => setAutoStep(3)}
                     sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
                   >
-                    Continue ->
+                    Continue
                   </Button>
                 </Box>
               </Box>
@@ -3106,7 +3106,7 @@ export default function DutyRoster() {
                     onClick={() => setAutoStep(4)}
                     sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
                   >
-                    Continue ->
+                    Continue
                   </Button>
                 </Box>
               </Box>
@@ -3177,7 +3177,7 @@ export default function DutyRoster() {
                     onClick={() => setAutoStep(5)}
                     sx={{ textTransform: "none", fontWeight: 800, px: 3.5, py: 1.2, borderRadius: 2, background: "#f59e0b", color: "#000000", "&:hover": { background: "#d97706" } }}
                   >
-                    Continue ->
+                    Continue
                   </Button>
                 </Box>
               </Box>

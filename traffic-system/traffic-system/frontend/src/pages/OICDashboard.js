@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
-import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck } from "react-icons/fi";
-import { getAccidents, getViolations, getOfficers, getVehicles } from "../api";
+import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck, FiLock } from "react-icons/fi";
+import { getAccidents, getViolations, getOfficers, getVehicles, getPasswordResetRequests } from "../api";
 import { useNavigate } from "react-router-dom";
 import LiveDateTime from "../components/LiveDateTime";
 
@@ -41,17 +41,19 @@ function OICDashboard() {
   const [pendingViolCount, setPendingViolCount] = useState(0);
   const [pendingOffCount, setPendingOffCount]   = useState(0);
   const [pendingVehCount, setPendingVehCount]   = useState(0);
+  const [pendingResetCount, setPendingResetCount] = useState(0);
 
   useEffect(() => {
     const loadStats = async () => {
       try {
         setLoading(true);
         // Fetch in parallel
-        const [accs, viols, officers, vehicles] = await Promise.all([
+        const [accs, viols, officers, vehicles, resetRequests] = await Promise.all([
           getAccidents().catch(() => []),
           getViolations().catch(() => []),
           getOfficers().catch(() => []),
-          getVehicles().catch(() => [])
+          getVehicles().catch(() => []),
+          getPasswordResetRequests().catch(() => [])
         ]);
 
         setAccidentsCount(accs.length || 0);
@@ -62,11 +64,13 @@ function OICDashboard() {
         const pendingViol = (viols || []).filter(v => v.status && v.status.toLowerCase() === "pending").length;
         const pendingOff = (officers || []).filter(o => o.status && o.status.toLowerCase() === "pending").length;
         const pendingVeh = (vehicles || []).filter(vh => (vh.status && vh.status.toLowerCase() === "pending") || (vh.assignmentApprovalStatus === "PENDING" && vh.pendingAssignedOfficer)).length;
+        const pendingReset = (resetRequests || []).filter(r => r.status === "PENDING").length;
 
         setPendingAccCount(pendingAcc);
         setPendingViolCount(pendingViol);
         setPendingOffCount(pendingOff);
         setPendingVehCount(pendingVeh);
+        setPendingResetCount(pendingReset);
 
         const activities = [];
 
@@ -208,10 +212,25 @@ function OICDashboard() {
       status: "Transit Review",
       statusColor: "#64748b",
       path: "/vehicle-management"
+    },
+    {
+      id: 5,
+      icon: <FiLock size={18} color="#d97706" />,
+      iconBg: "#fef3c7",
+      badge: "Password Resets Pending",
+      badgeColor: "#d97706",
+      badgeBg: "#fef3c7",
+      title: "Traffic Officer Password Resets",
+      sub: "Approve temporary password issuance for officers",
+      count: pendingResetCount,
+      circleBg: "#d97706",
+      status: "Security Action Required",
+      statusColor: "#d97706",
+      path: "/user-management"
     }
   ];
 
-  const totalPendingCount = pendingAccCount + pendingViolCount + pendingOffCount + pendingVehCount;
+  const totalPendingCount = pendingAccCount + pendingViolCount + pendingOffCount + pendingVehCount + pendingResetCount;
 
   const stats = [
     { icon: <FiAlertTriangle size={24} />, value: accidentsCount, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },

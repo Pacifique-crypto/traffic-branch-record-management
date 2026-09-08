@@ -97,6 +97,11 @@ const officerSchema = new mongoose.Schema({
   profileImage: {
     type: String,
     default: ""
+  },
+
+  mustChangePassword: {
+    type: Boolean,
+    default: false
   }
 
 }, { timestamps: true });
