@@ -1874,26 +1874,6 @@ export default function DutyRoster() {
             </Grid>
           </Grid>
 
-          {/* Workflow Action Bar */}
-          <Box sx={{ mt: 2.5, pt: 2, borderTop: "1px solid #f1f5f9", display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
-            <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
-
-              {isOIC && currentStatus === "Pending Approval" && (
-                <>
-                  <Button variant="contained" color="success" size="small" startIcon={<CheckCircleIcon />} onClick={handleApproveRoster} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
-                    Approve Roster
-                  </Button>
-                  <Button variant="contained" color="error" size="small" startIcon={<CancelIcon />} onClick={() => setRejectModalOpen(true)} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
-                    Reject Roster
-                  </Button>
-                </>
-              )}
-
-              <Button variant="contained" color="success" size="small" startIcon={<PublishIcon />} onClick={handlePublishRoster} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
-                Publish Roster
-              </Button>
-            </Box>
-          </Box>
         </Paper>
 
         {/* SUMMARY STATS CARDS */}
@@ -2228,6 +2208,31 @@ export default function DutyRoster() {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* BOTTOM ACTION BAR - PUBLISH ROSTER BELOW TABLE */}
+        <Box sx={{ mt: 2, mb: 3, display: "flex", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+          {isOIC && currentStatus === "Pending Approval" && (
+            <>
+              <Button variant="contained" color="success" size="small" startIcon={<CheckCircleIcon />} onClick={handleApproveRoster} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
+                Approve Roster
+              </Button>
+              <Button variant="contained" color="error" size="small" startIcon={<CancelIcon />} onClick={() => setRejectModalOpen(true)} sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
+                Reject Roster
+              </Button>
+            </>
+          )}
+
+          <Button
+            variant="contained"
+            color="success"
+            size="small"
+            startIcon={<PublishIcon />}
+            onClick={handlePublishRoster}
+            sx={{ textTransform: "none", fontWeight: 800, borderRadius: 2, px: 2.5, py: 1 }}
+          >
+            Publish Roster
+          </Button>
+        </Box>
 
         {/* 5. ADD / EDIT DUTY ASSIGNMENT SIDEBAR DRAWER (MATCHING REFERENCE UI) */}
         <Drawer
