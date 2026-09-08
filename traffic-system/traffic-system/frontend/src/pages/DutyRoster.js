@@ -1866,7 +1866,7 @@ export default function DutyRoster() {
                         px: 2.5
                       }}
                     >
-                      + Add Assignment
+                      Add Assignment
                     </Button>
                   </Box>
                 )}
@@ -2693,7 +2693,7 @@ export default function DutyRoster() {
                         "&:hover": { background: "#f8fafc" }
                       }}
                     >
-                      + Add Duty Requirement
+                      Add Duty Requirement
                     </Button>
                   </Box>
 
@@ -2900,7 +2900,7 @@ export default function DutyRoster() {
                         "&:hover": { background: "#f8fafc" }
                       }}
                     >
-                      + Add Special Duty
+                      Add Special Duty
                     </Button>
                   </Box>
 
