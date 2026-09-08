@@ -184,6 +184,9 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
     leaveRecord.endDate = end;
     if (leaveType) leaveRecord.leaveType = leaveType;
     if (remarks !== undefined) leaveRecord.remarks = remarks;
+    if (req.body.status) leaveRecord.status = req.body.status;
+    if (req.body.rejectionRemarks !== undefined) leaveRecord.rejectionRemarks = req.body.rejectionRemarks;
+    if (req.body.medicalCertificateUrl !== undefined) leaveRecord.medicalCertificateUrl = req.body.medicalCertificateUrl;
 
     await leaveRecord.save();
     await leaveRecord.populate("officer", "fullName policeId rank username");
