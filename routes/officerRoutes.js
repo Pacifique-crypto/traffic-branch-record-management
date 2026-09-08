@@ -2,8 +2,9 @@ const express = require("express");
 const router = express.Router();
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const Officer = require("../models/Officer");
+const PasswordResetRequest = require("../models/PasswordResetRequest");
 const bcrypt = require("bcryptjs");
-const { sendApprovalCredentialsEmail } = require("../services/emailService");
+const { sendApprovalCredentialsEmail, sendPasswordResetEmail } = require("../services/emailService");
 
 // REGISTER OFFICER
 router.post("/register", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
@@ -133,12 +134,14 @@ router.post("/login", async (req, res) => {
     res.json({
       message: "Login successful",
       token,
+      mustChangePassword: !!officer.mustChangePassword,
       user: {
         id: officer._id,
         fullName: officer.fullName,
         username: officer.username,
         policeId: officer.policeId,
         role: officer.role || "officer",
+        mustChangePassword: !!officer.mustChangePassword,
       },
       officer: officerProfile
     });
@@ -451,18 +454,296 @@ router.put("/:id", verifyToken, async (req, res) => {
   }
 });
 
-// DELETE OFFICER
-router.delete("/:id", verifyToken, authorizeRoles("admin"), async (req, res) => {
+// ─── OIC PASSWORD RESET WORKFLOW ENDPOINTS ──────────────────────
+
+function generateSecureTempPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789#@!";
+  let result = "Tp#";
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// 1. IT OFFICER: Create Password Reset Request
+router.post("/password-reset-request", verifyToken, async (req, res) => {
   try {
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const isITOfficer = ["admin", "it officer", "itofficer", "it_officer", "it", "it officer/admin", "it officer admin", "oic"].some(r => userRole.includes(r));
+    if (!isITOfficer) {
+      return res.status(403).json({ message: "Only IT Officers are authorized to request password resets." });
+    }
 
-    await Officer.findByIdAndDelete(req.params.id);
+    const { officerId, targetOfficerId } = req.body;
+    const targetId = officerId || targetOfficerId;
 
-    res.json({
-      message: "Officer deleted successfully",
+    if (!targetId) {
+      return res.status(400).json({ message: "Target Officer ID is required." });
+    }
+
+    const officer = await Officer.findById(targetId);
+    if (!officer) {
+      return res.status(404).json({ message: "Target Traffic Officer not found." });
+    }
+
+    if (!officer.email || !officer.email.trim()) {
+      return res.status(400).json({ message: "Officer does not have a registered email address. Password reset request cannot be created." });
+    }
+
+    // Check for existing pending request
+    const existingPending = await PasswordResetRequest.findOne({
+      targetOfficerId: officer._id,
+      status: "PENDING"
     });
+
+    if (existingPending) {
+      return res.status(400).json({ message: "A password reset request is already pending OIC approval for this Traffic Officer." });
+    }
+
+    const requesterName = req.user.fullName || req.user.username || "IT Officer";
+    const newRequest = new PasswordResetRequest({
+      targetOfficerId: officer._id,
+      targetOfficerName: officer.fullName,
+      targetOfficerPoliceId: officer.policeId || officer.username || "",
+      targetOfficerEmail: officer.email.trim(),
+      requestedBy: requesterName,
+      requestedByRole: "IT Officer",
+      status: "PENDING",
+      requestedAt: new Date()
+    });
+
+    await newRequest.save();
+
+    console.log(`[PASSWORD RESET REQUEST] Created for ${officer.fullName} by ${requesterName}`);
+    return res.status(201).json({
+      message: "Password reset request sent to OIC for approval.",
+      request: newRequest
+    });
+
+  } catch (error) {
+    console.error("Error creating password reset request:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 2. GET ALL PASSWORD RESET REQUESTS (OIC & IT Officer view)
+router.get("/password-reset-requests", verifyToken, async (req, res) => {
+  try {
+    const requests = await PasswordResetRequest.find().sort({ requestedAt: -1 });
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 3. OIC: Approve Password Reset Request
+router.post("/approve-password-reset/:requestId", verifyToken, async (req, res) => {
+  try {
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const isOIC = ["oic", "oic traffic branch", "admin"].some(r => userRole.includes(r));
+    if (!isOIC) {
+      return res.status(403).json({ message: "Only an authorized OIC can approve password reset requests." });
+    }
+
+    const { requestId } = req.params;
+    const requestDoc = await PasswordResetRequest.findById(requestId);
+
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Password reset request not found." });
+    }
+
+    if (requestDoc.status !== "PENDING" && requestDoc.status !== "EMAIL_FAILED") {
+      return res.status(400).json({ message: `Password reset request is already ${requestDoc.status}.` });
+    }
+
+    const officer = await Officer.findById(requestDoc.targetOfficerId);
+    if (!officer) {
+      return res.status(404).json({ message: "Target Traffic Officer not found in database." });
+    }
+
+    const recipientEmail = (officer.email || requestDoc.targetOfficerEmail || "").trim();
+    if (!recipientEmail) {
+      return res.status(400).json({ message: "No registered email found for this officer." });
+    }
+
+    // Generate secure temporary password
+    const tempPassword = generateSecureTempPassword();
+
+    // Hash password with bcrypt
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+    // Save hashed password to officer record
+    officer.password = hashedPassword;
+    officer.mustChangePassword = true;
+    await officer.save();
+
+    const approverName = req.user.fullName || req.user.username || "OIC";
+
+    // Send temporary password via Nodemailer to registered email ONLY
+    const emailResult = await sendPasswordResetEmail(recipientEmail, officer.fullName, tempPassword);
+
+    if (emailResult.success) {
+      requestDoc.status = "APPROVED";
+      requestDoc.approvedBy = approverName;
+      requestDoc.approvedAt = new Date();
+      requestDoc.emailErrorMessage = "";
+      await requestDoc.save();
+
+      console.log(`[OIC APPROVED RESET] Password reset approved for ${officer.fullName}. Temp password emailed.`);
+      return res.json({
+        success: true,
+        message: `Password reset approved for ${officer.fullName}. Temporary password sent to the registered email.`,
+        request: requestDoc
+      });
+    } else {
+      requestDoc.status = "EMAIL_FAILED";
+      requestDoc.approvedBy = approverName;
+      requestDoc.approvedAt = new Date();
+      requestDoc.emailErrorMessage = emailResult.error || "SMTP email dispatch failed.";
+      await requestDoc.save();
+
+      console.error(`[OIC APPROVAL EMAIL FAILED] Password reset for ${officer.fullName} failed to send email. Error: ${emailResult.error}`);
+      return res.status(500).json({
+        success: false,
+        status: "EMAIL_FAILED",
+        message: `Password updated, but email delivery failed: ${emailResult.error || "SMTP error"}. You can retry email delivery.`,
+        request: requestDoc
+      });
+    }
+
+  } catch (error) {
+    console.error("Error approving password reset:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4. OIC: Reject Password Reset Request
+router.post("/reject-password-reset/:requestId", verifyToken, async (req, res) => {
+  try {
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const isOIC = ["oic", "oic traffic branch", "admin"].some(r => userRole.includes(r));
+    if (!isOIC) {
+      return res.status(403).json({ message: "Only an authorized OIC can reject password reset requests." });
+    }
+
+    const { requestId } = req.params;
+    const { remarks, rejectionRemarks } = req.body;
+    const finalRemarks = remarks || rejectionRemarks || "Rejected by OIC";
+
+    const requestDoc = await PasswordResetRequest.findById(requestId);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Password reset request not found." });
+    }
+
+    if (requestDoc.status !== "PENDING") {
+      return res.status(400).json({ message: `Password reset request is already ${requestDoc.status}.` });
+    }
+
+    const rejectorName = req.user.fullName || req.user.username || "OIC";
+    requestDoc.status = "REJECTED";
+    requestDoc.rejectedBy = rejectorName;
+    requestDoc.rejectedAt = new Date();
+    requestDoc.rejectionRemarks = finalRemarks;
+
+    await requestDoc.save();
+
+    console.log(`[OIC REJECTED RESET] Request for ${requestDoc.targetOfficerName} rejected by ${rejectorName}`);
+    return res.json({
+      success: true,
+      message: `Password reset request for ${requestDoc.targetOfficerName} was rejected by the OIC.`,
+      request: requestDoc
+    });
+
+  } catch (error) {
+    console.error("Error rejecting password reset:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 5. OIC: Retry Sending Email for EMAIL_FAILED Reset Request
+router.post("/retry-reset-email/:requestId", verifyToken, async (req, res) => {
+  try {
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const isOIC = ["oic", "oic traffic branch", "admin"].some(r => userRole.includes(r));
+    if (!isOIC) {
+      return res.status(403).json({ message: "Only OIC is authorized to retry email dispatch." });
+    }
+
+    const { requestId } = req.params;
+    const requestDoc = await PasswordResetRequest.findById(requestId);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Password reset request not found." });
+    }
+
+    const officer = await Officer.findById(requestDoc.targetOfficerId);
+    if (!officer) {
+      return res.status(404).json({ message: "Target Traffic Officer not found." });
+    }
+
+    const tempPassword = generateSecureTempPassword();
+    const salt = await bcrypt.genSalt(10);
+    officer.password = await bcrypt.hash(tempPassword, salt);
+    officer.mustChangePassword = true;
+    await officer.save();
+
+    const recipientEmail = (officer.email || requestDoc.targetOfficerEmail || "").trim();
+    const emailResult = await sendPasswordResetEmail(recipientEmail, officer.fullName, tempPassword);
+
+    if (emailResult.success) {
+      requestDoc.status = "APPROVED";
+      requestDoc.emailErrorMessage = "";
+      await requestDoc.save();
+      return res.json({
+        success: true,
+        message: `Temporary password re-sent successfully to ${recipientEmail}.`,
+        request: requestDoc
+      });
+    } else {
+      requestDoc.emailErrorMessage = emailResult.error || "SMTP retry failed.";
+      await requestDoc.save();
+      return res.status(500).json({
+        success: false,
+        message: `Retry failed: ${emailResult.error || "SMTP error"}`
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6. TRAFFIC OFFICER: Change Password (First Login / Forced Password Change)
+router.post("/change-password", verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters long." });
+    }
+
+    const officerId = req.user?.id || req.user?._id;
+    const officer = await Officer.findById(officerId);
+    if (!officer) {
+      return res.status(404).json({ message: "Officer account not found." });
+    }
+
+    if (currentPassword) {
+      const match = await bcrypt.compare(currentPassword, officer.password);
+      if (!match) {
+        return res.status(400).json({ message: "Current temporary password is incorrect." });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    officer.password = await bcrypt.hash(newPassword, salt);
+    officer.mustChangePassword = false;
+    await officer.save();
+
+    return res.json({ message: "Password updated successfully. You may now continue using the system." });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-module.exports = router;
+
+module.exports = router;
