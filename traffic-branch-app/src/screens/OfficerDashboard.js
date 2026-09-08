@@ -582,10 +582,6 @@ export default function OfficerDashboard({ navigation }) {
                   <Text style={styles.fieldMetaLabel}>{t.rankLabel}</Text>
                   <Text style={styles.fieldMetaValue}>Traffic Officer</Text>
                 </View>
-                <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.stationLabel}</Text>
-                  <Text style={styles.fieldMetaValue}>Negombo Police Station</Text>
-                </View>
               </View>
 
               <View style={{ marginTop: 10 }}>
