@@ -22,10 +22,23 @@ const officerAvailabilitySchema = new mongoose.Schema({
     type: String,
     default: ""
   },
+  status: {
+    type: String,
+    enum: ["Pending", "Approved", "Rejected"],
+    default: "Pending"
+  },
+  medicalCertificateUrl: {
+    type: String,
+    default: ""
+  },
+  rejectionRemarks: {
+    type: String,
+    default: ""
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Admin",
-    required: true
+    required: false
   }
 }, { timestamps: true });
 
@@ -33,4 +46,3 @@ const officerAvailabilitySchema = new mongoose.Schema({
 officerAvailabilitySchema.index({ officer: 1, startDate: 1, endDate: 1 });
 
 module.exports = mongoose.model("OfficerAvailability", officerAvailabilitySchema);
-
