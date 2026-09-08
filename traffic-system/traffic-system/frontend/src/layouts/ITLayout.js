@@ -1,28 +1,31 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  FiGrid, FiUsers, FiSettings, FiLogOut, FiBell, FiFileText, FiBarChart2, FiAlertTriangle, FiAlertCircle, FiCalendar, FiTruck
+  FiGrid, FiUsers, FiSettings, FiLogOut, FiBell, FiFileText, FiAlertTriangle, FiAlertCircle, FiCalendar, FiTruck
 } from "react-icons/fi";
-
-const navItems = [
-  { label: "Dashboard",          path: "/dashboard",          icon: <FiGrid /> },
-  { label: "AR",                 path: "/accidents",          icon: <FiAlertTriangle /> },
-  { label: "TOR",                path: "/tor",                icon: <FiAlertCircle /> },
-  { label: "Reports & Analytics",path: "/reports",            icon: <FiFileText /> },
-  { label: "Duty Roster",        path: "/duty-roster",        icon: <FiCalendar /> },
-  { label: "Vehicle Management", path: "/vehicle-management", icon: <FiTruck /> },
-  { label: "Officer Management", path: "/user-management",    icon: <FiUsers /> },
-];
+import { useLanguage } from "../context/LanguageContext";
 
 function ITLayout({ children }) {
   const location = useLocation();
   const navigate  = useNavigate();
+  const { t }     = useLanguage();
+
   const officer   = JSON.parse(localStorage.getItem("officer") || "{}");
-  const name      = officer.name || "IT Admin";
+  const name      = officer.name || t("itOfficer");
   const initial   = name.charAt(0).toUpperCase();
 
+  const navItems = [
+    { label: t("dashboard"),          path: "/dashboard",          icon: <FiGrid /> },
+    { label: t("accidents"),          path: "/accidents",          icon: <FiAlertTriangle /> },
+    { label: t("violations"),         path: "/tor",                icon: <FiAlertCircle /> },
+    { label: t("reports"),            path: "/reports",            icon: <FiFileText /> },
+    { label: t("dutyRoster"),         path: "/duty-roster",        icon: <FiCalendar /> },
+    { label: t("vehicleManagement"), path: "/vehicle-management", icon: <FiTruck /> },
+    { label: t("userManagement"),    path: "/user-management",    icon: <FiUsers /> },
+  ];
+
   const handleLogout = () => {
-    const confirmed = window.confirm("Are you sure you want to log out?");
+    const confirmed = window.confirm(t("language") === "Sinhala" ? "ඔබට මෙම පද්ධතියෙන් ඉවත් වීමට අවශ්‍ය බව තහවුරුද?" : "Are you sure you want to log out?");
     if (!confirmed) return;
     localStorage.clear();
     navigate("/login");
@@ -51,10 +54,10 @@ function ITLayout({ children }) {
             className={`pro-nav-link ${location.pathname === "/settings" ? "pro-nav-active" : ""}`}
           >
             <span className="pro-nav-icon"><FiSettings /></span>
-            <span>Settings</span>
+            <span>{t("settings")}</span>
           </Link>
           <button className="pro-signout-btn" onClick={handleLogout}>
-            <FiLogOut style={{ marginRight: 8 }} /> Sign Out
+            <FiLogOut style={{ marginRight: 8 }} /> {t("signOut")}
           </button>
         </div>
       </aside>
@@ -70,19 +73,19 @@ function ITLayout({ children }) {
               className="pro-topbar-logo"
             />
             <div>
-              <p className="pro-topbar-title">Sri Lanka Police</p>
-              <p className="pro-topbar-sub">Traffic Branch – Negombo</p>
+              <p className="pro-topbar-title">{t("sriLankaPolice")}</p>
+              <p className="pro-topbar-sub">{t("trafficBranchNegombo")}</p>
             </div>
           </div>
           <div className="pro-topbar-right">
-            <button className="pro-topbar-bell" onClick={() => navigate("/notifications")} title="Notifications">
+            <button className="pro-topbar-bell" onClick={() => navigate("/notifications")} title={t("notifications")}>
               <FiBell size={18} />
             </button>
             <div className="pro-topbar-officer">
               <div className="pro-topbar-avatar" style={{ background: "#7c3aed" }}>{initial}</div>
               <div>
                 <p className="pro-topbar-name">{name}</p>
-                <p className="pro-topbar-role">IT Officer</p>
+                <p className="pro-topbar-role">{t("itOfficer")}</p>
               </div>
             </div>
           </div>

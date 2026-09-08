@@ -17,13 +17,20 @@ import {
   FiCheck,
   FiX,
   FiKey,
-  FiActivity
+  FiActivity,
+  FiAlertCircle
 } from "react-icons/fi";
-import { getMyProfile, updateMyProfile, updateMyPassword } from "../api";
+import { getMyProfile, updateMyProfile, updateMyPassword, getSystemHealth } from "../api";
+import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
+import { useFormat } from "../context/FormatContext";
 
 function Settings() {
   const userRole = localStorage.getItem("userRole") || "OIC";
-  
+  const { darkMode, toggleDarkMode } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
+  const { dateFormat, setDateFormat, timeFormat, setTimeFormat } = useFormat();
+
   // Dynamically load layout based on user role (OIC or IT Officer)
   let LayoutComponent;
   if (userRole === "IT Officer" || userRole === "IT_OFFICER" || userRole === "IT Officer ") {
@@ -46,19 +53,8 @@ function Settings() {
     email: officer.email || "officer@slpolice.lk",
   });
 
-  // App preferences state with localStorage persistence
-  const [darkMode, setDarkMode] = useState(
-    localStorage.getItem("app_dark_mode") === "true"
-  );
-  const [language, setLanguage] = useState(
-    localStorage.getItem("app_language") || "English"
-  );
-  const [dateFormat, setDateFormat] = useState(
-    localStorage.getItem("app_date_format") || "YYYY-MM-DD"
-  );
-  const [timeFormat, setTimeFormat] = useState(
-    localStorage.getItem("app_time_format") || "24-Hour"
-  );
+  // System Health state for About System modal
+  const [dbStatus, setDbStatus] = useState("Connected");
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'edit_profile', 'change_password', 'security', 'about'
@@ -74,9 +70,6 @@ function Settings() {
     confirmPassword: "",
   });
   const [passwordMessage, setPasswordMessage] = useState("");
-
-  // Account security toggle
-  const [twoFactor, setTwoFactor] = useState(false);
 
   // Fetch live officer profile from backend on mount
   useEffect(() => {
@@ -100,6 +93,21 @@ function Settings() {
     };
     fetchLiveProfile();
   }, []);
+
+  // Fetch live system health on modal open
+  useEffect(() => {
+    if (activeModal === "about") {
+      const checkHealth = async () => {
+        const res = await getSystemHealth();
+        if (res && res.database === "connected") {
+          setDbStatus("Connected");
+        } else {
+          setDbStatus("Unavailable");
+        }
+      };
+      checkHealth();
+    }
+  }, [activeModal]);
 
   // Handlers
   const handleOpenEditProfile = () => {
@@ -193,39 +201,31 @@ function Settings() {
   };
 
   const handleToggleDarkMode = () => {
-    const nextVal = !darkMode;
-    setDarkMode(nextVal);
-    localStorage.setItem("app_dark_mode", nextVal.toString());
+    toggleDarkMode();
   };
 
   const handleLanguageChange = (e) => {
-    const val = e.target.value;
-    setLanguage(val);
-    localStorage.setItem("app_language", val);
+    setLanguage(e.target.value);
   };
 
   const handleDateFormatChange = (e) => {
-    const val = e.target.value;
-    setDateFormat(val);
-    localStorage.setItem("app_date_format", val);
+    setDateFormat(e.target.value);
   };
 
   const handleTimeFormatChange = (e) => {
-    const val = e.target.value;
-    setTimeFormat(val);
-    localStorage.setItem("app_time_format", val);
+    setTimeFormat(e.target.value);
   };
 
   const initialLetter = (profile.name || "S").charAt(0).toUpperCase();
 
   return (
     <LayoutComponent>
-      <div className="page-box" style={{ background: "#f8fafc", minHeight: "100%" }}>
+      <div className="page-box" style={{ minHeight: "100%" }}>
         
         {/* Header */}
         <div className="settings-header">
-          <h2 className="settings-main-title">Settings</h2>
-          <p className="settings-sub-title">Manage your profile and application preferences</p>
+          <h2 className="settings-main-title">{t("settingsTitle")}</h2>
+          <p className="settings-sub-title">{t("settingsSubTitle")}</p>
         </div>
 
         {/* Top Grid: Profile Information & App Preferences */}
@@ -237,7 +237,7 @@ function Settings() {
               <div className="settings-card-icon-wrap" style={{ background: "#eff6ff", color: "#2563eb" }}>
                 <FiUser />
               </div>
-              <span className="settings-card-title-text">Profile Information</span>
+              <span className="settings-card-title-text">{t("profileInformation")}</span>
             </div>
 
             <div className="settings-profile-layout">
@@ -259,32 +259,32 @@ function Settings() {
               <div className="settings-profile-right">
                 <div className="settings-info-item">
                   <span className="settings-info-icon"><FiUser /></span>
-                  <span className="settings-info-label">Full Name</span>
+                  <span className="settings-info-label">{t("fullName")}</span>
                   <span className="settings-info-val">{profile.name}</span>
                 </div>
 
                 <div className="settings-info-item">
                   <span className="settings-info-icon"><FiShield /></span>
-                  <span className="settings-info-label">Role</span>
+                  <span className="settings-info-label">{t("role")}</span>
                   <span className="settings-info-val">{profile.role}</span>
                 </div>
 
                 <div className="settings-info-item">
                   <span className="settings-info-icon"><FiPhone /></span>
-                  <span className="settings-info-label">Contact No.</span>
+                  <span className="settings-info-label">{t("contactNo")}</span>
                   <span className="settings-info-val">{profile.contactNo}</span>
                 </div>
 
                 <div className="settings-info-item">
                   <span className="settings-info-icon"><FiMail /></span>
-                  <span className="settings-info-label">Email</span>
+                  <span className="settings-info-label">{t("email")}</span>
                   <span className="settings-info-val">{profile.email}</span>
                 </div>
               </div>
             </div>
 
             <button className="settings-edit-profile-btn" onClick={handleOpenEditProfile}>
-              <FiEdit2 size={13} /> Edit Profile
+              <FiEdit2 size={13} /> {t("editProfile")}
             </button>
           </div>
 
@@ -294,7 +294,7 @@ function Settings() {
               <div className="settings-card-icon-wrap" style={{ background: "#f0fdf4", color: "#16a34a" }}>
                 <FiSettings />
               </div>
-              <span className="settings-card-title-text">App Preferences</span>
+              <span className="settings-card-title-text">{t("appPreferences")}</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -306,8 +306,8 @@ function Settings() {
                     <FiMoon />
                   </div>
                   <div>
-                    <div className="pref-item-title">Dark Mode</div>
-                    <div className="pref-item-desc">Enable dark mode for the system</div>
+                    <div className="pref-item-title">{t("darkMode")}</div>
+                    <div className="pref-item-desc">{t("darkModeDesc")}</div>
                   </div>
                 </div>
                 <div className={`toggle ${darkMode ? "toggle-on" : ""}`} onClick={handleToggleDarkMode}>
@@ -322,8 +322,8 @@ function Settings() {
                     <FiGlobe />
                   </div>
                   <div>
-                    <div className="pref-item-title">Language</div>
-                    <div className="pref-item-desc">Select your preferred language</div>
+                    <div className="pref-item-title">{t("language")}</div>
+                    <div className="pref-item-desc">{t("languageDesc")}</div>
                   </div>
                 </div>
                 <select className="pref-dropdown-select" value={language} onChange={handleLanguageChange}>
@@ -339,8 +339,8 @@ function Settings() {
                     <FiCalendar />
                   </div>
                   <div>
-                    <div className="pref-item-title">Date Format</div>
-                    <div className="pref-item-desc">Select the date display format</div>
+                    <div className="pref-item-title">{t("dateFormat")}</div>
+                    <div className="pref-item-desc">{t("dateFormatDesc")}</div>
                   </div>
                 </div>
                 <select className="pref-dropdown-select" value={dateFormat} onChange={handleDateFormatChange}>
@@ -357,8 +357,8 @@ function Settings() {
                     <FiClock />
                   </div>
                   <div>
-                    <div className="pref-item-title">Time Format</div>
-                    <div className="pref-item-desc">Select the time display format</div>
+                    <div className="pref-item-title">{t("timeFormat")}</div>
+                    <div className="pref-item-desc">{t("timeFormatDesc")}</div>
                   </div>
                 </div>
                 <select className="pref-dropdown-select" value={timeFormat} onChange={handleTimeFormatChange}>
@@ -372,13 +372,13 @@ function Settings() {
 
         </div>
 
-        {/* Bottom Card: System & Account (Data Management removed as requested) */}
+        {/* Bottom Card: System & Account */}
         <div className="system-account-card">
           <div className="settings-card-header" style={{ marginBottom: 16 }}>
             <div className="settings-card-icon-wrap" style={{ background: "#fef3c7", color: "#d97706" }}>
               <FiShield />
             </div>
-            <span className="settings-card-title-text">System &amp; Account</span>
+            <span className="settings-card-title-text">{t("systemAndAccount")}</span>
           </div>
 
           <div className="system-account-list">
@@ -390,8 +390,8 @@ function Settings() {
                   <FiLock />
                 </div>
                 <div>
-                  <div className="sys-account-title">Change Password</div>
-                  <div className="sys-account-desc">Update your account password</div>
+                  <div className="sys-account-title">{t("changePassword")}</div>
+                  <div className="sys-account-desc">{t("changePasswordDesc")}</div>
                 </div>
               </div>
               <div className="sys-account-chevron">
@@ -406,16 +406,14 @@ function Settings() {
                   <FiShield />
                 </div>
                 <div>
-                  <div className="sys-account-title">Account Security</div>
-                  <div className="sys-account-desc">Manage your account security settings</div>
+                  <div className="sys-account-title">{t("accountSecurity")}</div>
+                  <div className="sys-account-desc">{t("accountSecurityDesc")}</div>
                 </div>
               </div>
               <div className="sys-account-chevron">
                 <FiChevronRight />
               </div>
             </div>
-
-            {/* NOTE: DATA MANAGEMENT REMOVED AS REQUESTED BY USER */}
 
             {/* About System */}
             <div className="sys-account-row" onClick={() => setActiveModal("about")}>
@@ -424,8 +422,8 @@ function Settings() {
                   <FiInfo />
                 </div>
                 <div>
-                  <div className="sys-account-title">About System</div>
-                  <div className="sys-account-desc">View system information and version</div>
+                  <div className="sys-account-title">{t("aboutSystem")}</div>
+                  <div className="sys-account-desc">{t("aboutSystemDesc")}</div>
                 </div>
               </div>
               <div className="sys-account-chevron">
@@ -443,9 +441,9 @@ function Settings() {
         {/* 1. Edit Profile Modal */}
         {activeModal === "edit_profile" && (
           <div className="pro-modal-overlay">
-            <div className="pro-modal-box" style={{ width: 440, background: "#ffffff", padding: 24, borderRadius: 16 }}>
+            <div className="pro-modal-box" style={{ width: 440, padding: 24, borderRadius: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Edit Profile Information</h3>
+                <h3 style={{ fontSize: 16, fontWeight: 700 }}>{t("editProfile")}</h3>
                 <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#64748b" }} onClick={() => setActiveModal(null)}>
                   <FiX />
                 </button>
@@ -459,10 +457,10 @@ function Settings() {
 
               <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Full Name</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("fullName")}</label>
                   <input
                     type="text"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     required
@@ -470,10 +468,10 @@ function Settings() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Role / Title</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("role")}</label>
                   <input
                     type="text"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={editForm.role}
                     onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                     required
@@ -481,10 +479,10 @@ function Settings() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Contact Number</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("contactNo")}</label>
                   <input
                     type="text"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={editForm.contactNo}
                     onChange={(e) => setEditForm({ ...editForm, contactNo: e.target.value })}
                     required
@@ -492,10 +490,10 @@ function Settings() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Email Address</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("email")}</label>
                   <input
                     type="email"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     required
@@ -503,11 +501,11 @@ function Settings() {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
-                  <button type="button" className="btn-cancel" style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", cursor: "pointer", fontSize: 13 }} onClick={() => setActiveModal(null)}>
-                    Cancel
+                  <button type="button" className="btn-cancel" style={{ padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }} onClick={() => setActiveModal(null)}>
+                    {t("cancel")}
                   </button>
                   <button type="submit" className="pro-btn-primary" style={{ padding: "8px 18px", borderRadius: 8 }}>
-                    Save Changes
+                    {t("saveChanges")}
                   </button>
                 </div>
               </form>
@@ -518,10 +516,10 @@ function Settings() {
         {/* 2. Change Password Modal */}
         {activeModal === "change_password" && (
           <div className="pro-modal-overlay">
-            <div className="pro-modal-box" style={{ width: 420, background: "#ffffff", padding: 24, borderRadius: 16 }}>
+            <div className="pro-modal-box" style={{ width: 420, padding: 24, borderRadius: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-                  <FiKey style={{ color: "#2563eb" }} /> Change Password
+                <h3 style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  <FiKey style={{ color: "#2563eb" }} /> {t("changePassword")}
                 </h3>
                 <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#64748b" }} onClick={() => setActiveModal(null)}>
                   <FiX />
@@ -545,10 +543,10 @@ function Settings() {
 
               <form onSubmit={handleSavePassword} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Current Password</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("currentPassword")}</label>
                   <input
                     type="password"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                     required
@@ -556,10 +554,10 @@ function Settings() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>New Password</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("newPassword")}</label>
                   <input
                     type="password"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                     required
@@ -567,10 +565,10 @@ function Settings() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>Confirm New Password</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>{t("confirmNewPassword")}</label>
                   <input
                     type="password"
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 13 }}
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                     required
@@ -578,11 +576,11 @@ function Settings() {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
-                  <button type="button" style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#f8fafc", cursor: "pointer", fontSize: 13 }} onClick={() => setActiveModal(null)}>
-                    Cancel
+                  <button type="button" className="btn-cancel" style={{ padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }} onClick={() => setActiveModal(null)}>
+                    {t("cancel")}
                   </button>
                   <button type="submit" className="pro-btn-primary" style={{ padding: "8px 18px", borderRadius: 8 }}>
-                    Update Password
+                    {t("updatePassword")}
                   </button>
                 </div>
               </form>
@@ -593,10 +591,10 @@ function Settings() {
         {/* 3. Account Security Modal */}
         {activeModal === "security" && (
           <div className="pro-modal-overlay">
-            <div className="pro-modal-box" style={{ width: 460, background: "#ffffff", padding: 24, borderRadius: 16 }}>
+            <div className="pro-modal-box" style={{ width: 460, padding: 24, borderRadius: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-                  <FiShield style={{ color: "#d97706" }} /> Account Security Overview
+                <h3 style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  <FiShield style={{ color: "#d97706" }} /> {t("securityOverviewTitle")}
                 </h3>
                 <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#64748b" }} onClick={() => setActiveModal(null)}>
                   <FiX />
@@ -605,32 +603,40 @@ function Settings() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Two-Factor Authentication (2FA)</div>
-                    <div style={{ fontSize: 11, color: "#64748b" }}>Require secondary verification code on login</div>
+                {/* 2FA Section - Unconfigured State (Part 5 Compliance) */}
+                <div style={{ padding: "12px 14px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{t("twoFactorAuth")}</div>
+                      <div style={{ fontSize: 11, color: "#64748b" }}>{t("twoFactorDesc")}</div>
+                    </div>
+                    <span style={{ fontSize: 11, background: "#f1f5f9", color: "#64748b", padding: "3px 10px", borderRadius: 12, fontWeight: 600 }}>
+                      Not Configured
+                    </span>
                   </div>
-                  <div className={`toggle ${twoFactor ? "toggle-on" : ""}`} onClick={() => setTwoFactor(!twoFactor)}>
-                    <div className="toggle-thumb" />
+                  <div style={{ fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 6, marginTop: 6, background: "#fffbeb", padding: "6px 10px", borderRadius: 6 }}>
+                    <FiAlertCircle style={{ flexShrink: 0 }} /> {t("twoFactorNotConfigured")}
                   </div>
                 </div>
 
+                {/* Active Session Section (Part 6 Compliance) */}
                 <div style={{ padding: "12px 14px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>Active Session</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t("activeSession")}</div>
                   <div style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
-                    <FiActivity style={{ color: "#16a34a" }} /> Negombo Traffic Branch Workstation (Current)
+                    <FiActivity style={{ color: "#16a34a" }} /> {t("currentBrowserSession")}
                   </div>
                 </div>
 
+                {/* Security Audit Section (Part 7 Compliance) */}
                 <div style={{ padding: "12px 14px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", marginBottom: 6 }}>Security Audit</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>● Last Password Change: 14 days ago</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>● Encryption Protocol: SSL / TLS 1.3 Active</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t("securityAudit")}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>● {t("passwordChangeNotAvailable")}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>● {t("secureConnectionInfo")}</div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
                   <button type="button" className="pro-btn-primary" style={{ padding: "8px 18px", borderRadius: 8 }} onClick={() => setActiveModal(null)}>
-                    Done
+                    {t("done")}
                   </button>
                 </div>
               </div>
@@ -641,10 +647,10 @@ function Settings() {
         {/* 4. About System Modal */}
         {activeModal === "about" && (
           <div className="pro-modal-overlay">
-            <div className="pro-modal-box" style={{ width: 440, background: "#ffffff", padding: 24, borderRadius: 16 }}>
+            <div className="pro-modal-box" style={{ width: 440, padding: 24, borderRadius: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-                  <FiInfo style={{ color: "#2563eb" }} /> About System
+                <h3 style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  <FiInfo style={{ color: "#2563eb" }} /> {t("aboutSystemTitle")}
                 </h3>
                 <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#64748b" }} onClick={() => setActiveModal(null)}>
                   <FiX />
@@ -657,31 +663,33 @@ function Settings() {
                   alt="SL Police Logo"
                   style={{ width: 48, height: "auto", marginBottom: 10 }}
                 />
-                <h4 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Sri Lanka Police Department</h4>
-                <p style={{ fontSize: 12, color: "#64748b" }}>Traffic Branch Record Management System</p>
+                <h4 style={{ fontSize: 15, fontWeight: 700 }}>{t("departmentName")}</h4>
+                <p style={{ fontSize: 12, color: "#64748b" }}>{t("systemSubName")}</p>
                 <span style={{ fontSize: 11, background: "#eff6ff", color: "#2563eb", padding: "3px 12px", borderRadius: 12, fontWeight: 600, display: "inline-block", marginTop: 8 }}>
-                  Version 2.4.0 (Build 2026)
+                  {t("version")} 2.4.0 ({t("build")} 2026)
                 </span>
               </div>
 
               <div style={{ padding: "14px 0", display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#64748b" }}>Division:</span>
-                  <span style={{ fontWeight: 600, color: "#0f172a" }}>Negombo Division</span>
+                  <span style={{ color: "#64748b" }}>{t("division")}:</span>
+                  <span style={{ fontWeight: 600 }}>{t("negomboDivision")}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#64748b" }}>Supported Roles:</span>
-                  <span style={{ fontWeight: 600, color: "#0f172a" }}>OIC, IT Officer, Traffic Officer</span>
+                  <span style={{ color: "#64748b" }}>{t("supportedRoles")}:</span>
+                  <span style={{ fontWeight: 600 }}>OIC, IT Officer, Traffic Officer</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#64748b" }}>Database Connection:</span>
-                  <span style={{ fontWeight: 600, color: "#16a34a" }}>Connected &amp; Synchronized</span>
+                  <span style={{ color: "#64748b" }}>{t("databaseConnection")}:</span>
+                  <span style={{ fontWeight: 600, color: dbStatus === "Connected" ? "#16a34a" : "#dc2626" }}>
+                    {dbStatus === "Connected" ? t("connected") : t("unavailable")}
+                  </span>
                 </div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
                 <button type="button" className="pro-btn-primary" style={{ padding: "8px 18px", borderRadius: 8 }} onClick={() => setActiveModal(null)}>
-                  Close
+                  {t("close")}
                 </button>
               </div>
             </div>
@@ -693,4 +701,4 @@ function Settings() {
   );
 }
 
-export default Settings;
+export default Settings;

@@ -5,27 +5,30 @@ import {
   FiFileText, FiCalendar, FiSettings,
   FiLogOut, FiBell, FiUsers, FiTruck
 } from "react-icons/fi";
-
-const navItems = [
-  { label: "Dashboard",          path: "/dashboard",          icon: <FiGrid /> },
-  { label: "AR",                 path: "/accidents",          icon: <FiAlertTriangle /> },
-  { label: "TOR",                path: "/tor",                icon: <FiAlertCircle /> },
-  { label: "Reports & Analytics",path: "/reports",            icon: <FiFileText /> },
-  { label: "Duty Roster",        path: "/duty-roster",        icon: <FiCalendar /> },
-  { label: "Vehicle Log",        path: "/vehicle-management", icon: <FiTruck /> },
-  { label: "User Management",    path: "/user-management",    icon: <FiUsers /> },
-];
+import { useLanguage } from "../context/LanguageContext";
 
 function OICLayout({ children }) {
   const location = useLocation();
   const navigate  = useNavigate();
+  const { t }     = useLanguage();
+
   const officer   = JSON.parse(localStorage.getItem("officer") || "{}");
-  const name      = officer.fullName || officer.name || "Officer In Charge";
+  const name      = officer.fullName || officer.name || t("officerInCharge");
   const badgeNo   = officer.policeId || "256 556 656";
   const initial   = name.charAt(0).toUpperCase();
 
+  const navItems = [
+    { label: t("dashboard"),          path: "/dashboard",          icon: <FiGrid /> },
+    { label: t("accidents"),          path: "/accidents",          icon: <FiAlertTriangle /> },
+    { label: t("violations"),         path: "/tor",                icon: <FiAlertCircle /> },
+    { label: t("reports"),            path: "/reports",            icon: <FiFileText /> },
+    { label: t("dutyRoster"),         path: "/duty-roster",        icon: <FiCalendar /> },
+    { label: t("vehicleLog"),         path: "/vehicle-management", icon: <FiTruck /> },
+    { label: t("userManagement"),     path: "/user-management",    icon: <FiUsers /> },
+  ];
+
   const handleLogout = () => {
-    const confirmed = window.confirm("Are you sure you want to log out?");
+    const confirmed = window.confirm(t("language") === "Sinhala" ? "ඔබට මෙම පද්ධතියෙන් ඉවත් වීමට අවශ්‍ය බව තහවුරුද?" : "Are you sure you want to log out?");
     if (!confirmed) return;
     localStorage.clear();
     navigate("/login");
@@ -57,10 +60,10 @@ function OICLayout({ children }) {
             className={`pro-nav-link ${location.pathname === "/settings" ? "pro-nav-active" : ""}`}
           >
             <span className="pro-nav-icon"><FiSettings /></span>
-            <span>Settings</span>
+            <span>{t("settings")}</span>
           </Link>
           <button className="pro-signout-btn" onClick={handleLogout}>
-            <FiLogOut style={{ marginRight: 8 }} /> Sign Out
+            <FiLogOut style={{ marginRight: 8 }} /> {t("signOut")}
           </button>
         </div>
       </aside>
@@ -76,19 +79,19 @@ function OICLayout({ children }) {
               className="pro-topbar-logo"
             />
             <div>
-              <p className="pro-topbar-title">Sri Lanka Police</p>
-              <p className="pro-topbar-sub">Traffic Branch – Negombo</p>
+              <p className="pro-topbar-title">{t("sriLankaPolice")}</p>
+              <p className="pro-topbar-sub">{t("trafficBranchNegombo")}</p>
             </div>
           </div>
           <div className="pro-topbar-right">
-            <button className="pro-topbar-bell" onClick={() => navigate("/notifications")} title="Notifications">
+            <button className="pro-topbar-bell" onClick={() => navigate("/notifications")} title={t("notifications")}>
               <FiBell size={18} />
             </button>
             <div className="pro-topbar-officer">
               <div className="pro-topbar-avatar" style={{ background: "#0f2942" }}>{initial}</div>
               <div>
                 <p className="pro-topbar-name">{name}</p>
-                <p className="pro-topbar-role">Officer In Charge · {badgeNo}</p>
+                <p className="pro-topbar-role">{t("officerInCharge")} · {badgeNo}</p>
               </div>
             </div>
           </div>

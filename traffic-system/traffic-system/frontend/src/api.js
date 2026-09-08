@@ -345,6 +345,18 @@ export const deleteOfficerLeave = async (id) => {
   return res.json();
 };
 
+export const getSystemHealth = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/health`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("Health check error:", err);
+  }
+  return { success: false, database: "unavailable" };
+};
+
 export const getMyProfile = async () => {
   try {
     let res = await fetch(`${BASE_URL}/officers/me`, { headers: getHeaders() });

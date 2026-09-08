@@ -2064,4 +2064,172 @@ body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #1e293b; }
     size: auto;
     margin: 15mm 15mm 15mm 15mm;
   }
-}
+}
+
+/* =============================================
+   GLOBAL DARK MODE THEME STYLES
+   ============================================= */
+body.dark-mode {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+body.dark-mode .pro-main {
+  background: #0f172a !important;
+}
+
+body.dark-mode .pro-topbar {
+  background: #1e293b !important;
+  border-bottom-color: #334155 !important;
+}
+
+body.dark-mode .pro-topbar-title,
+body.dark-mode .pro-topbar-name {
+  color: #f8fafc !important;
+}
+
+body.dark-mode .pro-topbar-sub,
+body.dark-mode .pro-topbar-role {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .pro-topbar-bell {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body.dark-mode .pro-topbar-bell:hover {
+  background: #475569 !important;
+}
+
+/* Page Containers, Cards & Boxes */
+body.dark-mode .page-box,
+body.dark-mode .pro-dash-card,
+body.dark-mode .settings-card-box,
+body.dark-mode .system-account-card,
+body.dark-mode .pro-stat-card,
+body.dark-mode .detail-section,
+body.dark-mode .acd-card,
+body.dark-mode .acd-section {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Typography & Labels */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode .page-heading,
+body.dark-mode .pro-greeting,
+body.dark-mode .settings-main-title,
+body.dark-mode .settings-card-title-text,
+body.dark-mode .pro-dash-card-title,
+body.dark-mode .pref-item-title,
+body.dark-mode .sys-account-title,
+body.dark-mode .settings-profile-name,
+body.dark-mode .settings-info-val,
+body.dark-mode .pro-stat-value,
+body.dark-mode .pro-inquiry-name,
+body.dark-mode .pro-donation-name,
+body.dark-mode .detail-section-title,
+body.dark-mode .dv-name {
+  color: #f8fafc !important;
+}
+
+body.dark-mode p,
+body.dark-mode label,
+body.dark-mode .pro-greeting-sub,
+body.dark-mode .settings-sub-title,
+body.dark-mode .pref-item-desc,
+body.dark-mode .sys-account-desc,
+body.dark-mode .settings-info-label,
+body.dark-mode .pro-stat-label,
+body.dark-mode .pro-inquiry-email,
+body.dark-mode .pro-inquiry-msg,
+body.dark-mode .dv-sub,
+body.dark-mode .detail-text,
+body.dark-mode .page-info {
+  color: #cbd5e1 !important;
+}
+
+/* List Items & Rows */
+body.dark-mode .pref-item-row,
+body.dark-mode .sys-account-row,
+body.dark-mode .settings-info-item,
+body.dark-mode .pro-inquiry-item {
+  background: #334155 !important;
+  border-color: #475569 !important;
+}
+
+body.dark-mode .sys-account-row:hover {
+  background: #475569 !important;
+}
+
+/* Modals */
+body.dark-mode .pro-modal-box,
+body.dark-mode .modal-content {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Forms, Inputs, Selects & Toolbars */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea,
+body.dark-mode .search-wrap,
+body.dark-mode .pref-dropdown-select,
+body.dark-mode .filter-select {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode .search-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Tables */
+body.dark-mode .data-table thead tr,
+body.dark-mode .dlr-table thead tr,
+body.dark-mode .sfr-table thead tr {
+  background: #334155 !important;
+  border-bottom: 2px solid #475569 !important;
+}
+
+body.dark-mode .data-table th,
+body.dark-mode .dlr-table th,
+body.dark-mode .sfr-table th {
+  color: #cbd5e1 !important;
+}
+
+body.dark-mode .data-table td,
+body.dark-mode .dlr-table td,
+body.dark-mode .sfr-table td {
+  color: #e2e8f0 !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .table-row:hover {
+  background: #334155 !important;
+}
+
+/* Secondary Buttons */
+body.dark-mode .btn-cancel,
+body.dark-mode .pro-mark-read-btn {
+  background: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+body.dark-mode .btn-cancel:hover,
+body.dark-mode .pro-mark-read-btn:hover {
+  background: #475569 !important;
+}
+

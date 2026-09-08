@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { FiClock } from "react-icons/fi";
+import { useFormat } from "../context/FormatContext";
 
 export default function LiveDateTime() {
   const [now, setNow] = useState(new Date());
+  const { formatDate, formatTime } = useFormat();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -11,19 +13,8 @@ export default function LiveDateTime() {
     return () => clearInterval(timer);
   }, []);
 
-  const timeString = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  });
-
-  const dateString = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  const timeString = formatTime(now);
+  const dateString = formatDate(now);
 
   return (
     <div
@@ -31,7 +22,6 @@ export default function LiveDateTime() {
         display: "flex",
         alignItems: "center",
         gap: "12px",
-        background: "#ffffff",
         padding: "10px 18px",
         borderRadius: "12px",
         border: "1px solid #e2e8f0",
@@ -58,7 +48,6 @@ export default function LiveDateTime() {
           style={{
             fontSize: "15px",
             fontWeight: "800",
-            color: "#0b1d3a",
             letterSpacing: "0.3px",
             lineHeight: 1.2
           }}

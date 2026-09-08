@@ -4,18 +4,23 @@ import { FiUsers, FiFileText, FiBarChart2, FiActivity, FiAlertTriangle } from "r
 import { useNavigate } from "react-router-dom";
 import { getAccidents, getViolations, getOfficers } from "../api";
 import LiveDateTime from "../components/LiveDateTime";
+import { useLanguage } from "../context/LanguageContext";
+import { useFormat } from "../context/FormatContext";
 
-const getGreeting = () => {
+const getGreeting = (t) => {
   const h = new Date().getHours();
-  if (h < 12) return "Good Morning";
-  if (h < 17) return "Good Afternoon";
-  return "Good Evening";
+  if (h < 12) return t("language") === "Sinhala" ? "සුභ උදෑසනක්" : "Good Morning";
+  if (h < 17) return t("language") === "Sinhala" ? "සුභ පස්වරුවක්" : "Good Afternoon";
+  return t("language") === "Sinhala" ? "සුභ සැඳෑවක්" : "Good Evening";
 };
 
 function ITDashboard() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const { formatDate } = useFormat();
+
   const officer  = JSON.parse(localStorage.getItem("officer") || "{}");
-  const name     = officer.name || "IT Admin";
+  const name     = officer.name || t("itOfficer");
 
   const [reportsCount, setReportsCount]     = useState(0);
   const [usersCount, setUsersCount]         = useState(0);
@@ -38,7 +43,7 @@ function ITDashboard() {
           setRecentUsers(offs.slice(0, 5).map(o => ({
             name: o.fullName || o.name || "Unknown",
             role: o.role || "Traffic Officer",
-            date: o.createdAt ? o.createdAt.split("T")[0] : "2026-07-01",
+            rawDate: o.createdAt || "2026-07-01",
             status: o.status || "Active"
           })));
         }
@@ -60,7 +65,7 @@ function ITDashboard() {
     <ITLayout>
       <div className="pro-greeting-row" style={{ alignItems: "center" }}>
         <div>
-          <h1 className="pro-greeting">{getGreeting()}, {name} 👋</h1>
+          <h1 className="pro-greeting">{getGreeting(t)}, {name} 👋</h1>
           <p className="pro-greeting-sub">IT Officer Workspace — Traffic Branch Management System</p>
         </div>
         <LiveDateTime />
@@ -95,7 +100,7 @@ function ITDashboard() {
               style={{ fontSize: "13px", padding: "8px 16px", backgroundColor: "#e11d48", border: "none" }}
               onClick={() => navigate("/user-management")}
             >
-              Manage Officers
+              {t("userManagement")}
             </button>
           </div>
 
@@ -119,7 +124,7 @@ function ITDashboard() {
                   </p>
                 </div>
                 <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "500", whiteSpace: "nowrap" }}>
-                  {ro.updatedAt ? new Date(ro.updatedAt).toLocaleDateString() : "Recently"}
+                  {ro.updatedAt ? formatDate(ro.updatedAt) : "Recently"}
                 </span>
               </div>
             ))}
@@ -148,16 +153,16 @@ function ITDashboard() {
           <FiUsers size={18} color="#2563eb" />
           <h3 className="pro-dash-card-title">Recent Users</h3>
           <button className="pro-btn-primary" style={{ marginLeft: "auto", fontSize: 12, padding: "6px 14px" }} onClick={() => navigate("/user-management")}>
-            View All
+            {t("view")} {t("all")}
           </button>
         </div>
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Date Added</th>
-              <th>Status</th>
+              <th>{t("fullName")}</th>
+              <th>{t("role")}</th>
+              <th>{t("date")}</th>
+              <th>{t("status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -165,7 +170,7 @@ function ITDashboard() {
               <tr key={i} className="table-row">
                 <td>{u.name}</td>
                 <td>{u.role}</td>
-                <td>{u.date}</td>
+                <td>{formatDate(u.rawDate)}</td>
                 <td>
                   <span className={`remarks-badge ${u.status === "Active" ? "badge-green" : u.status === "Rejected" ? "badge-red" : "badge-orange"}`} style={{
                     backgroundColor: u.status === "Rejected" ? "#fee2e2" : undefined,
