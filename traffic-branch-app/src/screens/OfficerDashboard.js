@@ -959,36 +959,6 @@ export default function OfficerDashboard({ navigation }) {
                 </View>
               </View>
 
-              {/* QUICK DATE PRESETS ROW */}
-              <View style={{ marginTop: 12 }}>
-                <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#64748b', marginBottom: 6 }}>QUICK DATE SELECT</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <TouchableOpacity
-                    style={styles.quickDateChip}
-                    onPress={() => applyQuickDates(0, 0)}
-                  >
-                    <Text style={styles.quickDateChipText}>Today (1 Day)</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickDateChip}
-                    onPress={() => applyQuickDates(0, 2)}
-                  >
-                    <Text style={styles.quickDateChipText}>3 Days</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickDateChip}
-                    onPress={() => applyQuickDates(0, 6)}
-                  >
-                    <Text style={styles.quickDateChipText}>7 Days</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickDateChip}
-                    onPress={() => applyQuickDates(1, 0)}
-                  >
-                    <Text style={styles.quickDateChipText}>Tomorrow</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
 
               {/* TOTAL DURATION BANNER (READ ONLY - AUTO CALCULATED) */}
               <View style={styles.totalDurationBar}>
