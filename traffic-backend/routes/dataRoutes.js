@@ -523,5 +523,10 @@ router.delete("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), as
   }
 });
 
+// ==========================================
+// ✅ LEAVE MANAGEMENT ROUTE ALIASES (/api/leaves)
+// ==========================================
+const leaveRoutes = require("./leaveRoutes");
+router.use("/leaves", leaveRoutes);
 
 module.exports = router;

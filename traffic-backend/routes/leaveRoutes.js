@@ -55,12 +55,16 @@ router.post("/", verifyToken, async (req, res) => {
     }
 
     // Officer existence check
+    const Admin = require("../models/Admin");
     if (!mongoose.Types.ObjectId.isValid(targetOfficerId)) {
       return res.status(400).json({ message: "Invalid Officer ID." });
     }
-    const officerDoc = await Officer.findById(targetOfficerId);
+    let officerDoc = await Officer.findById(targetOfficerId);
     if (!officerDoc) {
-      return res.status(404).json({ message: "Officer not found." });
+      officerDoc = await Admin.findById(targetOfficerId);
+    }
+    if (!officerDoc) {
+      return res.status(404).json({ message: "Officer profile not found." });
     }
 
     // Date parsing and normalization
@@ -94,12 +98,15 @@ router.post("/", verifyToken, async (req, res) => {
         return res.status(400).json({ message: "Requesting officer cannot select themselves as acting officer." });
       }
 
-      const actingOfficerDoc = await Officer.findById(actingOfficer);
+      let actingOfficerDoc = await Officer.findById(actingOfficer);
+      if (!actingOfficerDoc) {
+        actingOfficerDoc = await Admin.findById(actingOfficer);
+      }
       if (!actingOfficerDoc) {
         return res.status(404).json({ message: "Selected acting officer not found." });
       }
 
-      if (actingOfficerDoc.status !== "Active") {
+      if (actingOfficerDoc.status && actingOfficerDoc.status !== "Active" && actingOfficerDoc.status !== "active") {
         return res.status(400).json({ message: `Officer ${actingOfficerDoc.fullName} is not active and cannot be selected as acting officer.` });
       }
 

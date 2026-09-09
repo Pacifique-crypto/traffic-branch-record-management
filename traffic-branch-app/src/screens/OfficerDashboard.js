@@ -561,16 +561,11 @@ export default function OfficerDashboard({ navigation }) {
       console.log("Server Leave Submission Status:", response.status);
       console.log("Server Leave Submission Response:", responseText);
 
-      let resData;
+      let resData = {};
       try {
         resData = JSON.parse(responseText);
       } catch (jsonErr) {
-        console.log("Failed to parse JSON response from server:", jsonErr);
-        Alert.alert(
-          "Server Error",
-          `Server returned an unexpected response (Status ${response.status}). Please check backend status or try again.`
-        );
-        return;
+        console.log("Response text is not JSON:", responseText);
       }
 
       if (response.ok) {
@@ -592,7 +587,8 @@ export default function OfficerDashboard({ navigation }) {
         // Refresh my requests list
         fetchMyLeaves();
       } else {
-        Alert.alert("Submission Failed", resData.message || resData.error || `Unable to submit leave request (Status ${response.status}).`);
+        const errorMsg = resData.message || resData.error || (response.status === 404 ? "Leave service endpoint not found (404). Please ensure server is running latest update." : `Unable to submit leave request (Status ${response.status}).`);
+        Alert.alert("Submission Failed", errorMsg);
       }
     } catch (err) {
       console.log("Error submitting leave request:", err);
