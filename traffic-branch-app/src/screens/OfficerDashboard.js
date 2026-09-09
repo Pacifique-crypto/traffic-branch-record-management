@@ -777,28 +777,6 @@ export default function OfficerDashboard({ navigation }) {
                 </View>
               </View>
 
-            {/* 2. OFFICER DETAILS CARD (AUTO-POPULATED FROM LOGGED IN PROFILE) */}
-            <View style={styles.formCard}>
-              <View style={styles.cardHeaderRow}>
-                <Ionicons name="id-card-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
-                <Text style={styles.cardHeaderTitle}>{t.officerDetails}</Text>
-              </View>
-
-              <View style={styles.gridTwoCol}>
-                <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.nameLabel}</Text>
-                  <Text style={styles.fieldMetaValue}>
-                    {officer.fullName || global.loggedOfficerName || "Traffic Officer"}
-                  </Text>
-                </View>
-                <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.policeIdLabel}</Text>
-                  <Text style={[styles.fieldMetaValue, { fontWeight: 'bold' }]}>
-                    {officer.policeId || global.loggedOfficerPoliceId || officer.username || "PC-09023"}
-                  </Text>
-                </View>
-              </View>
-
               <View style={[styles.gridTwoCol, { marginTop: 10 }]}>
                 <View style={styles.colHalf}>
                   <Text style={styles.fieldMetaLabel}>{t.rankLabel || "RANK"}</Text>
