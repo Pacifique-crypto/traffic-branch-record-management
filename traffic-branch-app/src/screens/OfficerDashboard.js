@@ -429,6 +429,19 @@ export default function OfficerDashboard({ navigation }) {
     setTempDay(d.getDate());
   };
 
+  const applyQuickDates = (startOffsetDays, durationDaysOffset) => {
+    const start = new Date();
+    start.setDate(start.getDate() + startOffsetDays);
+    const end = new Date(start);
+    end.setDate(end.getDate() + durationDaysOffset);
+
+    const startFmt = start.toISOString().split('T')[0];
+    const endFmt = end.toISOString().split('T')[0];
+
+    setStartDate(startFmt);
+    setEndDate(endFmt);
+  };
+
   // Submit leave request to backend API
   const handleSubmitLeave = async () => {
     if (!leaveType) {
@@ -794,19 +807,41 @@ export default function OfficerDashboard({ navigation }) {
               <Text style={styles.cardHeaderTitle}>{t.leaveConfig}</Text>
 
               <Text style={styles.formInputLabel}>{t.leaveTypeLabel} *</Text>
-              <TouchableOpacity
-                style={styles.inputWithIconRow}
-                onPress={() => setLeaveTypeModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="list-outline" size={18} color="#1e3a8a" style={{ marginRight: 8 }} />
-                <Text style={[styles.iconTextInput, { flex: 1, color: leaveType ? '#0f172a' : '#94a3b8', fontWeight: leaveType ? '600' : 'normal' }]}>
-                  {leaveType === "Casual" ? "Casual Leave" : leaveType === "Medical" ? "Medical Leave" : leaveType === "Personal" ? "Personal Leave" : "Select Leave Type (Casual, Medical, Personal)"}
-                </Text>
-                <Ionicons name="chevron-down" size={18} color="#64748b" />
-              </TouchableOpacity>
+              <View style={styles.leaveTypeCardsContainer}>
+                {[
+                  { label: "Casual Leave", value: "Casual", icon: "briefcase", color: "#2563eb" },
+                  { label: "Medical Leave", value: "Medical", icon: "medkit", color: "#059669" },
+                  { label: "Personal Leave", value: "Personal", icon: "person", color: "#7c3aed" }
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.leaveTypeCardItem,
+                      leaveType === item.value && { borderColor: item.color, backgroundColor: item.color + '15' }
+                    ]}
+                    onPress={() => setLeaveType(item.value)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={item.icon}
+                      size={18}
+                      color={leaveType === item.value ? item.color : "#64748b"}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={[
+                      styles.leaveTypeCardText,
+                      leaveType === item.value && { color: item.color, fontWeight: 'bold' }
+                    ]}>
+                      {item.label}
+                    </Text>
+                    {leaveType === item.value && (
+                      <Ionicons name="checkmark-circle" size={18} color={item.color} style={{ marginLeft: 'auto' }} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-              <Text style={styles.formInputLabel}>{t.contactNoLabel}</Text>
+              <Text style={[styles.formInputLabel, { marginTop: 12 }]}>{t.contactNoLabel}</Text>
               <View style={styles.inputWithIconRow}>
                 <Ionicons name="call-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
                 <TextInput
@@ -837,37 +872,58 @@ export default function OfficerDashboard({ navigation }) {
               <View style={styles.gridTwoCol}>
                 <View style={styles.colHalf}>
                   <Text style={styles.formInputLabel}>{t.startDateLabelShort} *</Text>
-                  <TouchableOpacity
-                    style={styles.inputWithIconRow}
-                    onPress={() => openDatePicker('start')}
-                    activeOpacity={0.7}
-                  >
+                  <View style={styles.inputWithIconRow}>
                     <TextInput
-                      style={[styles.iconTextInput, { flex: 1, color: startDate ? '#0f172a' : '#94a3b8' }]}
+                      style={[styles.iconTextInput, { flex: 1 }]}
                       placeholder="YYYY-MM-DD"
                       value={startDate}
-                      editable={false}
-                      pointerEvents="none"
+                      onChangeText={setStartDate}
                     />
-                    <Ionicons name="calendar" size={20} color="#1e3a8a" />
-                  </TouchableOpacity>
+                    <Ionicons name="calendar-outline" size={18} color="#1e3a8a" />
+                  </View>
                 </View>
 
                 <View style={styles.colHalf}>
                   <Text style={styles.formInputLabel}>{t.endDateLabelShort} *</Text>
-                  <TouchableOpacity
-                    style={styles.inputWithIconRow}
-                    onPress={() => openDatePicker('end')}
-                    activeOpacity={0.7}
-                  >
+                  <View style={styles.inputWithIconRow}>
                     <TextInput
-                      style={[styles.iconTextInput, { flex: 1, color: endDate ? '#0f172a' : '#94a3b8' }]}
+                      style={[styles.iconTextInput, { flex: 1 }]}
                       placeholder="YYYY-MM-DD"
                       value={endDate}
-                      editable={false}
-                      pointerEvents="none"
+                      onChangeText={setEndDate}
                     />
-                    <Ionicons name="calendar" size={20} color="#1e3a8a" />
+                    <Ionicons name="calendar-outline" size={18} color="#1e3a8a" />
+                  </View>
+                </View>
+              </View>
+
+              {/* QUICK DATE PRESETS ROW */}
+              <View style={{ marginTop: 12 }}>
+                <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#64748b', marginBottom: 6 }}>QUICK DATE SELECT</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <TouchableOpacity
+                    style={styles.quickDateChip}
+                    onPress={() => applyQuickDates(0, 0)}
+                  >
+                    <Text style={styles.quickDateChipText}>Today (1 Day)</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickDateChip}
+                    onPress={() => applyQuickDates(0, 2)}
+                  >
+                    <Text style={styles.quickDateChipText}>3 Days</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickDateChip}
+                    onPress={() => applyQuickDates(0, 6)}
+                  >
+                    <Text style={styles.quickDateChipText}>7 Days</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.quickDateChip}
+                    onPress={() => applyQuickDates(1, 0)}
+                  >
+                    <Text style={styles.quickDateChipText}>Tomorrow</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -950,47 +1006,47 @@ export default function OfficerDashboard({ navigation }) {
               />
             </View>
 
-            {/* 6. SUPPORTING DOCUMENTS CARD (ONLY REQUIRED/VISIBLE FOR MEDICAL LEAVE) */}
-            {leaveType === "Medical" && (
-              <View style={styles.formCard}>
-                <View style={styles.cardHeaderRow}>
-                  <Ionicons name="attach-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
-                  <Text style={styles.cardHeaderTitle}>Supporting Documents (Required for Medical Leave) *</Text>
-                </View>
-
-                <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument} activeOpacity={0.8}>
-                  <Ionicons name="cloud-upload-outline" size={24} color="#0284c7" />
-                  <Text style={styles.uploadTextPrimary}>+ Select Medical Certificate / Supporting Documents</Text>
-                  <Text style={styles.uploadTextSecondary}>Accepted: Medical Certificate, Memo, Hospital Letter (PDF, JPG, PNG, DOC)</Text>
-                </TouchableOpacity>
-
-                {supportingDocuments.length > 0 && (
-                  <View style={{ marginTop: 14 }}>
-                    <Text style={styles.formInputLabel}>SELECTED ATTACHMENTS ({supportingDocuments.length})</Text>
-                    {supportingDocuments.map((doc, idx) => (
-                      <View key={idx} style={styles.filePreviewItem}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                          <Ionicons
-                            name={doc.name?.endsWith('.pdf') ? "document-text" : "image"}
-                            size={22}
-                            color="#0284c7"
-                          />
-                          <View style={{ marginLeft: 10, flex: 1 }}>
-                            <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
-                            <Text style={styles.fileSize}>
-                              {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Ready to upload'}
-                            </Text>
-                          </View>
-                        </View>
-                        <TouchableOpacity onPress={() => handleRemoveDocument(idx)}>
-                          <Text style={styles.removeLink}><Ionicons name="close" size={14} /> Remove</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                )}
+            {/* 6. SUPPORTING DOCUMENTS CARD (ALWAYS VISIBLE) */}
+            <View style={styles.formCard}>
+              <View style={styles.cardHeaderRow}>
+                <Ionicons name="attach-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
+                <Text style={styles.cardHeaderTitle}>
+                  Supporting Documents {leaveType === "Medical" ? "(Required for Medical Leave) *" : "(Optional)"}
+                </Text>
               </View>
-            )}
+
+              <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument} activeOpacity={0.8}>
+                <Ionicons name="cloud-upload-outline" size={24} color="#0284c7" />
+                <Text style={styles.uploadTextPrimary}>+ Select Supporting Documents</Text>
+                <Text style={styles.uploadTextSecondary}>Accepted: Medical Certificate, Memo, Hospital Letter (PDF, JPG, PNG, DOC)</Text>
+              </TouchableOpacity>
+
+              {supportingDocuments.length > 0 && (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={styles.formInputLabel}>SELECTED ATTACHMENTS ({supportingDocuments.length})</Text>
+                  {supportingDocuments.map((doc, idx) => (
+                    <View key={idx} style={styles.filePreviewItem}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <Ionicons
+                          name={doc.name?.endsWith('.pdf') ? "document-text" : "image"}
+                          size={22}
+                          color="#0284c7"
+                        />
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                          <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
+                          <Text style={styles.fileSize}>
+                            {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Ready to upload'}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity onPress={() => handleRemoveDocument(idx)}>
+                        <Text style={styles.removeLink}><Ionicons name="close" size={14} /> Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
 
             {/* BOTTOM ACTION BUTTONS */}
             <TouchableOpacity
@@ -1021,162 +1077,7 @@ export default function OfficerDashboard({ navigation }) {
         </SafeAreaView>
       </Modal>
 
-      {/* LEAVE TYPE SELECTION MODAL */}
-      <Modal
-        visible={leaveTypeModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setLeaveTypeModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setLeaveTypeModalVisible(false)}
-        >
-          <View style={styles.pickerModalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.pickerModalHeader}>
-              <Text style={styles.pickerModalTitle}>Select Leave Type</Text>
-              <TouchableOpacity onPress={() => setLeaveTypeModalVisible(false)}>
-                <Ionicons name="close-circle" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
 
-            {[
-              { label: "Casual Leave", value: "Casual", icon: "briefcase-outline", desc: "Short-term leave for personal or family affairs", color: "#3b82f6" },
-              { label: "Medical Leave", value: "Medical", icon: "medkit-outline", desc: "Medical leave due to illness (Supporting Certificate Required)", color: "#10b981" },
-              { label: "Personal Leave", value: "Personal", icon: "person-outline", desc: "Planned personal leave for relocation, travel, or private business", color: "#8b5cf6" }
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.value}
-                style={[
-                  styles.leaveTypeOptionCard,
-                  leaveType === item.value && styles.leaveTypeOptionSelected
-                ]}
-                onPress={() => {
-                  setLeaveType(item.value);
-                  setLeaveTypeModalVisible(false);
-                }}
-              >
-                <View style={[styles.leaveTypeOptionIconBox, { backgroundColor: item.color + '15' }]}>
-                  <Ionicons name={item.icon} size={22} color={item.color} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.leaveTypeOptionTitle}>{item.label}</Text>
-                  <Text style={styles.leaveTypeOptionDesc}>{item.desc}</Text>
-                </View>
-                {leaveType === item.value && (
-                  <Ionicons name="checkmark-circle" size={22} color="#1e3a8a" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* INTERACTIVE DATE PICKER MODAL */}
-      <Modal
-        visible={datePickerVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setDatePickerVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setDatePickerVisible(false)}
-        >
-          <View style={styles.pickerModalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.pickerModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="calendar" size={20} color="#1e3a8a" style={{ marginRight: 8 }} />
-                <Text style={styles.pickerModalTitle}>
-                  Select {datePickerTarget === 'start' ? 'Start Date' : 'End Date'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setDatePickerVisible(false)}>
-                <Ionicons name="close-circle" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            {/* QUICK PRESETS */}
-            <Text style={styles.presetLabelText}>QUICK SELECT PRESETS</Text>
-            <View style={styles.presetsRow}>
-              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(0)}>
-                <Text style={styles.presetBtnText}>Today</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(1)}>
-                <Text style={styles.presetBtnText}>Tomorrow</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(3)}>
-                <Text style={styles.presetBtnText}>+3 Days</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(7)}>
-                <Text style={styles.presetBtnText}>+7 Days</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* YEAR, MONTH, DAY SELECTORS */}
-            <View style={styles.dateControlRow}>
-              {/* YEAR */}
-              <View style={styles.dateControlCol}>
-                <Text style={styles.dateColLabel}>YEAR</Text>
-                <View style={styles.dateSpinRow}>
-                  <TouchableOpacity onPress={() => setTempYear(prev => Math.max(2026, prev - 1))} style={styles.spinBtn}>
-                    <Ionicons name="chevron-down" size={16} color="#1e3a8a" />
-                  </TouchableOpacity>
-                  <Text style={styles.spinValText}>{tempYear}</Text>
-                  <TouchableOpacity onPress={() => setTempYear(prev => prev + 1)} style={styles.spinBtn}>
-                    <Ionicons name="chevron-up" size={16} color="#1e3a8a" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* MONTH */}
-              <View style={styles.dateControlCol}>
-                <Text style={styles.dateColLabel}>MONTH</Text>
-                <View style={styles.dateSpinRow}>
-                  <TouchableOpacity onPress={() => setTempMonth(prev => prev > 1 ? prev - 1 : 12)} style={styles.spinBtn}>
-                    <Ionicons name="chevron-down" size={16} color="#1e3a8a" />
-                  </TouchableOpacity>
-                  <Text style={styles.spinValText}>
-                    {new Date(2026, tempMonth - 1, 1).toLocaleString('en-US', { month: 'short' })}
-                  </Text>
-                  <TouchableOpacity onPress={() => setTempMonth(prev => prev < 12 ? prev + 1 : 1)} style={styles.spinBtn}>
-                    <Ionicons name="chevron-up" size={16} color="#1e3a8a" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* DAY */}
-              <View style={styles.dateControlCol}>
-                <Text style={styles.dateColLabel}>DAY</Text>
-                <View style={styles.dateSpinRow}>
-                  <TouchableOpacity onPress={() => setTempDay(prev => prev > 1 ? prev - 1 : 31)} style={styles.spinBtn}>
-                    <Ionicons name="chevron-down" size={16} color="#1e3a8a" />
-                  </TouchableOpacity>
-                  <Text style={styles.spinValText}>{String(tempDay).padStart(2, '0')}</Text>
-                  <TouchableOpacity onPress={() => setTempDay(prev => prev < 31 ? prev + 1 : 1)} style={styles.spinBtn}>
-                    <Ionicons name="chevron-up" size={16} color="#1e3a8a" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            {/* SELECTED SUMMARY */}
-            <View style={styles.dateSummaryBox}>
-              <Text style={styles.dateSummaryLabel}>SELECTED DATE:</Text>
-              <Text style={styles.dateSummaryValue}>
-                {`${tempYear}-${String(tempMonth).padStart(2, '0')}-${String(tempDay).padStart(2, '0')}`}
-              </Text>
-            </View>
-
-            {/* CONFIRM BUTTON */}
-            <TouchableOpacity style={styles.confirmDateBtn} onPress={confirmDateSelection} activeOpacity={0.8}>
-              <Text style={styles.confirmDateBtnText}>Set {datePickerTarget === 'start' ? 'Start Date' : 'End Date'}</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       {/* MY LEAVE REQUESTS FULL MODAL */}
       <Modal
@@ -1841,6 +1742,42 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#ef4444',
     fontWeight: '600'
+  },
+
+  /* INLINE LEAVE TYPE SELECTION CARDS */
+  leaveTypeCardsContainer: {
+    marginVertical: 4
+  },
+  leaveTypeCardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+    marginBottom: 8
+  },
+  leaveTypeCardText: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '500'
+  },
+
+  /* QUICK DATE CHIP STYLES */
+  quickDateChip: {
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#93c5fd'
+  },
+  quickDateChipText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1d4ed8'
   },
 
   /* CUSTOM MODAL & PICKER STYLES */
