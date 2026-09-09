@@ -227,7 +227,9 @@ export default function DutyRoster() {
       const newAssignments = { ...assignmentsMap };
       const days = weekDays;
 
-      const leaveOfficerIds = leaves.map(l => l.officerId || (l.officer && l.officer._id));
+      const leaveOfficerIds = leaves
+        .filter(l => (l.status || "").toLowerCase() === "approved")
+        .map(l => l.officerId || (l.officer && (l.officer._id || l.officer)));
       const activeOfficers = officers.filter(o => !leaveOfficerIds.includes(o._id));
 
       if (activeOfficers.length === 0) {
@@ -371,7 +373,7 @@ export default function DutyRoster() {
     setCurrentMonday(getMonday(new Date()));
   };
 
-  // Helper: Check if officer is on leave on a date
+  // Helper: Check if officer is on APPROVED leave on a date
   const getOfficerLeaveForDate = (officerId, date) => {
     if (!officerId) return undefined;
     const offIdStr = officerId.toString();
@@ -379,6 +381,9 @@ export default function DutyRoster() {
     const leavesList = Array.isArray(leaves) ? leaves : [];
     return leavesList.find(l => {
       if (!l || !l.officer) return false;
+      const lStatus = (l.status || "").toLowerCase();
+      if (lStatus !== "approved") return false;
+
       const lOffId = (l.officer._id || l.officer).toString();
       if (lOffId !== offIdStr) return false;
       const startStr = formatDateStr(l.startDate);
@@ -433,6 +438,12 @@ export default function DutyRoster() {
 
     const officerObj = officers.find(o => o._id.toString() === selectedOfficerId.toString());
     if (!officerObj) return;
+
+    const approvedLeave = getOfficerLeaveForDate(selectedOfficerId, selectedDateStr);
+    if (approvedLeave) {
+      showMsg(`Officer ${officerObj.fullName} is on approved leave for ${selectedDateStr} and cannot be assigned to duty.`, "error");
+      return;
+    }
 
     const key = `${officerObj._id.toString()}_${selectedDateStr}`;
 
