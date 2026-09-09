@@ -6,17 +6,45 @@ const Officer = require("../models/Officer");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 
 // Valid leave types
-const VALID_LEAVE_TYPES = ["Annual", "Medical", "Emergency", "Other"];
+const VALID_LEAVE_TYPES = ["Annual", "Medical", "Emergency", "Casual", "Personal", "Other"];
 
 // ==================================================
 // 1. CREATE LEAVE RECORD
 // ==================================================
-router.post("/", verifyToken, authorizeRoles("admin", "it officer", "oic"), async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   try {
-    const { officer, startDate, endDate, leaveType, remarks } = req.body;
+    const userRole = (req.user.role || "").toLowerCase().trim();
+    const isAdminOrManager = ["admin", "it officer", "itofficer", "it_officer", "it", "oic", "oic traffic branch"].some(r => userRole.includes(r));
+
+    let targetOfficerId;
+    let initialStatus = "Pending";
+
+    if (isAdminOrManager && req.body.officer) {
+      targetOfficerId = req.body.officer;
+      if (req.body.status && ["Pending", "Approved", "Rejected"].includes(req.body.status)) {
+        initialStatus = req.body.status;
+      }
+    } else {
+      // Traffic Officers can ONLY create leave for themselves, and status MUST be Pending
+      targetOfficerId = req.user.id || req.user._id;
+      initialStatus = "Pending";
+    }
+
+    const {
+      startDate,
+      endDate,
+      leaveType,
+      remarks,
+      actingOfficer,
+      handoverNotes,
+      contactNo,
+      address,
+      supportingDocuments,
+      medicalCertificateUrl
+    } = req.body;
 
     // Required fields check
-    if (!officer || !startDate || !endDate || !leaveType) {
+    if (!targetOfficerId || !startDate || !endDate || !leaveType) {
       return res.status(400).json({ message: "Officer, start date, end date, and leave type are required." });
     }
 
@@ -26,10 +54,10 @@ router.post("/", verifyToken, authorizeRoles("admin", "it officer", "oic"), asyn
     }
 
     // Officer existence check
-    if (!mongoose.Types.ObjectId.isValid(officer)) {
+    if (!mongoose.Types.ObjectId.isValid(targetOfficerId)) {
       return res.status(400).json({ message: "Invalid Officer ID." });
     }
-    const officerDoc = await Officer.findById(officer);
+    const officerDoc = await Officer.findById(targetOfficerId);
     if (!officerDoc) {
       return res.status(404).json({ message: "Officer not found." });
     }
@@ -50,39 +78,91 @@ router.post("/", verifyToken, authorizeRoles("admin", "it officer", "oic"), asyn
       return res.status(400).json({ message: "End date cannot be before start date." });
     }
 
-    // Overlap prevention for the same officer
+    // Calculate total duration (both start and end date count)
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const durationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Acting Officer validation
+    let validActingOfficer = null;
+    if (actingOfficer) {
+      if (!mongoose.Types.ObjectId.isValid(actingOfficer)) {
+        return res.status(400).json({ message: "Invalid Acting Officer ID." });
+      }
+
+      if (String(actingOfficer) === String(targetOfficerId)) {
+        return res.status(400).json({ message: "Requesting officer cannot select themselves as acting officer." });
+      }
+
+      const actingOfficerDoc = await Officer.findById(actingOfficer);
+      if (!actingOfficerDoc) {
+        return res.status(404).json({ message: "Selected acting officer not found." });
+      }
+
+      if (actingOfficerDoc.status !== "Active") {
+        return res.status(400).json({ message: `Officer ${actingOfficerDoc.fullName} is not active and cannot be selected as acting officer.` });
+      }
+
+      validActingOfficer = actingOfficerDoc._id;
+    }
+
+    // Overlap prevention for the same officer (ignore rejected leave records)
     const existingOverlap = await OfficerAvailability.findOne({
-      officer: officer,
+      officer: targetOfficerId,
+      status: { $ne: "Rejected" },
       startDate: { $lte: end },
       endDate: { $gte: start }
     });
 
     if (existingOverlap) {
       return res.status(400).json({
-        message: `Officer ${officerDoc.fullName} already has a leave record overlapping with the selected dates (${new Date(existingOverlap.startDate).toLocaleDateString()} to ${new Date(existingOverlap.endDate).toLocaleDateString()}).`
+        message: `Officer ${officerDoc.fullName} already has an active leave record overlapping with the selected dates (${new Date(existingOverlap.startDate).toLocaleDateString()} to ${new Date(existingOverlap.endDate).toLocaleDateString()}).`
       });
     }
 
     // Get createdBy from authenticated JWT token
     const createdBy = req.user.id || req.user._id;
-    if (!createdBy) {
-      return res.status(401).json({ message: "Unauthorized. User ID not found in token." });
+
+    // Process supporting documents
+    let docsArray = [];
+    if (Array.isArray(supportingDocuments) && supportingDocuments.length > 0) {
+      docsArray = supportingDocuments.map(doc => ({
+        fileName: doc.fileName || doc.name || "Supporting Document",
+        fileUrl: doc.fileUrl || doc.uri || doc.url || "",
+        mimeType: doc.mimeType || doc.type || "application/pdf"
+      }));
+    }
+
+    let finalMedicalCertUrl = medicalCertificateUrl || "";
+    if (!finalMedicalCertUrl && docsArray.length > 0) {
+      finalMedicalCertUrl = docsArray[0].fileUrl;
     }
 
     const newLeave = new OfficerAvailability({
-      officer,
+      officer: targetOfficerId,
       startDate: start,
       endDate: end,
-      leaveType,
+      duration: durationDays,
+      leaveType: leaveType.trim(),
       remarks: remarks || "",
+      actingOfficer: validActingOfficer,
+      handoverNotes: handoverNotes || "",
+      contactNo: contactNo || officerDoc.contactNo || "",
+      address: address || officerDoc.address || "",
+      supportingDocuments: docsArray,
+      medicalCertificateUrl: finalMedicalCertUrl,
+      status: initialStatus,
       createdBy
     });
 
     await newLeave.save();
-    await newLeave.populate("officer", "fullName policeId rank username");
+
+    await newLeave.populate([
+      { path: "officer", select: "fullName policeId rank username contactNo address" },
+      { path: "actingOfficer", select: "fullName policeId rank username" }
+    ]);
 
     res.status(201).json({
-      message: "Officer leave recorded successfully.",
+      message: "Officer leave request submitted successfully.",
       leave: newLeave
     });
 
@@ -93,13 +173,32 @@ router.post("/", verifyToken, authorizeRoles("admin", "it officer", "oic"), asyn
 });
 
 // ==================================================
-// 2. GET ALL LEAVE RECORDS
+// 2. GET LEAVE RECORDS FOR LOGGED-IN OFFICER
+// ==================================================
+router.get("/me", verifyToken, async (req, res) => {
+  try {
+    const officerId = req.user.id || req.user._id;
+    const leaves = await OfficerAvailability.find({ officer: officerId })
+      .populate("officer", "fullName policeId rank username contactNo address")
+      .populate("actingOfficer", "fullName policeId rank username")
+      .sort({ createdAt: -1 });
+
+    res.json(leaves);
+  } catch (error) {
+    console.error("Error fetching my leave requests:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================================================
+// 3. GET ALL LEAVE RECORDS (OIC / Admin view)
 // ==================================================
 router.get("/", verifyToken, async (req, res) => {
   try {
     const leaves = await OfficerAvailability.find()
-      .populate("officer", "fullName policeId rank username")
-      .sort({ startDate: -1 });
+      .populate("officer", "fullName policeId rank username contactNo address")
+      .populate("actingOfficer", "fullName policeId rank username")
+      .sort({ createdAt: -1 });
 
     res.json(leaves);
   } catch (error) {
@@ -109,7 +208,7 @@ router.get("/", verifyToken, async (req, res) => {
 });
 
 // ==================================================
-// 3. GET LEAVE RECORDS FOR A SPECIFIC OFFICER
+// 4. GET LEAVE RECORDS FOR A SPECIFIC OFFICER
 // ==================================================
 router.get("/officer/:officerId", verifyToken, async (req, res) => {
   try {
@@ -119,8 +218,9 @@ router.get("/officer/:officerId", verifyToken, async (req, res) => {
     }
 
     const leaves = await OfficerAvailability.find({ officer: officerId })
-      .populate("officer", "fullName policeId rank username")
-      .sort({ startDate: -1 });
+      .populate("officer", "fullName policeId rank username contactNo address")
+      .populate("actingOfficer", "fullName policeId rank username")
+      .sort({ createdAt: -1 });
 
     res.json(leaves);
   } catch (error) {
@@ -130,7 +230,7 @@ router.get("/officer/:officerId", verifyToken, async (req, res) => {
 });
 
 // ==================================================
-// 4. UPDATE LEAVE RECORD
+// 5. UPDATE LEAVE RECORD (Approve / Reject / Edit)
 // ==================================================
 router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), async (req, res) => {
   try {
@@ -144,7 +244,7 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
       return res.status(404).json({ message: "Leave record not found." });
     }
 
-    const { startDate, endDate, leaveType, remarks, officer } = req.body;
+    const { startDate, endDate, leaveType, remarks, officer, status, rejectionRemarks, actingOfficer } = req.body;
 
     const targetOfficer = officer || leaveRecord.officer;
     const start = startDate ? new Date(startDate) : new Date(leaveRecord.startDate);
@@ -161,35 +261,45 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
       return res.status(400).json({ message: "End date cannot be before start date." });
     }
 
-    if (leaveType && (typeof leaveType !== "string" || !leaveType.trim())) {
-      return res.status(400).json({ message: "Invalid leave type." });
-    }
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const durationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // Overlap prevention excluding current record
-    const existingOverlap = await OfficerAvailability.findOne({
-      _id: { $ne: id },
-      officer: targetOfficer,
-      startDate: { $lte: end },
-      endDate: { $gte: start }
-    });
-
-    if (existingOverlap) {
-      return res.status(400).json({
-        message: "Officer already has another leave record overlapping with the selected dates."
+    // Overlap prevention excluding current record and non-rejected records
+    const targetStatus = status || leaveRecord.status;
+    if (targetStatus !== "Rejected") {
+      const existingOverlap = await OfficerAvailability.findOne({
+        _id: { $ne: id },
+        officer: targetOfficer,
+        status: { $ne: "Rejected" },
+        startDate: { $lte: end },
+        endDate: { $gte: start }
       });
+
+      if (existingOverlap) {
+        return res.status(400).json({
+          message: "Officer already has another active leave record overlapping with the selected dates."
+        });
+      }
     }
 
     if (officer) leaveRecord.officer = officer;
     leaveRecord.startDate = start;
     leaveRecord.endDate = end;
+    leaveRecord.duration = durationDays;
     if (leaveType) leaveRecord.leaveType = leaveType;
     if (remarks !== undefined) leaveRecord.remarks = remarks;
-    if (req.body.status) leaveRecord.status = req.body.status;
-    if (req.body.rejectionRemarks !== undefined) leaveRecord.rejectionRemarks = req.body.rejectionRemarks;
+    if (status) leaveRecord.status = status;
+    if (rejectionRemarks !== undefined) leaveRecord.rejectionRemarks = rejectionRemarks;
+    if (actingOfficer !== undefined) leaveRecord.actingOfficer = actingOfficer;
     if (req.body.medicalCertificateUrl !== undefined) leaveRecord.medicalCertificateUrl = req.body.medicalCertificateUrl;
+    if (req.body.supportingDocuments !== undefined) leaveRecord.supportingDocuments = req.body.supportingDocuments;
 
     await leaveRecord.save();
-    await leaveRecord.populate("officer", "fullName policeId rank username");
+
+    await leaveRecord.populate([
+      { path: "officer", select: "fullName policeId rank username contactNo address" },
+      { path: "actingOfficer", select: "fullName policeId rank username" }
+    ]);
 
     res.json({
       message: "Leave record updated successfully.",
@@ -203,7 +313,7 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
 });
 
 // ==================================================
-// 5. DELETE LEAVE RECORD
+// 6. DELETE LEAVE RECORD
 // ==================================================
 router.delete("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), async (req, res) => {
   try {

@@ -31,6 +31,34 @@ const officerAvailabilitySchema = new mongoose.Schema({
     type: String,
     default: ""
   },
+  actingOfficer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Officer",
+    required: false
+  },
+  handoverNotes: {
+    type: String,
+    default: ""
+  },
+  contactNo: {
+    type: String,
+    default: ""
+  },
+  address: {
+    type: String,
+    default: ""
+  },
+  duration: {
+    type: Number,
+    default: 1
+  },
+  supportingDocuments: [
+    {
+      fileName: { type: String, default: "" },
+      fileUrl: { type: String, default: "" },
+      mimeType: { type: String, default: "" }
+    }
+  ],
   rejectionRemarks: {
     type: String,
     default: ""
