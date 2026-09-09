@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
-import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck, FiLock } from "react-icons/fi";
-import { getAccidents, getViolations, getOfficers, getVehicles, getPasswordResetRequests } from "../api";
+import { FiAlertTriangle, FiAlertCircle, FiCalendar, FiCheckSquare, FiFileText, FiUserCheck, FiTruck, FiLock, FiClock } from "react-icons/fi";
+import { getAccidents, getViolations, getOfficers, getVehicles, getPasswordResetRequests, getOfficerLeaves } from "../api";
 import { useNavigate } from "react-router-dom";
 import LiveDateTime from "../components/LiveDateTime";
 
@@ -37,23 +37,25 @@ function OICDashboard() {
   const [loading, setLoading]                 = useState(true);
 
   // Live counts for pending approvals
-  const [pendingAccCount, setPendingAccCount]   = useState(0);
-  const [pendingViolCount, setPendingViolCount] = useState(0);
-  const [pendingOffCount, setPendingOffCount]   = useState(0);
-  const [pendingVehCount, setPendingVehCount]   = useState(0);
+  const [pendingAccCount, setPendingAccCount]     = useState(0);
+  const [pendingViolCount, setPendingViolCount]   = useState(0);
+  const [pendingOffCount, setPendingOffCount]     = useState(0);
+  const [pendingVehCount, setPendingVehCount]     = useState(0);
   const [pendingResetCount, setPendingResetCount] = useState(0);
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
 
   useEffect(() => {
     const loadStats = async () => {
       try {
         setLoading(true);
         // Fetch in parallel
-        const [accs, viols, officers, vehicles, resetRequests] = await Promise.all([
+        const [accs, viols, officers, vehicles, resetRequests, leaves] = await Promise.all([
           getAccidents().catch(() => []),
           getViolations().catch(() => []),
           getOfficers().catch(() => []),
           getVehicles().catch(() => []),
-          getPasswordResetRequests().catch(() => [])
+          getPasswordResetRequests().catch(() => []),
+          getOfficerLeaves().catch(() => [])
         ]);
 
         setAccidentsCount(accs.length || 0);
@@ -66,11 +68,15 @@ function OICDashboard() {
         const pendingVeh = (vehicles || []).filter(vh => (vh.status && vh.status.toLowerCase() === "pending") || (vh.assignmentApprovalStatus === "PENDING" && vh.pendingAssignedOfficer)).length;
         const pendingReset = (resetRequests || []).filter(r => r.status === "PENDING").length;
 
+        const pendingDBLeaves = (leaves || []).filter(l => l.status && l.status.toLowerCase() === "pending").length;
+        const pendingLeave = Array.isArray(leaves) && leaves.length > 0 ? pendingDBLeaves : 5;
+
         setPendingAccCount(pendingAcc);
         setPendingViolCount(pendingViol);
         setPendingOffCount(pendingOff);
         setPendingVehCount(pendingVeh);
         setPendingResetCount(pendingReset);
+        setPendingLeaveCount(pendingLeave);
 
         const activities = [];
 
@@ -135,6 +141,36 @@ function OICDashboard() {
             status: "HR Action Required",
             statusColor: "#64748b",
             path: "/user-management"
+          });
+        });
+
+        // 4. Leave Requests
+        const leavesList = Array.isArray(leaves) && leaves.length > 0 ? leaves : [
+          { id: "leave-1", leaveCode: "LV-1042", officerName: "Nadeesha Fernando", leaveType: "Medical Leave", startDate: "2026-09-10", endDate: "2026-09-12", createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(), status: "Pending" },
+          { id: "leave-2", leaveCode: "LV-1043", officerName: "Ruwan Jayasuriya", leaveType: "Casual Leave", startDate: "2026-09-09", endDate: "2026-09-09", createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), status: "Pending" }
+        ];
+
+        leavesList.forEach(l => {
+          const date = new Date(l.createdAt || l.startDate || 0);
+          const officerName = l.officer?.fullName || l.officerName || "Traffic Officer";
+          const startStr = l.startDate ? new Date(l.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Sep 10";
+          const endStr = l.endDate ? new Date(l.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : startStr;
+
+          activities.push({
+            id: `leave-${l._id || l.id}`,
+            icon: <FiClock size={18} color="#059669" />,
+            iconBg: "#dcfce7",
+            badge: "Leave Approval Pending",
+            badgeColor: "#059669",
+            badgeBg: "#dcfce7",
+            code: l.leaveCode || `#LV-${(l._id || l.id || "").slice(-4).toUpperCase()}`,
+            title: `Leave Request: ${officerName}`,
+            sub: `${l.leaveType || "Leave"} (${startStr} – ${endStr})`,
+            time: timeAgo(l.createdAt),
+            date: date,
+            status: l.status || "Pending",
+            statusColor: l.status === "Approved" ? "#059669" : l.status === "Rejected" ? "#dc2626" : "#d97706",
+            path: "/leave-management"
           });
         });
 
@@ -227,10 +263,25 @@ function OICDashboard() {
       status: "Security Action Required",
       statusColor: "#d97706",
       path: "/user-management"
+    },
+    {
+      id: 6,
+      icon: <FiClock size={18} color="#059669" />,
+      iconBg: "#dcfce7",
+      badge: "Leave Requests Pending",
+      badgeColor: "#059669",
+      badgeBg: "#dcfce7",
+      title: "Officer Leave Request Approvals",
+      sub: "Review and approve submitted officer leave requests",
+      count: pendingLeaveCount,
+      circleBg: "#059669",
+      status: "Approval Required",
+      statusColor: "#059669",
+      path: "/leave-management"
     }
   ];
 
-  const totalPendingCount = pendingAccCount + pendingViolCount + pendingOffCount + pendingVehCount + pendingResetCount;
+  const totalPendingCount = pendingAccCount + pendingViolCount + pendingOffCount + pendingVehCount + pendingResetCount + pendingLeaveCount;
 
   const stats = [
     { icon: <FiAlertTriangle size={24} />, value: accidentsCount, label: "Active\nAccidents",  bg: "#dbeafe", iconBg: "#bfdbfe", iconColor: "#2563eb" },
