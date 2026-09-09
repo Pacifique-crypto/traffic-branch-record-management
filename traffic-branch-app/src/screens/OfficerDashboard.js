@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View,
@@ -9,14 +9,22 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LanguageContext } from '../context/LanguageContext';
 import { Picker } from '@react-native-picker/picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { BASE_URL } from '../config';
 
 export default function OfficerDashboard({ navigation }) {
 
   const { language } = useContext(LanguageContext);
+
+  // Logged in officer profile state
+  const [officer, setOfficer] = useState(global.loggedOfficer || {});
+  const [submitting, setSubmitting] = useState(false);
 
   // Leave Request Modal state
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
@@ -30,69 +38,186 @@ export default function OfficerDashboard({ navigation }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
-  const [actingOfficer, setActingOfficer] = useState('');
   const [handoverNotes, setHandoverNotes] = useState('');
   const [showLeaveRules, setShowLeaveRules] = useState(false);
 
-  // Sample requested leaves list matching screenshot
-  const [myRequestsList, setMyRequestsList] = useState([
-    {
-      id: '1',
-      refNo: '#LR-2026-00425',
-      leaveType: 'Personal Leave',
-      subText: 'Submitted: 05 Sep 2026',
-      status: 'Pending OIC Approval',
-      statusType: 'pending',
-      dates: '10 Sep – 15 Sep 2026',
-      duration: '6 Days',
-      stationRelieverLabel: 'STATION / RELIEVER',
-      stationRelieverVal: 'Negombo PS',
-      relieverDetail: 'Sgt. K. Silva (ID #45892)',
-      footerText: 'Duty coverage accepted Tap to view timeline >'
-    },
-    {
-      id: '2',
-      refNo: '#LR-2026-00389',
-      leaveType: 'Casual Leave',
-      subText: 'Concluded 03 Aug 2026',
-      status: 'Approved',
-      statusType: 'approved',
-      dates: '02 Aug – 03 Aug 2026',
-      duration: '2 Days Total',
-      authorizedBy: 'CI Bandara',
-      authorizedRole: 'Officer-In-Charge (OIC)',
-      footerText: 'Endorsed by: Chief Inspector Bandara (OIC)',
-      hasPdfLink: true
-    },
-    {
-      id: '3',
-      refNo: '#LR-2026-00210',
-      leaveType: 'Personal Leave',
-      subText: 'Concluded 18 May 2026',
-      status: 'Approved',
-      statusType: 'approved',
-      dates: '14 May – 18 May 2026',
-      duration: '4 Days Total',
-      authorizedBy: 'CI Bandara',
-      authorizedRole: 'Officer-In-Charge (OIC)',
-      footerText: 'Endorsed by: CI Bandara (OIC)',
-      hasPdfLink: true
-    },
-    {
-      id: '4',
-      refNo: '#LR-2026-00315',
-      leaveType: 'Medical Leave',
-      subText: 'Reviewed 16 Jul 2026',
-      status: 'Rejected',
-      statusType: 'rejected',
-      dates: '15 Jul – 18 Jul 2026',
-      duration: '4 Days',
-      decisionDesk: 'Traffic Division',
-      decisionHQ: 'Divisional HQ',
-      rejectionReason: 'Incomplete Government Medical Officer (GMO) certificate.',
-      reapplyText: 'Re-apply with proper docs ->'
+  // Acting officer autocomplete state
+  const [actingOfficerQuery, setActingOfficerQuery] = useState('');
+  const [actingOfficerResults, setActingOfficerResults] = useState([]);
+  const [selectedActingOfficer, setSelectedActingOfficer] = useState(null);
+  const [showActingDropdown, setShowActingDropdown] = useState(false);
+
+  // Supporting documents state
+  const [supportingDocuments, setSupportingDocuments] = useState([]);
+
+  // My Requests list from DB
+  const [myRequestsList, setMyRequestsList] = useState([]);
+  const [loadingMyRequests, setLoadingMyRequests] = useState(false);
+
+  // Current formatted application date
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayFormatted = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+
+  // Fetch logged-in officer profile
+  const fetchOfficerProfile = async () => {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (global.userToken) {
+        headers['Authorization'] = `Bearer ${global.userToken}`;
+      }
+      const response = await fetch(`${BASE_URL}/officers/me`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data._id) {
+          setOfficer(data);
+          global.loggedOfficer = data;
+        }
+      }
+    } catch (err) {
+      console.log('Error fetching officer profile in dashboard:', err);
     }
-  ]);
+  };
+
+  // Fetch real leave history from backend
+  const fetchMyLeaves = async () => {
+    try {
+      setLoadingMyRequests(true);
+      const headers = { 'Content-Type': 'application/json' };
+      if (global.userToken) {
+        headers['Authorization'] = `Bearer ${global.userToken}`;
+      }
+      const response = await fetch(`${BASE_URL}/leaves/me`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const mapped = data.map((leaf, index) => {
+            const leafTypeStr = leaf.leaveType ? (leaf.leaveType.toLowerCase().includes("leave") ? leaf.leaveType : `${leaf.leaveType} Leave`) : "Casual Leave";
+            const startStr = leaf.startDate ? new Date(leaf.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : "";
+            const endStr = leaf.endDate ? new Date(leaf.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "";
+            const datesStr = startStr && endStr ? `${startStr} – ${endStr}` : "Period set";
+            const refNumber = `#LR-${new Date(leaf.createdAt || Date.now()).getFullYear()}-${(leaf._id || index.toString()).slice(-5).toUpperCase()}`;
+
+            let sType = (leaf.status || "Pending").toLowerCase();
+            let sText = leaf.status === "Pending" ? "Pending OIC Approval" : leaf.status;
+
+            return {
+              id: leaf._id || index.toString(),
+              refNo: refNumber,
+              leaveType: leafTypeStr,
+              subText: leaf.status === 'Pending' 
+                ? `Submitted: ${new Date(leaf.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                : `Reviewed: ${new Date(leaf.updatedAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+              status: sText,
+              statusType: sType,
+              dates: datesStr,
+              duration: `${leaf.duration || 1} Day${(leaf.duration || 1) > 1 ? 's' : ''}`,
+              stationRelieverLabel: 'STATION / RELIEVER',
+              stationRelieverVal: leaf.officer?.station || 'Negombo PS',
+              relieverDetail: leaf.actingOfficer ? `${leaf.actingOfficer.fullName} (${leaf.actingOfficer.policeId || leaf.actingOfficer.rank || 'Officer'})` : 'Unassigned',
+              authorizedBy: leaf.status === 'Approved' ? 'OIC Traffic Branch' : undefined,
+              authorizedRole: leaf.status === 'Approved' ? 'Officer-In-Charge (OIC)' : undefined,
+              rejectionReason: leaf.rejectionRemarks || 'No rejection reason specified.',
+              reapplyText: 'Re-apply with updated details ->',
+              footerText: leaf.status === 'Pending' 
+                ? 'Duty coverage pending OIC review' 
+                : leaf.status === 'Approved' 
+                  ? 'Endorsed by Officer-In-Charge (OIC)' 
+                  : `Rejected: ${leaf.rejectionRemarks || 'Check officer feedback'}`
+            };
+          });
+          setMyRequestsList(mapped);
+        }
+      }
+    } catch (err) {
+      console.log('Error fetching my leave requests:', err);
+    } finally {
+      setLoadingMyRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOfficerProfile();
+    fetchMyLeaves();
+  }, []);
+
+  // Autocomplete search for acting officer
+  const handleSearchActingOfficer = async (text) => {
+    setActingOfficerQuery(text);
+    if (!text || text.trim().length < 1) {
+      setActingOfficerResults([]);
+      setShowActingDropdown(false);
+      return;
+    }
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (global.userToken) {
+        headers['Authorization'] = `Bearer ${global.userToken}`;
+      }
+      const response = await fetch(`${BASE_URL}/officers/search?query=${encodeURIComponent(text.trim())}`, { headers });
+      if (response.ok) {
+        const results = await response.json();
+        setActingOfficerResults(Array.isArray(results) ? results : []);
+        setShowActingDropdown(true);
+      }
+    } catch (err) {
+      console.log('Error searching acting officers:', err);
+    }
+  };
+
+  const handleSelectActingOfficer = (off) => {
+    setSelectedActingOfficer(off);
+    setActingOfficerQuery(off.fullName);
+    setShowActingDropdown(false);
+  };
+
+  const handleClearActingOfficer = () => {
+    setSelectedActingOfficer(null);
+    setActingOfficerQuery('');
+    setActingOfficerResults([]);
+    setShowActingDropdown(false);
+  };
+
+  // Multiple document picker
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const newAssets = result.assets || [];
+      setSupportingDocuments(prev => [...prev, ...newAssets]);
+    } catch (err) {
+      console.log("Error picking document:", err);
+      Alert.alert("Document Picker Error", "Failed to select document.");
+    }
+  };
+
+  const handleRemoveDocument = (indexToRemove) => {
+    setSupportingDocuments(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const convertFileToBase64 = async (uri, mimeType) => {
+    if (!uri) return "";
+    try {
+      const decodedUri = decodeURIComponent(uri);
+      const base64Data = await FileSystem.readAsStringAsync(decodedUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return `data:${mimeType || 'application/octet-stream'};base64,${base64Data}`;
+    } catch (err) {
+      console.log("Error converting file to Base64:", err);
+      return "";
+    }
+  };
 
   const translations = {
     EN: {
@@ -235,47 +360,106 @@ export default function OfficerDashboard({ navigation }) {
     navigation.replace('Login');
   };
 
+  // Calculate duration automatically: (end - start) + 1
   const calculateDays = () => {
     if (!startDate || !endDate) return '0 Days';
     const start = new Date(startDate);
     const end = new Date(endDate);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return '3 Days';
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return '0 Days';
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return `${diffDays} Days`;
+    return `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
   };
 
-  const handleSubmitLeave = () => {
+  // Submit leave request to backend API
+  const handleSubmitLeave = async () => {
     if (!leaveType) {
       Alert.alert("Missing Leave Type", "Please select a leave type.");
       return;
     }
     if (!startDate || !endDate) {
-      Alert.alert("Missing Dates", "Please enter start and end dates.");
+      Alert.alert("Missing Dates", "Please select or enter both start and end dates.");
       return;
     }
 
-    const newRequest = {
-      id: Date.now().toString(),
-      type: `${leaveType} Leave`,
-      dates: `${startDate} – ${endDate}`,
-      duration: calculateDays(),
-      status: 'Pending OIC Approval',
-      statusType: 'pending'
-    };
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      Alert.alert("Invalid Dates", "Please enter valid start and end dates (e.g. YYYY-MM-DD).");
+      return;
+    }
 
-    setMyRequestsList([newRequest, ...myRequestsList]);
-    Alert.alert("Success", t.successMsg);
-    setLeaveModalVisible(false);
-    // reset
-    setLeaveType('');
-    setStartDate('');
-    setEndDate('');
-    setReason('');
-    setContactNumber('');
-    setAddress('');
-    setActingOfficer('');
-    setHandoverNotes('');
+    if (end < start) {
+      Alert.alert("Invalid Date Order", "End date cannot be before start date.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Process supporting documents into base64
+      const processedDocs = await Promise.all(
+        supportingDocuments.map(async (doc) => {
+          const fileUrl = await convertFileToBase64(doc.uri, doc.mimeType);
+          return {
+            fileName: doc.name || "Supporting Document",
+            fileUrl: fileUrl,
+            mimeType: doc.mimeType || "application/octet-stream"
+          };
+        })
+      );
+
+      const payload = {
+        leaveType: leaveType.trim(),
+        startDate,
+        endDate,
+        remarks: reason,
+        contactNo: contactNumber || officer.contactNo || '',
+        address: address || officer.address || '',
+        actingOfficer: selectedActingOfficer ? selectedActingOfficer._id : null,
+        handoverNotes: handoverNotes || '',
+        supportingDocuments: processedDocs
+      };
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (global.userToken) {
+        headers['Authorization'] = `Bearer ${global.userToken}`;
+      }
+
+      const response = await fetch(`${BASE_URL}/leaves`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      const resData = await response.json();
+
+      if (response.ok) {
+        Alert.alert("Success", t.successMsg || "Leave request submitted successfully for approval.");
+        setLeaveModalVisible(false);
+
+        // Reset form
+        setLeaveType('');
+        setStartDate('');
+        setEndDate('');
+        setReason('');
+        setContactNumber('');
+        setAddress('');
+        setSelectedActingOfficer(null);
+        setActingOfficerQuery('');
+        setHandoverNotes('');
+        setSupportingDocuments([]);
+
+        // Refresh my requests list
+        fetchMyLeaves();
+      } else {
+        Alert.alert("Submission Failed", resData.message || resData.error || "Unable to submit leave request.");
+      }
+    } catch (err) {
+      console.log("Error submitting leave request:", err);
+      Alert.alert("Network Error", "Unable to connect to server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -315,7 +499,7 @@ export default function OfficerDashboard({ navigation }) {
 
         {/* Welcome */}
         <View style={styles.welcomeBox}>
-          <Text style={styles.welcomeText}>{t.welcome}</Text>
+          <Text style={styles.welcomeText}>{t.welcome} {officer.fullName || global.loggedOfficerName || ''}</Text>
           <Text style={{ color: '#fff' }}>{t.date}</Text>
         </View>
 
@@ -347,7 +531,7 @@ export default function OfficerDashboard({ navigation }) {
 
         </View>
 
-        {/* LEAVE BALANCE CARD (Positioned between Today's Overview and Recent Activity) */}
+        {/* LEAVE BALANCE CARD */}
         <View style={styles.leaveCard}>
           {/* LEAVE BALANCE HEADER */}
           <View style={styles.leaveHeaderRow}>
@@ -388,7 +572,10 @@ export default function OfficerDashboard({ navigation }) {
           {/* MY REQUESTS BUTTON */}
           <TouchableOpacity
             style={styles.myRequestsButton}
-            onPress={() => setMyRequestsModalVisible(true)}
+            onPress={() => {
+              fetchMyLeaves();
+              setMyRequestsModalVisible(true);
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.myRequestsLeft}>
@@ -488,7 +675,7 @@ export default function OfficerDashboard({ navigation }) {
               </View>
             )}
 
-            {/* 2. OFFICER DETAILS CARD */}
+            {/* 2. OFFICER DETAILS CARD (AUTO-POPULATED FROM LOGGED IN PROFILE) */}
             <View style={styles.formCard}>
               <View style={styles.cardHeaderRow}>
                 <Ionicons name="id-card-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
@@ -498,32 +685,40 @@ export default function OfficerDashboard({ navigation }) {
               <View style={styles.gridTwoCol}>
                 <View style={styles.colHalf}>
                   <Text style={styles.fieldMetaLabel}>{t.nameLabel}</Text>
-                  <Text style={styles.fieldMetaValue}>Dinuri Nuhansa</Text>
+                  <Text style={styles.fieldMetaValue}>
+                    {officer.fullName || global.loggedOfficerName || "Traffic Officer"}
+                  </Text>
                 </View>
                 <View style={styles.colHalf}>
                   <Text style={styles.fieldMetaLabel}>{t.policeIdLabel}</Text>
-                  <Text style={[styles.fieldMetaValue, { fontWeight: 'bold' }]}>PC-09023</Text>
+                  <Text style={[styles.fieldMetaValue, { fontWeight: 'bold' }]}>
+                    {officer.policeId || global.loggedOfficerPoliceId || officer.username || "PC-09023"}
+                  </Text>
                 </View>
               </View>
 
               <View style={[styles.gridTwoCol, { marginTop: 10 }]}>
                 <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.lastLeaveLabel || "LAST LEAVE"}</Text>
-                  <Text style={styles.fieldMetaValue}>10-12 Aug 2026</Text>
+                  <Text style={styles.fieldMetaLabel}>{t.rankLabel || "RANK"}</Text>
+                  <Text style={styles.fieldMetaValue}>{officer.rank || "Constable"}</Text>
+                </View>
+                <View style={styles.colHalf}>
+                  <Text style={styles.fieldMetaLabel}>{t.stationLabel || "STATION"}</Text>
+                  <Text style={styles.fieldMetaValue}>{officer.station || "Traffic Branch - Negombo"}</Text>
                 </View>
               </View>
 
               <View style={{ marginTop: 10 }}>
                 <Text style={styles.fieldMetaLabel}>{t.appDateLabel}</Text>
-                <Text style={styles.fieldMetaValue}>23 Aug 2026</Text>
+                <Text style={styles.fieldMetaValue}>{todayFormatted}</Text>
               </View>
             </View>
 
-            {/* 4. LEAVE CONFIGURATION CARD */}
+            {/* 3. LEAVE CONFIGURATION CARD */}
             <View style={styles.formCard}>
               <Text style={styles.cardHeaderTitle}>{t.leaveConfig}</Text>
 
-              <Text style={styles.formInputLabel}>{t.leaveTypeLabel}</Text>
+              <Text style={styles.formInputLabel}>{t.leaveTypeLabel} *</Text>
               <View style={[styles.inputWithIconRow, { paddingHorizontal: 0, paddingVertical: 0 }]}>
                 <Picker
                   selectedValue={leaveType}
@@ -531,9 +726,12 @@ export default function OfficerDashboard({ navigation }) {
                   style={{ flex: 1, height: 50, backgroundColor: 'transparent' }}
                 >
                   <Picker.Item label="Select Leave Type" value="" color="#94a3b8" />
-                  <Picker.Item label="Personal" value="Personal" />
-                  <Picker.Item label="Casual" value="Casual" />
-                  <Picker.Item label="Medical" value="Medical" />
+                  <Picker.Item label="Personal Leave" value="Personal" />
+                  <Picker.Item label="Casual Leave" value="Casual" />
+                  <Picker.Item label="Medical Leave" value="Medical" />
+                  <Picker.Item label="Annual Leave" value="Annual" />
+                  <Picker.Item label="Emergency Leave" value="Emergency" />
+                  <Picker.Item label="Other" value="Other" />
                 </Picker>
               </View>
 
@@ -542,7 +740,7 @@ export default function OfficerDashboard({ navigation }) {
                 <Ionicons name="call-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.iconTextInput}
-                  placeholder="+94 7X XXX XXXX"
+                  placeholder={officer.contactNo || "+94 7X XXX XXXX"}
                   value={contactNumber}
                   onChangeText={setContactNumber}
                   keyboardType="phone-pad"
@@ -554,24 +752,24 @@ export default function OfficerDashboard({ navigation }) {
                 <Ionicons name="location-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.iconTextInput}
-                  placeholder="Enter full address where you can be reached"
+                  placeholder={officer.address || "Enter full address during leave"}
                   value={address}
                   onChangeText={setAddress}
                 />
               </View>
             </View>
 
-            {/* 5. DURATION CARD */}
+            {/* 4. DURATION CARD */}
             <View style={styles.formCard}>
               <Text style={styles.cardHeaderTitle}>{t.durationTitle}</Text>
 
               <View style={styles.gridTwoCol}>
                 <View style={styles.colHalf}>
-                  <Text style={styles.formInputLabel}>{t.startDateLabelShort}</Text>
+                  <Text style={styles.formInputLabel}>{t.startDateLabelShort} *</Text>
                   <View style={styles.inputWithIconRow}>
                     <TextInput
                       style={[styles.iconTextInput, { flex: 1 }]}
-                      placeholder="dd/mm/yyyy"
+                      placeholder="YYYY-MM-DD"
                       value={startDate}
                       onChangeText={setStartDate}
                     />
@@ -580,11 +778,11 @@ export default function OfficerDashboard({ navigation }) {
                 </View>
 
                 <View style={styles.colHalf}>
-                  <Text style={styles.formInputLabel}>{t.endDateLabelShort}</Text>
+                  <Text style={styles.formInputLabel}>{t.endDateLabelShort} *</Text>
                   <View style={styles.inputWithIconRow}>
                     <TextInput
                       style={[styles.iconTextInput, { flex: 1 }]}
-                      placeholder="dd/mm/yyyy"
+                      placeholder="YYYY-MM-DD"
                       value={endDate}
                       onChangeText={setEndDate}
                     />
@@ -593,14 +791,14 @@ export default function OfficerDashboard({ navigation }) {
                 </View>
               </View>
 
-              {/* TOTAL DURATION BANNER */}
+              {/* TOTAL DURATION BANNER (READ ONLY) */}
               <View style={styles.totalDurationBar}>
                 <Text style={styles.totalDurationText}>{t.totalDurationLabel}</Text>
                 <Text style={styles.totalDurationVal}>{calculateDays()}</Text>
               </View>
             </View>
 
-            {/* 6. JUSTIFICATION & HANDOVER CARD */}
+            {/* 5. JUSTIFICATION & HANDOVER CARD WITH ACTING OFFICER AUTOCOMPLETE */}
             <View style={styles.formCard}>
               <Text style={styles.cardHeaderTitle}>{t.justificationHandover}</Text>
 
@@ -615,54 +813,117 @@ export default function OfficerDashboard({ navigation }) {
               />
 
               <Text style={styles.formInputLabel}>{t.actingOfficerLabel}</Text>
-              <View style={styles.inputWithIconRow}>
-                <Ionicons name="person-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
-                <TextInput
-                  style={styles.iconTextInput}
-                  placeholder="Search by Name or ID..."
-                  value={actingOfficer}
-                  onChangeText={setActingOfficer}
-                />
+              <View style={{ position: 'relative', zIndex: 10 }}>
+                {selectedActingOfficer ? (
+                  <View style={styles.selectedOfficerChip}>
+                    <Ionicons name="person-circle" size={24} color="#1e3a8a" />
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                      <Text style={styles.selectedOfficerName}>{selectedActingOfficer.fullName}</Text>
+                      <Text style={styles.selectedOfficerId}>
+                        {selectedActingOfficer.rank || 'Officer'} • ID: {selectedActingOfficer.policeId || selectedActingOfficer.username}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={handleClearActingOfficer}>
+                      <Ionicons name="close-circle" size={22} color="#64748b" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.inputWithIconRow}>
+                    <Ionicons name="search-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={styles.iconTextInput}
+                      placeholder="Type name or Police ID (e.g. NU)..."
+                      value={actingOfficerQuery}
+                      onChangeText={handleSearchActingOfficer}
+                    />
+                  </View>
+                )}
+
+                {/* Autocomplete Dropdown List */}
+                {showActingDropdown && actingOfficerResults.length > 0 && !selectedActingOfficer && (
+                  <View style={styles.actingDropdownList}>
+                    {actingOfficerResults.map((off) => (
+                      <TouchableOpacity
+                        key={off._id}
+                        style={styles.actingDropdownItem}
+                        onPress={() => handleSelectActingOfficer(off)}
+                      >
+                        <Text style={styles.actingItemName}>{off.fullName}</Text>
+                        <Text style={styles.actingItemId}>
+                          {off.rank || 'Constable'} ({off.policeId || off.username})
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
+
+              <Text style={[styles.formInputLabel, { marginTop: 12 }]}>{t.handoverNotesLabel}</Text>
+              <TextInput
+                style={styles.textAreaInput}
+                placeholder="Specific instructions or notes for duty handover..."
+                value={handoverNotes}
+                onChangeText={setHandoverNotes}
+                multiline
+                numberOfLines={2}
+              />
             </View>
 
-            {/* 7. ATTACHMENTS CARD */}
+            {/* 6. SUPPORTING DOCUMENTS CARD (NATIVE PICKER + MULTI FILE SUPPORT) */}
             <View style={styles.formCard}>
               <View style={styles.cardHeaderRow}>
                 <Ionicons name="attach-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
                 <Text style={styles.cardHeaderTitle}>Supporting Documents</Text>
               </View>
 
-              <TouchableOpacity style={styles.uploadArea}>
+              <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument} activeOpacity={0.8}>
                 <Ionicons name="cloud-upload-outline" size={24} color="#0284c7" />
-                <Text style={styles.uploadTextPrimary}>[ + Upload Medical Certificate or Duty Memo ]</Text>
-                <Text style={styles.uploadTextSecondary}>Accepted Formats: PDF, JPG, PNG (Max 5MB)</Text>
+                <Text style={styles.uploadTextPrimary}>+ Select Supporting Documents</Text>
+                <Text style={styles.uploadTextSecondary}>Accepted: Medical Certificate, Memo, Hospital Letter (PDF, JPG, PNG, DOC)</Text>
               </TouchableOpacity>
 
-              <Text style={[styles.formInputLabel, { marginTop: 16 }]}>ATTACHED FILE PREVIEW</Text>
-              <View style={styles.filePreviewItem}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="document-text" size={24} color="#dc2626" />
-                  <View style={{ marginLeft: 10 }}>
-                    <Text style={styles.fileName}>duty_handover_memo.pdf</Text>
-                    <Text style={styles.fileSize}>420 KB · Uploaded Just Now</Text>
-                  </View>
+              {supportingDocuments.length > 0 && (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={styles.formInputLabel}>SELECTED ATTACHMENTS ({supportingDocuments.length})</Text>
+                  {supportingDocuments.map((doc, idx) => (
+                    <View key={idx} style={styles.filePreviewItem}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <Ionicons
+                          name={doc.name?.endsWith('.pdf') ? "document-text" : "image"}
+                          size={22}
+                          color="#0284c7"
+                        />
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                          <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
+                          <Text style={styles.fileSize}>
+                            {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Ready to upload'}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity onPress={() => handleRemoveDocument(idx)}>
+                        <Text style={styles.removeLink}><Ionicons name="close" size={14} /> Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.viewLink}>View</Text>
-                  <Text style={styles.removeLink}><Ionicons name="close" size={12} /> Remove</Text>
-                </View>
-              </View>
+              )}
             </View>
 
             {/* BOTTOM ACTION BUTTONS */}
             <TouchableOpacity
-              style={styles.proceedReviewBtn}
+              style={[styles.proceedReviewBtn, submitting && { opacity: 0.6 }]}
               onPress={handleSubmitLeave}
+              disabled={submitting}
               activeOpacity={0.8}
             >
-              <Text style={styles.proceedReviewBtnText}>{t.submitLeaveRequest || "Submit leave request"}</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+              {submitting ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.proceedReviewBtnText}>{t.submitLeaveRequest || "Submit Leave Request"}</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 6 }} />
+                </>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -697,7 +958,7 @@ export default function OfficerDashboard({ navigation }) {
 
             <View style={styles.myReqLocationPill}>
               <View style={styles.blueDot} />
-              <Text style={styles.myReqLocationText}>Traffic HQ • Negombo PS (Div-02)</Text>
+              <Text style={styles.myReqLocationText}>Traffic HQ • {officer.station || "Negombo PS"}</Text>
             </View>
           </View>
 
@@ -734,113 +995,119 @@ export default function OfficerDashboard({ navigation }) {
             style={{ flex: 1, backgroundColor: '#f8fafc' }}
             contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           >
-            {myRequestsList
-              .filter(item => {
-                if (myRequestsFilter === 'Pending') return item.statusType === 'pending';
-                if (myRequestsFilter === 'Approved') return item.statusType === 'approved';
-                if (myRequestsFilter === 'Rejected') return item.statusType === 'rejected';
-                return true;
-              })
-              .map(item => (
-                <View key={item.id} style={styles.reqCardFull}>
-                  {/* TOP TITLE ROW */}
-                  <View style={styles.reqCardHeaderRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
-                      <Text style={styles.reqCardTitle}>{item.leaveType}</Text>
-                      <View style={styles.refPill}>
-                        <Text style={styles.refPillText}>{item.refNo}</Text>
+            {loadingMyRequests ? (
+              <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
+            ) : myRequestsList.length === 0 ? (
+              <View style={{ padding: 30, alignItems: 'center' }}>
+                <Ionicons name="document-text-outline" size={40} color="#94a3b8" />
+                <Text style={{ marginTop: 10, color: '#64748b', fontSize: 14 }}>{t.noRequests || "No leave requests submitted yet."}</Text>
+              </View>
+            ) : (
+              myRequestsList
+                .filter(item => {
+                  if (myRequestsFilter === 'Pending') return item.statusType === 'pending';
+                  if (myRequestsFilter === 'Approved') return item.statusType === 'approved';
+                  if (myRequestsFilter === 'Rejected') return item.statusType === 'rejected';
+                  return true;
+                })
+                .map(item => (
+                  <View key={item.id} style={styles.reqCardFull}>
+                    {/* TOP TITLE ROW */}
+                    <View style={styles.reqCardHeaderRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+                        <Text style={styles.reqCardTitle}>{item.leaveType}</Text>
+                        <View style={styles.refPill}>
+                          <Text style={styles.refPillText}>{item.refNo}</Text>
+                        </View>
                       </View>
-                    </View>
 
-                    {/* STATUS BADGE */}
-                    <View style={[
-                      styles.reqStatusBadge,
-                      item.statusType === 'pending' && styles.statusBadgePending,
-                      item.statusType === 'approved' && styles.statusBadgeApproved,
-                      item.statusType === 'rejected' && styles.statusBadgeRejected
-                    ]}>
-                      <Text style={[
-                        styles.reqStatusBadgeText,
-                        item.statusType === 'pending' && styles.statusTextPending,
-                        item.statusType === 'approved' && styles.statusTextApproved,
-                        item.statusType === 'rejected' && styles.statusTextRejected
+                      {/* STATUS BADGE */}
+                      <View style={[
+                        styles.reqStatusBadge,
+                        item.statusType === 'pending' && styles.statusBadgePending,
+                        item.statusType === 'approved' && styles.statusBadgeApproved,
+                        item.statusType === 'rejected' && styles.statusBadgeRejected
                       ]}>
-                        • {item.status}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* SUBTEXT */}
-                  <Text style={styles.reqCardSubText}>{item.subText}</Text>
-
-                  {/* GRAY DETAILS BOX */}
-                  <View style={styles.reqCardGrayBox}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.grayBoxLabel}>
-                        {item.statusType === 'pending' ? 'DURATION & DATES' : item.statusType === 'approved' ? 'PERIOD' : 'PERIOD REQUESTED'}
-                      </Text>
-                      <Text style={styles.grayBoxValMain}>{item.dates}</Text>
-                      <Text style={[
-                        styles.grayBoxValSub,
-                        item.statusType === 'pending' && { color: '#0284c7', fontWeight: 'bold' }
-                      ]}>
-                        {item.duration}
-                      </Text>
-                    </View>
-
-                    <View style={{ flex: 1, paddingLeft: 10 }}>
-                      <Text style={styles.grayBoxLabel}>
-                        {item.statusType === 'pending' ? 'STATION / RELIEVER' : item.statusType === 'approved' ? 'AUTHORIZED BY' : 'DECISION DESK'}
-                      </Text>
-                      <Text style={styles.grayBoxValMain}>
-                        {item.stationRelieverVal || item.authorizedBy || item.decisionDesk}
-                      </Text>
-                      <Text style={styles.grayBoxValSub}>
-                        {item.relieverDetail || item.authorizedRole || item.decisionHQ}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* BOTTOM FOOTER / ACTION ROW */}
-                  {item.statusType === 'pending' && (
-                    <View style={styles.footerRowPending}>
-                      <Ionicons name="time-outline" size={15} color="#0284c7" style={{ marginRight: 6 }} />
-                      <Text style={styles.footerTextPending}>{item.footerText}</Text>
-                    </View>
-                  )}
-
-                  {item.statusType === 'approved' && (
-                    <View style={styles.footerRowApproved}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <Ionicons name="checkmark-circle-outline" size={15} color="#16a34a" style={{ marginRight: 6 }} />
-                        <Text style={styles.footerTextApproved}>{item.footerText}</Text>
+                        <Text style={[
+                          styles.reqStatusBadgeText,
+                          item.statusType === 'pending' && styles.statusTextPending,
+                          item.statusType === 'approved' && styles.statusTextApproved,
+                          item.statusType === 'rejected' && styles.statusTextRejected
+                        ]}>
+                          • {item.status}
+                        </Text>
                       </View>
-                      <TouchableOpacity onPress={() => Alert.alert("Download PDF", "Downloading official leave endorsement PDF...")}>
-                        <Text style={styles.pdfLinkText}>View PDF</Text>
-                      </TouchableOpacity>
                     </View>
-                  )}
 
-                  {item.statusType === 'rejected' && (
-                    <View style={styles.rejectionCalloutBox}>
-                      <View style={styles.rejectionHeaderRow}>
-                        <Ionicons name="alert-circle-outline" size={15} color="#b91c1c" style={{ marginRight: 6 }} />
-                        <Text style={styles.rejectionHeaderText}>REJECTION REASON CALLOUT</Text>
+                    {/* SUBTEXT */}
+                    <Text style={styles.reqCardSubText}>{item.subText}</Text>
+
+                    {/* GRAY DETAILS BOX */}
+                    <View style={styles.reqCardGrayBox}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.grayBoxLabel}>
+                          {item.statusType === 'pending' ? 'DURATION & DATES' : item.statusType === 'approved' ? 'PERIOD' : 'PERIOD REQUESTED'}
+                        </Text>
+                        <Text style={styles.grayBoxValMain}>{item.dates}</Text>
+                        <Text style={[
+                          styles.grayBoxValSub,
+                          item.statusType === 'pending' && { color: '#0284c7', fontWeight: 'bold' }
+                        ]}>
+                          {item.duration}
+                        </Text>
                       </View>
-                      <Text style={styles.rejectionBodyText}>"{item.rejectionReason}"</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setMyRequestsModalVisible(false);
-                          setLeaveModalVisible(true);
-                        }}
-                        style={{ alignSelf: 'flex-end', marginTop: 6 }}
-                      >
-                        <Text style={styles.reapplyLinkText}>{item.reapplyText}</Text>
-                      </TouchableOpacity>
+
+                      <View style={{ flex: 1, paddingLeft: 10 }}>
+                        <Text style={styles.grayBoxLabel}>
+                          {item.statusType === 'pending' ? 'STATION / RELIEVER' : item.statusType === 'approved' ? 'AUTHORIZED BY' : 'DECISION DESK'}
+                        </Text>
+                        <Text style={styles.grayBoxValMain}>
+                          {item.stationRelieverVal || item.authorizedBy || 'OIC Desk'}
+                        </Text>
+                        <Text style={styles.grayBoxValSub}>
+                          {item.relieverDetail || item.authorizedRole || 'Traffic Division'}
+                        </Text>
+                      </View>
                     </View>
-                  )}
-                </View>
-              ))}
+
+                    {/* BOTTOM FOOTER / ACTION ROW */}
+                    {item.statusType === 'pending' && (
+                      <View style={styles.footerRowPending}>
+                        <Ionicons name="time-outline" size={15} color="#0284c7" style={{ marginRight: 6 }} />
+                        <Text style={styles.footerTextPending}>{item.footerText}</Text>
+                      </View>
+                    )}
+
+                    {item.statusType === 'approved' && (
+                      <View style={styles.footerRowApproved}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                          <Ionicons name="checkmark-circle-outline" size={15} color="#16a34a" style={{ marginRight: 6 }} />
+                          <Text style={styles.footerTextApproved}>{item.footerText}</Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {item.statusType === 'rejected' && (
+                      <View style={styles.rejectionCalloutBox}>
+                        <View style={styles.rejectionHeaderRow}>
+                          <Ionicons name="alert-circle-outline" size={15} color="#b91c1c" style={{ marginRight: 6 }} />
+                          <Text style={styles.rejectionHeaderText}>REJECTION REASON</Text>
+                        </View>
+                        <Text style={styles.rejectionBodyText}>"{item.rejectionReason}"</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setMyRequestsModalVisible(false);
+                            setLeaveModalVisible(true);
+                          }}
+                          style={{ alignSelf: 'flex-end', marginTop: 6 }}
+                        >
+                          <Text style={styles.reapplyLinkText}>{item.reapplyText}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                ))
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -849,96 +1116,83 @@ export default function OfficerDashboard({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-
-  container: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#f5f5f5'
-  },
+  container: { flex: 1, backgroundColor: '#f1f5f9' },
 
   header: {
-    backgroundColor: '#1e3a8a',
-    padding: 15,
-    borderRadius: 12,
+    backgroundColor: '#0f172a',
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10
+    justifyContent: 'space-between'
   },
-
-  headerText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold'
-  },
-
-  logout: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold'
-  },
-
-  topIcons: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
+  logout: { color: '#ef4444', fontWeight: 'bold' },
+  headerText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  topIcons: { flexDirection: 'row', alignItems: 'center' },
 
   welcomeBox: {
     backgroundColor: '#1e3a8a',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15
+    padding: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16
   },
-
-  welcomeText: {
-    color: '#fff',
-    fontWeight: 'bold'
-  },
+  welcomeText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 
   section: {
-    marginBottom: 10,
-    fontWeight: 'bold'
+    marginHorizontal: 16,
+    marginTop: 16,
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#334155'
   },
 
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between'
+    padding: 8
   },
 
   card: {
-    width: '48%',
+    width: '46%',
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10
+    margin: '2%',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
   },
 
-  big: {
-    fontSize: 18,
-    fontWeight: 'bold'
+  big: { fontSize: 18, fontWeight: 'bold', marginTop: 4, color: '#0f172a' },
+
+  activity: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginVertical: 4,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
   },
 
   /* LEAVE BALANCE STYLES */
   leaveCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 5,
-    marginBottom: 18,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0'
+    borderColor: '#cbd5e1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2
   },
 
   leaveHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12
   },
 
@@ -949,100 +1203,77 @@ const styles = StyleSheet.create({
 
   leaveCardTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a'
-  },
-
-  officialQuotaBadge: {
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6
-  },
-
-  officialQuotaText: {
-    color: '#1d4ed8',
-    fontSize: 10,
     fontWeight: 'bold',
-    letterSpacing: 0.4
+    color: '#0f172a'
   },
 
   leaveSubCardsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12
+    marginBottom: 14
   },
 
   leaveSubCard: {
-    width: '48%',
+    flex: 1,
     backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#f1f5f9'
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    marginHorizontal: 4
   },
 
   leaveTypeTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#1e293b'
-  },
-
-  leaveSubtitle: {
-    fontSize: 10,
-    color: '#64748b',
-    marginBottom: 4
+    color: '#3b82f6',
+    marginBottom: 2
   },
 
   leaveDaysNumber: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#0f172a',
-    marginVertical: 2
+    color: '#0f172a'
   },
 
   daysLeftLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    color: '#0284c7',
-    marginBottom: 2
+    color: '#64748b'
   },
 
   leaveFootnote: {
-    fontSize: 10,
-    color: '#94a3b8'
+    fontSize: 9,
+    color: '#94a3b8',
+    marginTop: 2
   },
 
   requestLeaveButton: {
-    backgroundColor: '#0f2942',
-    borderRadius: 8,
+    backgroundColor: '#1e3a8a',
     paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center'
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10
   },
 
   requestLeaveBtnText: {
     color: '#ffffff',
-    fontWeight: '700',
+    fontWeight: 'bold',
     fontSize: 13,
     letterSpacing: 0.5
   },
 
-  /* MY REQUESTS BUTTON STYLES */
   myRequestsButton: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0'
   },
 
   myRequestsLeft: {
@@ -1051,19 +1282,12 @@ const styles = StyleSheet.create({
   },
 
   myRequestsText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1e293b'
+    color: '#1e3a8a'
   },
 
-  activity: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8
-  },
-
-  /* FULL SCROLLABLE LEAVE MODAL STYLES */
+  /* FULL REQUEST LEAVE MODAL STYLES */
   fullModalSafeArea: {
     flex: 1,
     backgroundColor: '#f8fafc'
@@ -1071,11 +1295,11 @@ const styles = StyleSheet.create({
 
   fullModalHeader: {
     height: 56,
-    backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0'
   },
@@ -1086,113 +1310,88 @@ const styles = StyleSheet.create({
 
   fullModalTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#0f172a'
   },
 
   fullModalScrollView: {
-    flex: 1
+    flex: 1,
+    backgroundColor: '#f8fafc'
   },
 
   fullModalScrollContent: {
     padding: 16,
-    paddingTop: 4,
     paddingBottom: 40
   },
 
   accordionHeader: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0'
+    borderColor: '#e2e8f0',
+    marginBottom: 12
   },
 
   accordionLeft: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    flex: 1
   },
 
   accordionTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#0f172a'
   },
 
   accordionSubTitle: {
     fontSize: 11,
     color: '#64748b',
-    marginTop: 2
+    marginTop: 1
   },
 
   rulesCardsContainer: {
-    marginBottom: 14
+    marginBottom: 14,
+    gap: 8
   },
 
   ruleCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0'
-  },
-
-  ruleCardActive: {
     backgroundColor: '#eff6ff',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
     borderColor: '#bfdbfe'
   },
 
-  ruleCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6
-  },
-
   ruleCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1e293b'
-  },
-
-  ruleCardTitleActive: {
-    color: '#0369a1'
-  },
-
-  ruleSubArrow: {
-    fontSize: 11,
-    color: '#64748b'
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1e3a8a',
+    marginBottom: 2
   },
 
   ruleCardBody: {
     fontSize: 11,
-    color: '#475569',
+    color: '#1e40af',
     lineHeight: 16
-  },
-
-  ruleBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748b'
   },
 
   formCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 14,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    elevation: 1,
+    marginBottom: 14,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 3
+    shadowRadius: 4,
+    elevation: 1
   },
 
   cardHeaderRow: {
@@ -1202,10 +1401,10 @@ const styles = StyleSheet.create({
   },
 
   cardHeaderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: 'bold',
     color: '#0f172a',
-    marginBottom: 12
+    marginBottom: 10
   },
 
   gridTwoCol: {
@@ -1219,207 +1418,246 @@ const styles = StyleSheet.create({
 
   fieldMetaLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
+    fontWeight: 'bold',
+    color: '#64748b',
+    letterSpacing: 0.5,
     marginBottom: 2
   },
 
   fieldMetaValue: {
     fontSize: 13,
-    color: '#1e293b'
-  },
-
-  takenThisYearRow: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12
-  },
-
-  takenThisYearLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748b'
-  },
-
-  takenThisYearValue: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1e3a8a'
+    color: '#0f172a',
+    fontWeight: '600'
   },
 
   formInputLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    marginTop: 8,
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#475569',
+    letterSpacing: 0.5,
+    marginTop: 10,
     marginBottom: 4
   },
 
   inputWithIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center'
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44
   },
 
   iconTextInput: {
+    flex: 1,
     fontSize: 13,
-    color: '#0f172a',
-    flex: 1
+    color: '#0f172a'
   },
 
   textAreaInput: {
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 10,
+    padding: 10,
     fontSize: 13,
     color: '#0f172a',
-    minHeight: 50,
+    minHeight: 70,
     textAlignVertical: 'top'
   },
 
-  uploadArea: {
+  totalDurationBar: {
+    marginTop: 14,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+
+  totalDurationText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0369a1'
+  },
+
+  totalDurationVal: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0284c7'
+  },
+
+  /* ACTING OFFICER AUTOCOMPLETE STYLES */
+  selectedOfficerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+    borderRadius: 10,
+    padding: 10,
+  },
+  selectedOfficerName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1e3a8a',
+  },
+  selectedOfficerId: {
+    fontSize: 11,
+    color: '#3b82f6',
+  },
+  actingDropdownList: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: '#f8fafc'
+    borderRadius: 10,
+    maxHeight: 180,
+    zIndex: 99,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  uploadTextPrimary: {
-    fontSize: 12,
+  actingDropdownItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actingItemName: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#0f172a',
-    marginTop: 8
   },
+  actingItemId: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+
+  /* UPLOAD AREA STYLES */
+  uploadArea: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#bae6fd',
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+
+  uploadTextPrimary: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0284c7',
+    marginTop: 6
+  },
+
   uploadTextSecondary: {
     fontSize: 10,
     color: '#64748b',
-    marginTop: 4
+    marginTop: 2
   },
+
   filePreviewItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
     padding: 10,
-    borderRadius: 6,
-    marginTop: 4
+    marginTop: 6
   },
+
   fileName: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0f2942'
+    fontWeight: 'bold',
+    color: '#0f172a'
   },
+
   fileSize: {
     fontSize: 10,
     color: '#64748b'
   },
-  viewLink: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0284c7',
-    marginRight: 10
-  },
+
   removeLink: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#dc2626'
-  },
-  totalDurationBar: {
-    backgroundColor: '#0f2942',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14
-  },
-
-  totalDurationText: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5
-  },
-
-  totalDurationVal: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800'
+    color: '#ef4444',
+    fontWeight: 'bold'
   },
 
   proceedReviewBtn: {
-    backgroundColor: '#0f2942',
-    borderRadius: 8,
+    backgroundColor: '#0f172a',
     paddingVertical: 14,
+    borderRadius: 12,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8
+    justifyContent: 'center',
+    marginTop: 6,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
   },
 
   proceedReviewBtnText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '700'
+    fontWeight: 'bold'
   },
 
   cancelFullBtn: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingVertical: 12,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10
+    justifyContent: 'center',
+    paddingVertical: 10
   },
 
   cancelFullBtnText: {
-    color: '#475569',
+    color: '#64748b',
     fontSize: 13,
     fontWeight: '600'
   },
 
-  /* MY LEAVE REQUESTS SCREEN STYLES */
+  /* MY REQUESTS MODAL STYLES */
   myReqSafeArea: {
     flex: 1,
-    backgroundColor: '#0f2942'
+    backgroundColor: '#f8fafc'
   },
 
   myReqHeaderBanner: {
-    backgroundColor: '#0f2942',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16
+    backgroundColor: '#0f172a',
+    padding: 16,
+    paddingBottom: 20
   },
 
   myReqHeaderTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4
+    alignItems: 'center'
   },
 
   myReqHeaderTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#ffffff'
   },
 
@@ -1430,59 +1668,57 @@ const styles = StyleSheet.create({
   myReqHeaderSubTitle: {
     fontSize: 12,
     color: '#94a3b8',
-    marginBottom: 12
+    marginTop: 2
   },
 
   myReqLocationPill: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start'
+    backgroundColor: '#1e293b',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 10
   },
 
   blueDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#38bdf8',
     marginRight: 6
   },
 
   myReqLocationText: {
-    color: '#e2e8f0',
     fontSize: 11,
+    color: '#cbd5e1',
     fontWeight: '600'
   },
 
   filterTabsContainer: {
     backgroundColor: '#ffffff',
-    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0'
+    borderBottomColor: '#e2e8f0',
+    paddingVertical: 10
   },
 
   filterTab: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
     marginRight: 8
   },
 
   filterTabActive: {
-    backgroundColor: '#0f2942',
-    borderColor: '#0f2942'
+    backgroundColor: '#0f172a'
   },
 
   filterTabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569'
+    color: '#64748b'
   },
 
   filterTabTextActive: {
@@ -1492,26 +1728,26 @@ const styles = StyleSheet.create({
   reqCardFull: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    elevation: 2,
+    borderColor: '#cbd5e1',
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 4
+    shadowRadius: 4,
+    elevation: 1
   },
 
   reqCardHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4
+    alignItems: 'flex-start'
   },
 
   reqCardTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: 'bold',
     color: '#0f172a',
     marginRight: 8
   },
@@ -1520,86 +1756,65 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4
+    borderRadius: 6
   },
 
   refPillText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#64748b'
+    fontWeight: 'bold',
+    color: '#475569'
   },
 
   reqStatusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 12
   },
 
-  statusBadgePending: {
-    backgroundColor: '#fff7ed'
-  },
+  statusBadgePending: { backgroundColor: '#fef3c7' },
+  statusBadgeApproved: { backgroundColor: '#dcfce7' },
+  statusBadgeRejected: { backgroundColor: '#fee2e2' },
 
-  statusTextPending: {
-    color: '#c2410c',
-    fontSize: 11,
-    fontWeight: '700'
-  },
-
-  statusBadgeApproved: {
-    backgroundColor: '#f0fdf4'
-  },
-
-  statusTextApproved: {
-    color: '#15803d',
-    fontSize: 11,
-    fontWeight: '700'
-  },
-
-  statusBadgeRejected: {
-    backgroundColor: '#fef2f2'
-  },
-
-  statusTextRejected: {
-    color: '#b91c1c',
-    fontSize: 11,
-    fontWeight: '700'
-  },
+  reqStatusBadgeText: { fontSize: 10, fontWeight: 'bold' },
+  statusTextPending: { color: '#d97706' },
+  statusTextApproved: { color: '#15803d' },
+  statusTextRejected: { color: '#b91c1c' },
 
   reqCardSubText: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#64748b',
+    marginTop: 2,
     marginBottom: 10
   },
 
   reqCardGrayBox: {
     backgroundColor: '#f8fafc',
     borderRadius: 10,
-    padding: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    padding: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#f1f5f9'
+    marginBottom: 10
   },
 
   grayBoxLabel: {
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#94a3b8',
-    letterSpacing: 0.5,
-    marginBottom: 2
+    letterSpacing: 0.5
   },
 
   grayBoxValMain: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a'
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginTop: 2
   },
 
   grayBoxValSub: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2
+    fontSize: 10,
+    color: '#64748b'
   },
 
   footerRowPending: {
@@ -1609,8 +1824,8 @@ const styles = StyleSheet.create({
 
   footerTextPending: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#0284c7'
+    color: '#0284c7',
+    fontWeight: '600'
   },
 
   footerRowApproved: {
@@ -1625,49 +1840,35 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
 
-  pdfLinkText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0f2942',
-    textDecorationLine: 'underline'
-  },
-
   rejectionCalloutBox: {
-    backgroundColor: '#fff5f5',
-    borderLeftWidth: 3,
-    borderLeftColor: '#991b1b',
-    borderRadius: 6,
-    padding: 10,
-    marginTop: 4
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecdd3',
+    borderRadius: 10,
+    padding: 10
   },
 
   rejectionHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4
+    alignItems: 'center'
   },
 
   rejectionHeaderText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#991b1b',
-    letterSpacing: 0.4
+    fontWeight: 'bold',
+    color: '#b91c1c'
   },
 
   rejectionBodyText: {
-    fontSize: 12,
-    color: '#7f1d1d',
-    fontStyle: 'italic',
-    lineHeight: 16
+    fontSize: 11,
+    color: '#991b1b',
+    marginTop: 4,
+    fontStyle: 'italic'
   },
 
   reapplyLinkText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#b91c1c'
+    fontWeight: 'bold',
+    color: '#dc2626'
   }
-
 });
-
-
-

@@ -186,9 +186,19 @@ function LeaveManagement() {
             let lType = l.leaveType || "Casual Leave";
             if (!lType.toLowerCase().includes("leave")) lType += " Leave";
 
+            const actingOfficerText = l.actingOfficer
+              ? `${l.actingOfficer.policeId || ''} ${l.actingOfficer.fullName ? '- ' + l.actingOfficer.fullName : ''}`.trim()
+              : "Roster Assigned Officer";
+
+            const docs = Array.isArray(l.supportingDocuments) ? l.supportingDocuments : [];
+            const certUrl = l.medicalCertificateUrl || (docs.length > 0 ? docs[0].fileUrl : null);
+            const hasCert = !!certUrl || docs.length > 0 || lType.toLowerCase().includes("medical");
+
+            const durDays = l.duration || 1;
+
             return {
               id: l._id || l.id,
-              leaveCode: l.leaveCode || `LV-${1040 + index}`,
+              leaveCode: `LV-${1040 + index}`,
               isFromDB: true,
               officerName: officerName,
               initials: init,
@@ -196,17 +206,19 @@ function LeaveManagement() {
               rank: l.officer?.rank || "Constable",
               leaveType: lType,
               dateRange: `${start} – ${end}`,
-              durationMeta: "Requested via app",
+              durationMeta: `${durDays} day${durDays > 1 ? 's' : ''} · Requested via app`,
               reason: l.remarks || "Officer leave request submitted via system.",
-              actingOfficer: "Roster Assigned Officer",
-              hasCertificate: lType.toLowerCase().includes("medical"),
+              actingOfficer: actingOfficerText,
+              hasCertificate: hasCert,
+              certUrl: certUrl,
+              documents: docs,
               dutyStrength: "6 of 8 officers on duty that day (from roster)",
               leaveBalance: "Balance: Available",
               overlapWarning: null,
               appliedDate: new Date(l.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
               lastLeaveDate: "Previous month",
-              contactNo: l.officer?.contactNo || "071 000 0000",
-              duringLeaveAddress: l.officer?.address || "Registered Address",
+              contactNo: l.contactNo || l.officer?.contactNo || "071 234 5678",
+              duringLeaveAddress: l.address || l.officer?.address || "Registered Address",
               status: l.status || "Pending"
             };
           });
@@ -505,25 +517,48 @@ function LeaveManagement() {
         <div className="lm-modal-overlay" onClick={() => setSelectedCert(null)}>
           <div className="lm-modal" onClick={e => e.stopPropagation()}>
             <div className="lm-modal-header">
-              <h3>Medical Certificate - {selectedCert.officerName}</h3>
+              <h3>Supporting Document / Certificate - {selectedCert.officerName}</h3>
               <button className="lm-modal-close" onClick={() => setSelectedCert(null)}>
                 <FiX size={18} />
               </button>
             </div>
             <div className="lm-modal-body">
-              <div className="lm-cert-preview-card">
-                <div className="lm-cert-badge">OFFICIAL MEDICAL CERTIFICATE</div>
-                <h4 style={{ margin: "10px 0 4px", fontSize: 16, color: "#0f172a" }}>Government Hospital - Negombo</h4>
-                <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Medical Officer: Dr. S. Wickramasinghe (MBBS)</p>
-                <hr style={{ margin: "14px 0", border: "none", borderTop: "1px solid #e2e8f0" }} />
-                <p style={{ fontSize: 14, color: "#334155", lineHeight: 1.6 }}>
-                  This is to certify that Traffic Officer <strong>{selectedCert.officerName}</strong> ({selectedCert.policeId}) has been examined on {selectedCert.appliedDate} and recommended for medical leave for a period of {selectedCert.dateRange} due to acute illness.
-                </p>
-                <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>Date Issued: {selectedCert.appliedDate}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>✓ Verified Medical Stamp</span>
+              {selectedCert.certUrl && selectedCert.certUrl.startsWith("data:image") ? (
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src={selectedCert.certUrl}
+                    alt="Uploaded Supporting Document"
+                    style={{ maxWidth: "100%", maxHeight: "350px", borderRadius: "8px", border: "1px solid #cbd5e1" }}
+                  />
+                  <p style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>Uploaded Document Preview</p>
                 </div>
-              </div>
+              ) : selectedCert.certUrl && selectedCert.certUrl.startsWith("data:") ? (
+                <div style={{ textAlign: "center", padding: "20px", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
+                  <FiPaperclip size={36} color="#0284c7" />
+                  <p style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginTop: "10px" }}>Supporting Document Attached</p>
+                  <a
+                    href={selectedCert.certUrl}
+                    download={`document_${selectedCert.officerName.replace(/\s+/g, "_")}`}
+                    style={{ display: "inline-block", marginTop: "10px", padding: "8px 16px", background: "#0284c7", color: "#ffffff", borderRadius: "8px", textDecoration: "none", fontWeight: "700", fontSize: "13px" }}
+                  >
+                    Download / Open Document
+                  </a>
+                </div>
+              ) : (
+                <div className="lm-cert-preview-card">
+                  <div className="lm-cert-badge">OFFICIAL MEDICAL CERTIFICATE</div>
+                  <h4 style={{ margin: "10px 0 4px", fontSize: 16, color: "#0f172a" }}>Government Hospital - Negombo</h4>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Medical Officer: Dr. S. Wickramasinghe (MBBS)</p>
+                  <hr style={{ margin: "14px 0", border: "none", borderTop: "1px solid #e2e8f0" }} />
+                  <p style={{ fontSize: 14, color: "#334155", lineHeight: 1.6 }}>
+                    This is to certify that Traffic Officer <strong>{selectedCert.officerName}</strong> ({selectedCert.policeId}) has been examined on {selectedCert.appliedDate} and recommended for medical leave for a period of {selectedCert.dateRange} due to acute illness.
+                  </p>
+                  <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>Date Issued: {selectedCert.appliedDate}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>✓ Verified Medical Stamp</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="lm-modal-footer">
               <button className="lm-btn-close" onClick={() => setSelectedCert(null)}>Close Preview</button>

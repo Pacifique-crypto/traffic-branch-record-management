@@ -313,6 +313,42 @@ router.put("/me", verifyToken, async (req, res) => {
   }
 });
 
+// SEARCH ACTIVE OFFICERS (For Acting Officer Autocomplete, etc.)
+router.get("/search", verifyToken, async (req, res) => {
+  try {
+    const searchString = (req.query.query || req.query.search || req.query.q || "").trim();
+    const currentUserId = req.user?.id || req.user?._id;
+
+    if (!searchString || searchString.length < 1) {
+      return res.json([]);
+    }
+
+    const regex = new RegExp(searchString, "i");
+
+    const queryCondition = {
+      status: "Active",
+      $or: [
+        { fullName: regex },
+        { policeId: regex },
+        { username: regex }
+      ]
+    };
+
+    if (currentUserId && mongoose.Types.ObjectId.isValid(currentUserId)) {
+      queryCondition._id = { $ne: currentUserId };
+    }
+
+    const officers = await Officer.find(queryCondition)
+      .select("_id fullName policeId rank username status")
+      .limit(20);
+
+    res.json(officers);
+  } catch (error) {
+    console.error("Error searching officers:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET ALL OFFICERS
 router.get("/", verifyToken, authorizeRoles("oic", "admin"), async (req, res) => {
   try {
