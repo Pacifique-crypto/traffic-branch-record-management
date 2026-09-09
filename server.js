@@ -61,6 +61,9 @@ app.use("/api/duties", dutyRoutes);
 const leaveRoutes = require("./routes/leaveRoutes");
 app.use("/api/leaves", leaveRoutes);
 
+const notificationRoutes = require("./routes/notificationRoutes");
+app.use("/api/notifications", notificationRoutes);
+
 const demoDriverLicenceRoutes = require("./routes/demoDriverLicenceRoutes");
 app.use("/api/demo-driver-licences", demoDriverLicenceRoutes);
 

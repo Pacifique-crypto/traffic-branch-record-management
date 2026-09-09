@@ -225,10 +225,55 @@ router.get("/rosters/:id", verifyToken, async (req, res) => {
   }
 });
 
+// Helper to validate that no assigned officer has an Approved leave overlapping the duty date
+const validateApprovedLeaveConflicts = async (assignments, rosterDate, rosterWeekStart) => {
+  if (!Array.isArray(assignments) || assignments.length === 0) return null;
+
+  for (const asg of assignments) {
+    const rawOfficerId = asg.officer?._id || asg.officer || asg.officerId;
+    if (!rawOfficerId || !mongoose.Types.ObjectId.isValid(rawOfficerId)) continue;
+
+    const rawDate = asg.date || asg.dateStr || rosterDate || rosterWeekStart;
+    if (!rawDate) continue;
+
+    const dutyDate = new Date(rawDate);
+    if (isNaN(dutyDate.getTime())) continue;
+
+    const dutyDateStart = new Date(dutyDate);
+    dutyDateStart.setHours(0, 0, 0, 0);
+
+    const dutyDateEnd = new Date(dutyDate);
+    dutyDateEnd.setHours(23, 59, 59, 999);
+
+    const approvedLeave = await OfficerAvailability.findOne({
+      officer: rawOfficerId,
+      status: "Approved",
+      startDate: { $lte: dutyDateEnd },
+      endDate: { $gte: dutyDateStart }
+    }).populate("officer", "fullName policeId");
+
+    if (approvedLeave) {
+      const officerName = approvedLeave.officer?.fullName || asg.officerName || "Officer";
+      const startFmt = new Date(approvedLeave.startDate).toLocaleDateString('en-GB');
+      const endFmt = new Date(approvedLeave.endDate).toLocaleDateString('en-GB');
+      const dutyDateFmt = dutyDateStart.toLocaleDateString('en-GB');
+
+      return `Officer ${officerName} is on approved leave from ${startFmt} to ${endFmt} and cannot be assigned to duty on ${dutyDateFmt}.`;
+    }
+  }
+
+  return null;
+};
+
 // Create/save Roster
 router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
   try {
     const { rosterType, status, date, weekStart, weekEnd, shift, assignments } = req.body;
+
+    const conflictError = await validateApprovedLeaveConflicts(assignments, date, weekStart);
+    if (conflictError) {
+      return res.status(400).json({ message: conflictError });
+    }
 
     const roster = new DutyRoster({
       rosterType,
@@ -253,6 +298,16 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
   try {
     const { status, assignments, approvedBy, rejectionRemarks } = req.body;
     
+    if (assignments) {
+      const existingRoster = await DutyRoster.findById(req.params.id);
+      const rDate = req.body.date || existingRoster?.date;
+      const rWeekStart = req.body.weekStart || existingRoster?.weekStart;
+      const conflictError = await validateApprovedLeaveConflicts(assignments, rDate, rWeekStart);
+      if (conflictError) {
+        return res.status(400).json({ message: conflictError });
+      }
+    }
+
     const updateData = {};
     if (status) {
       updateData.status = status;

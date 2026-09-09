@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const OfficerAvailability = require("../models/OfficerAvailability");
 const Officer = require("../models/Officer");
+const Notification = require("../models/Notification");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 
 // Valid leave types
@@ -282,6 +283,9 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
       }
     }
 
+    const previousStatus = leaveRecord.status;
+    const statusChanged = status && status !== previousStatus;
+
     if (officer) leaveRecord.officer = officer;
     leaveRecord.startDate = start;
     leaveRecord.endDate = end;
@@ -295,6 +299,37 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
     if (req.body.supportingDocuments !== undefined) leaveRecord.supportingDocuments = req.body.supportingDocuments;
 
     await leaveRecord.save();
+
+    // Create persistent notification ONLY when status transitions (prevents duplicate notifications)
+    if (statusChanged && leaveRecord.officer) {
+      try {
+        const startStr = new Date(leaveRecord.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const endStr = new Date(leaveRecord.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const lTypeStr = leaveRecord.leaveType || "Leave";
+
+        if (leaveRecord.status === "Approved") {
+          await Notification.create({
+            recipient: leaveRecord.officer,
+            title: "Leave Request Approved",
+            message: `Your ${lTypeStr} request from ${startStr} to ${endStr} has been approved by the OIC.`,
+            type: "LEAVE_APPROVED",
+            relatedLeave: leaveRecord._id
+          });
+        } else if (leaveRecord.status === "Rejected") {
+          const reasonText = leaveRecord.rejectionRemarks ? ` Reason: ${leaveRecord.rejectionRemarks}` : "";
+          await Notification.create({
+            recipient: leaveRecord.officer,
+            title: "Leave Request Rejected",
+            message: `Your ${lTypeStr} request from ${startStr} to ${endStr} has been rejected by the OIC.${reasonText}`,
+            type: "LEAVE_REJECTED",
+            relatedLeave: leaveRecord._id,
+            rejectionRemarks: leaveRecord.rejectionRemarks || ""
+          });
+        }
+      } catch (notifErr) {
+        console.error("Error creating notification on leave status update:", notifErr);
+      }
+    }
 
     await leaveRecord.populate([
       { path: "officer", select: "fullName policeId rank username contactNo address" },
