@@ -388,6 +388,56 @@ export default function OfficerDashboard({ navigation }) {
     return `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
   };
 
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const handlePrevMonth = () => {
+    if (tempMonth === 1) {
+      setTempMonth(12);
+      setTempYear(tempYear - 1);
+    } else {
+      setTempMonth(tempMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (tempMonth === 12) {
+      setTempMonth(1);
+      setTempYear(tempYear + 1);
+    } else {
+      setTempMonth(tempMonth + 1);
+    }
+  };
+
+  const renderCalendarDays = () => {
+    const daysInMonth = new Date(tempYear, tempMonth, 0).getDate();
+    const firstDayIndex = new Date(tempYear, tempMonth - 1, 1).getDay();
+
+    const cells = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      cells.push(<View key={`blank-${i}`} style={styles.calendarDayCell} />);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isSelected = tempDay === d;
+      cells.push(
+        <TouchableOpacity
+          key={`day-${d}`}
+          style={[styles.calendarDayCell, isSelected && styles.calendarDayCellSelected]}
+          onPress={() => setTempDay(d)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.calendarDayText, isSelected && styles.calendarDayTextSelected]}>
+            {d}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+    return cells;
+  };
+
   const openDatePicker = (target) => {
     setDatePickerTarget(target);
     const currentDateStr = target === 'start' ? startDate : endDate;
@@ -879,7 +929,13 @@ export default function OfficerDashboard({ navigation }) {
                       value={startDate}
                       onChangeText={setStartDate}
                     />
-                    <Ionicons name="calendar-outline" size={18} color="#1e3a8a" />
+                    <TouchableOpacity
+                      onPress={() => openDatePicker('start')}
+                      style={{ padding: 6, backgroundColor: '#eff6ff', borderRadius: 8, marginLeft: 4 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="calendar" size={20} color="#1e3a8a" />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -892,7 +948,13 @@ export default function OfficerDashboard({ navigation }) {
                       value={endDate}
                       onChangeText={setEndDate}
                     />
-                    <Ionicons name="calendar-outline" size={18} color="#1e3a8a" />
+                    <TouchableOpacity
+                      onPress={() => openDatePicker('end')}
+                      style={{ padding: 6, backgroundColor: '#eff6ff', borderRadius: 8, marginLeft: 4 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="calendar" size={20} color="#1e3a8a" />
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -1074,6 +1136,74 @@ export default function OfficerDashboard({ navigation }) {
               <Text style={styles.cancelFullBtnText}>{t.cancelBtn}</Text>
             </TouchableOpacity>
           </ScrollView>
+
+          {/* INTERACTIVE CALENDAR POPUP OVERLAY */}
+          {datePickerVisible && (
+            <View style={styles.calendarOverlayBackdrop}>
+              <View style={styles.calendarModalCard}>
+                {/* HEADER */}
+                <View style={styles.calendarModalHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="calendar" size={20} color="#1e3a8a" style={{ marginRight: 8 }} />
+                    <Text style={styles.calendarModalTitle}>
+                      {datePickerTarget === 'start' ? "Select Start Date" : "Select End Date"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setDatePickerVisible(false)} style={{ padding: 4 }}>
+                    <Ionicons name="close" size={22} color="#64748b" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* MONTH NAVIGATION ROW */}
+                <View style={styles.calendarMonthRow}>
+                  <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavBtn}>
+                    <Ionicons name="chevron-back" size={20} color="#1e3a8a" />
+                  </TouchableOpacity>
+                  <Text style={styles.calendarMonthText}>
+                    {monthNames[tempMonth - 1]} {tempYear}
+                  </Text>
+                  <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavBtn}>
+                    <Ionicons name="chevron-forward" size={20} color="#1e3a8a" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* WEEKDAY HEADERS */}
+                <View style={styles.calendarWeekdayRow}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <Text key={day} style={styles.calendarWeekdayText}>{day}</Text>
+                  ))}
+                </View>
+
+                {/* DAYS GRID */}
+                <View style={styles.calendarDaysGrid}>
+                  {renderCalendarDays()}
+                </View>
+
+                {/* PRESETS */}
+                <View style={styles.calendarPresetRow}>
+                  <TouchableOpacity style={styles.calendarPresetChip} onPress={() => setPresetDate(0)}>
+                    <Text style={styles.calendarPresetText}>Today</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.calendarPresetChip} onPress={() => setPresetDate(1)}>
+                    <Text style={styles.calendarPresetText}>Tomorrow</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.calendarPresetChip} onPress={() => setPresetDate(3)}>
+                    <Text style={styles.calendarPresetText}>+3 Days</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.calendarPresetChip} onPress={() => setPresetDate(7)}>
+                    <Text style={styles.calendarPresetText}>+7 Days</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* CONFIRM BUTTON */}
+                <TouchableOpacity style={styles.calendarConfirmBtn} onPress={confirmDateSelection} activeOpacity={0.8}>
+                  <Text style={styles.calendarConfirmBtnText}>
+                    Confirm Date ({tempYear}-{String(tempMonth).padStart(2, '0')}-{String(tempDay).padStart(2, '0')})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </SafeAreaView>
       </Modal>
 
@@ -2204,5 +2334,128 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: '#dc2626'
+  },
+
+  // CALENDAR POPUP OVERLAY STYLES
+  calendarOverlayBackdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    padding: 20
+  },
+  calendarModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10
+  },
+  calendarModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9'
+  },
+  calendarModalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0f172a'
+  },
+  calendarMonthRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 12
+  },
+  monthNavBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9'
+  },
+  calendarMonthText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#1e3a8a'
+  },
+  calendarWeekdayRow: {
+    flexDirection: 'row',
+    marginBottom: 6
+  },
+  calendarWeekdayText: {
+    width: '14.28%',
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase'
+  },
+  calendarDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12
+  },
+  calendarDayCell: {
+    width: '14.28%',
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 2
+  },
+  calendarDayCellSelected: {
+    backgroundColor: '#1e3a8a',
+    borderRadius: 19
+  },
+  calendarDayText: {
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500'
+  },
+  calendarDayTextSelected: {
+    color: '#ffffff',
+    fontWeight: 'bold'
+  },
+  calendarPresetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9'
+  },
+  calendarPresetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff'
+  },
+  calendarPresetText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2563eb'
+  },
+  calendarConfirmBtn: {
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  calendarConfirmBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold'
   }
 });
