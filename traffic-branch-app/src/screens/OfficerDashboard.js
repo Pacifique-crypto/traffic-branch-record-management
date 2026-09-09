@@ -207,6 +207,7 @@ export default function OfficerDashboard({ navigation }) {
 
   const convertFileToBase64 = async (uri, mimeType) => {
     if (!uri) return "";
+    if (uri.startsWith('data:')) return uri;
     try {
       const decodedUri = decodeURIComponent(uri);
       const base64Data = await FileSystem.readAsStringAsync(decodedUri, {
@@ -214,8 +215,16 @@ export default function OfficerDashboard({ navigation }) {
       });
       return `data:${mimeType || 'application/octet-stream'};base64,${base64Data}`;
     } catch (err) {
-      console.log("Error converting file to Base64:", err);
-      return "";
+      console.log("Error converting file to Base64 (decoded uri):", err);
+      try {
+        const base64Data = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        return `data:${mimeType || 'application/octet-stream'};base64,${base64Data}`;
+      } catch (err2) {
+        console.log("Error converting file to Base64 (raw uri):", err2);
+        return "";
+      }
     }
   };
 
@@ -425,13 +434,28 @@ export default function OfficerDashboard({ navigation }) {
         headers['Authorization'] = `Bearer ${global.userToken}`;
       }
 
+      console.log("Submitting leave request to:", `${BASE_URL}/leaves`);
       const response = await fetch(`${BASE_URL}/leaves`, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload)
       });
 
-      const resData = await response.json();
+      const responseText = await response.text();
+      console.log("Server Leave Submission Status:", response.status);
+      console.log("Server Leave Submission Response:", responseText);
+
+      let resData;
+      try {
+        resData = JSON.parse(responseText);
+      } catch (jsonErr) {
+        console.log("Failed to parse JSON response from server:", jsonErr);
+        Alert.alert(
+          "Server Error",
+          `Server returned an unexpected response (Status ${response.status}). Please check backend status or try again.`
+        );
+        return;
+      }
 
       if (response.ok) {
         Alert.alert("Success", t.successMsg || "Leave request submitted successfully for approval.");
@@ -452,11 +476,14 @@ export default function OfficerDashboard({ navigation }) {
         // Refresh my requests list
         fetchMyLeaves();
       } else {
-        Alert.alert("Submission Failed", resData.message || resData.error || "Unable to submit leave request.");
+        Alert.alert("Submission Failed", resData.message || resData.error || `Unable to submit leave request (Status ${response.status}).`);
       }
     } catch (err) {
       console.log("Error submitting leave request:", err);
-      Alert.alert("Network Error", "Unable to connect to server. Please try again.");
+      Alert.alert(
+        "Connection Error",
+        `Unable to connect to backend server (${err.message || "Network request failed"}). Please verify backend server status and network connection.`
+      );
     } finally {
       setSubmitting(false);
     }
