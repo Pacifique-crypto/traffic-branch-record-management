@@ -50,6 +50,14 @@ export default function OfficerDashboard({ navigation }) {
   // Supporting documents state
   const [supportingDocuments, setSupportingDocuments] = useState([]);
 
+  // Leave Type Dropdown & Date Picker Modal states
+  const [leaveTypeModalVisible, setLeaveTypeModalVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState('start'); // 'start' | 'end'
+  const [tempYear, setTempYear] = useState(new Date().getFullYear());
+  const [tempMonth, setTempMonth] = useState(new Date().getMonth() + 1);
+  const [tempDay, setTempDay] = useState(new Date().getDate());
+
   // My Requests list from DB
   const [myRequestsList, setMyRequestsList] = useState([]);
   const [loadingMyRequests, setLoadingMyRequests] = useState(false);
@@ -380,10 +388,55 @@ export default function OfficerDashboard({ navigation }) {
     return `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
   };
 
+  const openDatePicker = (target) => {
+    setDatePickerTarget(target);
+    const currentDateStr = target === 'start' ? startDate : endDate;
+    if (currentDateStr && currentDateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const parts = currentDateStr.split('-');
+      setTempYear(parseInt(parts[0], 10));
+      setTempMonth(parseInt(parts[1], 10));
+      setTempDay(parseInt(parts[2], 10));
+    } else {
+      const now = new Date();
+      setTempYear(now.getFullYear());
+      setTempMonth(now.getMonth() + 1);
+      setTempDay(now.getDate());
+    }
+    setDatePickerVisible(true);
+  };
+
+  const confirmDateSelection = () => {
+    const formattedMonth = String(tempMonth).padStart(2, '0');
+    const formattedDay = String(tempDay).padStart(2, '0');
+    const formattedDate = `${tempYear}-${formattedMonth}-${formattedDay}`;
+
+    if (datePickerTarget === 'start') {
+      setStartDate(formattedDate);
+      if (!endDate || new Date(endDate) < new Date(formattedDate)) {
+        setEndDate(formattedDate);
+      }
+    } else {
+      setEndDate(formattedDate);
+    }
+    setDatePickerVisible(false);
+  };
+
+  const setPresetDate = (daysFromToday) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysFromToday);
+    setTempYear(d.getFullYear());
+    setTempMonth(d.getMonth() + 1);
+    setTempDay(d.getDate());
+  };
+
   // Submit leave request to backend API
   const handleSubmitLeave = async () => {
     if (!leaveType) {
-      Alert.alert("Missing Leave Type", "Please select a leave type.");
+      Alert.alert("Missing Leave Type", "Please select a leave type (Casual, Medical, or Personal).");
+      return;
+    }
+    if (leaveType === "Medical" && supportingDocuments.length === 0) {
+      Alert.alert("Supporting Document Required", "Medical leave applications require at least one supporting document or medical certificate.");
       return;
     }
     if (!startDate || !endDate) {
@@ -724,20 +777,37 @@ export default function OfficerDashboard({ navigation }) {
                 </View>
               </View>
 
+            {/* 2. OFFICER DETAILS CARD (AUTO-POPULATED FROM LOGGED IN PROFILE) */}
+            <View style={styles.formCard}>
+              <View style={styles.cardHeaderRow}>
+                <Ionicons name="id-card-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
+                <Text style={styles.cardHeaderTitle}>{t.officerDetails}</Text>
+              </View>
+
+              <View style={styles.gridTwoCol}>
+                <View style={styles.colHalf}>
+                  <Text style={styles.fieldMetaLabel}>{t.nameLabel}</Text>
+                  <Text style={styles.fieldMetaValue}>
+                    {officer.fullName || global.loggedOfficerName || "Traffic Officer"}
+                  </Text>
+                </View>
+                <View style={styles.colHalf}>
+                  <Text style={styles.fieldMetaLabel}>{t.policeIdLabel}</Text>
+                  <Text style={[styles.fieldMetaValue, { fontWeight: 'bold' }]}>
+                    {officer.policeId || global.loggedOfficerPoliceId || officer.username || "PC-09023"}
+                  </Text>
+                </View>
+              </View>
+
               <View style={[styles.gridTwoCol, { marginTop: 10 }]}>
                 <View style={styles.colHalf}>
                   <Text style={styles.fieldMetaLabel}>{t.rankLabel || "RANK"}</Text>
                   <Text style={styles.fieldMetaValue}>{officer.rank || "Constable"}</Text>
                 </View>
                 <View style={styles.colHalf}>
-                  <Text style={styles.fieldMetaLabel}>{t.stationLabel || "STATION"}</Text>
-                  <Text style={styles.fieldMetaValue}>{officer.station || "Traffic Branch - Negombo"}</Text>
+                  <Text style={styles.fieldMetaLabel}>{t.appDateLabel}</Text>
+                  <Text style={styles.fieldMetaValue}>{todayFormatted}</Text>
                 </View>
-              </View>
-
-              <View style={{ marginTop: 10 }}>
-                <Text style={styles.fieldMetaLabel}>{t.appDateLabel}</Text>
-                <Text style={styles.fieldMetaValue}>{todayFormatted}</Text>
               </View>
             </View>
 
@@ -746,21 +816,17 @@ export default function OfficerDashboard({ navigation }) {
               <Text style={styles.cardHeaderTitle}>{t.leaveConfig}</Text>
 
               <Text style={styles.formInputLabel}>{t.leaveTypeLabel} *</Text>
-              <View style={[styles.inputWithIconRow, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                <Picker
-                  selectedValue={leaveType}
-                  onValueChange={(itemValue) => setLeaveType(itemValue)}
-                  style={{ flex: 1, height: 50, backgroundColor: 'transparent' }}
-                >
-                  <Picker.Item label="Select Leave Type" value="" color="#94a3b8" />
-                  <Picker.Item label="Personal Leave" value="Personal" />
-                  <Picker.Item label="Casual Leave" value="Casual" />
-                  <Picker.Item label="Medical Leave" value="Medical" />
-                  <Picker.Item label="Annual Leave" value="Annual" />
-                  <Picker.Item label="Emergency Leave" value="Emergency" />
-                  <Picker.Item label="Other" value="Other" />
-                </Picker>
-              </View>
+              <TouchableOpacity
+                style={styles.inputWithIconRow}
+                onPress={() => setLeaveTypeModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="list-outline" size={18} color="#1e3a8a" style={{ marginRight: 8 }} />
+                <Text style={[styles.iconTextInput, { flex: 1, color: leaveType ? '#0f172a' : '#94a3b8', fontWeight: leaveType ? '600' : 'normal' }]}>
+                  {leaveType === "Casual" ? "Casual Leave" : leaveType === "Medical" ? "Medical Leave" : leaveType === "Personal" ? "Personal Leave" : "Select Leave Type (Casual, Medical, Personal)"}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color="#64748b" />
+              </TouchableOpacity>
 
               <Text style={styles.formInputLabel}>{t.contactNoLabel}</Text>
               <View style={styles.inputWithIconRow}>
@@ -793,32 +859,42 @@ export default function OfficerDashboard({ navigation }) {
               <View style={styles.gridTwoCol}>
                 <View style={styles.colHalf}>
                   <Text style={styles.formInputLabel}>{t.startDateLabelShort} *</Text>
-                  <View style={styles.inputWithIconRow}>
+                  <TouchableOpacity
+                    style={styles.inputWithIconRow}
+                    onPress={() => openDatePicker('start')}
+                    activeOpacity={0.7}
+                  >
                     <TextInput
-                      style={[styles.iconTextInput, { flex: 1 }]}
+                      style={[styles.iconTextInput, { flex: 1, color: startDate ? '#0f172a' : '#94a3b8' }]}
                       placeholder="YYYY-MM-DD"
                       value={startDate}
-                      onChangeText={setStartDate}
+                      editable={false}
+                      pointerEvents="none"
                     />
-                    <Ionicons name="calendar-outline" size={18} color="#64748b" />
-                  </View>
+                    <Ionicons name="calendar" size={20} color="#1e3a8a" />
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.colHalf}>
                   <Text style={styles.formInputLabel}>{t.endDateLabelShort} *</Text>
-                  <View style={styles.inputWithIconRow}>
+                  <TouchableOpacity
+                    style={styles.inputWithIconRow}
+                    onPress={() => openDatePicker('end')}
+                    activeOpacity={0.7}
+                  >
                     <TextInput
-                      style={[styles.iconTextInput, { flex: 1 }]}
+                      style={[styles.iconTextInput, { flex: 1, color: endDate ? '#0f172a' : '#94a3b8' }]}
                       placeholder="YYYY-MM-DD"
                       value={endDate}
-                      onChangeText={setEndDate}
+                      editable={false}
+                      pointerEvents="none"
                     />
-                    <Ionicons name="calendar-outline" size={18} color="#64748b" />
-                  </View>
+                    <Ionicons name="calendar" size={20} color="#1e3a8a" />
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              {/* TOTAL DURATION BANNER (READ ONLY) */}
+              {/* TOTAL DURATION BANNER (READ ONLY - AUTO CALCULATED) */}
               <View style={styles.totalDurationBar}>
                 <Text style={styles.totalDurationText}>{t.totalDurationLabel}</Text>
                 <Text style={styles.totalDurationVal}>{calculateDays()}</Text>
@@ -896,45 +972,47 @@ export default function OfficerDashboard({ navigation }) {
               />
             </View>
 
-            {/* 6. SUPPORTING DOCUMENTS CARD (NATIVE PICKER + MULTI FILE SUPPORT) */}
-            <View style={styles.formCard}>
-              <View style={styles.cardHeaderRow}>
-                <Ionicons name="attach-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
-                <Text style={styles.cardHeaderTitle}>Supporting Documents</Text>
-              </View>
-
-              <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument} activeOpacity={0.8}>
-                <Ionicons name="cloud-upload-outline" size={24} color="#0284c7" />
-                <Text style={styles.uploadTextPrimary}>+ Select Supporting Documents</Text>
-                <Text style={styles.uploadTextSecondary}>Accepted: Medical Certificate, Memo, Hospital Letter (PDF, JPG, PNG, DOC)</Text>
-              </TouchableOpacity>
-
-              {supportingDocuments.length > 0 && (
-                <View style={{ marginTop: 14 }}>
-                  <Text style={styles.formInputLabel}>SELECTED ATTACHMENTS ({supportingDocuments.length})</Text>
-                  {supportingDocuments.map((doc, idx) => (
-                    <View key={idx} style={styles.filePreviewItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <Ionicons
-                          name={doc.name?.endsWith('.pdf') ? "document-text" : "image"}
-                          size={22}
-                          color="#0284c7"
-                        />
-                        <View style={{ marginLeft: 10, flex: 1 }}>
-                          <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
-                          <Text style={styles.fileSize}>
-                            {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Ready to upload'}
-                          </Text>
-                        </View>
-                      </View>
-                      <TouchableOpacity onPress={() => handleRemoveDocument(idx)}>
-                        <Text style={styles.removeLink}><Ionicons name="close" size={14} /> Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+            {/* 6. SUPPORTING DOCUMENTS CARD (ONLY REQUIRED/VISIBLE FOR MEDICAL LEAVE) */}
+            {leaveType === "Medical" && (
+              <View style={styles.formCard}>
+                <View style={styles.cardHeaderRow}>
+                  <Ionicons name="attach-outline" size={18} color="#0f172a" style={{ marginRight: 6 }} />
+                  <Text style={styles.cardHeaderTitle}>Supporting Documents (Required for Medical Leave) *</Text>
                 </View>
-              )}
-            </View>
+
+                <TouchableOpacity style={styles.uploadArea} onPress={handlePickDocument} activeOpacity={0.8}>
+                  <Ionicons name="cloud-upload-outline" size={24} color="#0284c7" />
+                  <Text style={styles.uploadTextPrimary}>+ Select Medical Certificate / Supporting Documents</Text>
+                  <Text style={styles.uploadTextSecondary}>Accepted: Medical Certificate, Memo, Hospital Letter (PDF, JPG, PNG, DOC)</Text>
+                </TouchableOpacity>
+
+                {supportingDocuments.length > 0 && (
+                  <View style={{ marginTop: 14 }}>
+                    <Text style={styles.formInputLabel}>SELECTED ATTACHMENTS ({supportingDocuments.length})</Text>
+                    {supportingDocuments.map((doc, idx) => (
+                      <View key={idx} style={styles.filePreviewItem}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                          <Ionicons
+                            name={doc.name?.endsWith('.pdf') ? "document-text" : "image"}
+                            size={22}
+                            color="#0284c7"
+                          />
+                          <View style={{ marginLeft: 10, flex: 1 }}>
+                            <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
+                            <Text style={styles.fileSize}>
+                              {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Ready to upload'}
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity onPress={() => handleRemoveDocument(idx)}>
+                          <Text style={styles.removeLink}><Ionicons name="close" size={14} /> Remove</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* BOTTOM ACTION BUTTONS */}
             <TouchableOpacity
@@ -963,6 +1041,163 @@ export default function OfficerDashboard({ navigation }) {
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* LEAVE TYPE SELECTION MODAL */}
+      <Modal
+        visible={leaveTypeModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLeaveTypeModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setLeaveTypeModalVisible(false)}
+        >
+          <View style={styles.pickerModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>Select Leave Type</Text>
+              <TouchableOpacity onPress={() => setLeaveTypeModalVisible(false)}>
+                <Ionicons name="close-circle" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {[
+              { label: "Casual Leave", value: "Casual", icon: "briefcase-outline", desc: "Short-term leave for personal or family affairs", color: "#3b82f6" },
+              { label: "Medical Leave", value: "Medical", icon: "medkit-outline", desc: "Medical leave due to illness (Supporting Certificate Required)", color: "#10b981" },
+              { label: "Personal Leave", value: "Personal", icon: "person-outline", desc: "Planned personal leave for relocation, travel, or private business", color: "#8b5cf6" }
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.value}
+                style={[
+                  styles.leaveTypeOptionCard,
+                  leaveType === item.value && styles.leaveTypeOptionSelected
+                ]}
+                onPress={() => {
+                  setLeaveType(item.value);
+                  setLeaveTypeModalVisible(false);
+                }}
+              >
+                <View style={[styles.leaveTypeOptionIconBox, { backgroundColor: item.color + '15' }]}>
+                  <Ionicons name={item.icon} size={22} color={item.color} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.leaveTypeOptionTitle}>{item.label}</Text>
+                  <Text style={styles.leaveTypeOptionDesc}>{item.desc}</Text>
+                </View>
+                {leaveType === item.value && (
+                  <Ionicons name="checkmark-circle" size={22} color="#1e3a8a" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* INTERACTIVE DATE PICKER MODAL */}
+      <Modal
+        visible={datePickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setDatePickerVisible(false)}
+        >
+          <View style={styles.pickerModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.pickerModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="calendar" size={20} color="#1e3a8a" style={{ marginRight: 8 }} />
+                <Text style={styles.pickerModalTitle}>
+                  Select {datePickerTarget === 'start' ? 'Start Date' : 'End Date'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setDatePickerVisible(false)}>
+                <Ionicons name="close-circle" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* QUICK PRESETS */}
+            <Text style={styles.presetLabelText}>QUICK SELECT PRESETS</Text>
+            <View style={styles.presetsRow}>
+              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(0)}>
+                <Text style={styles.presetBtnText}>Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(1)}>
+                <Text style={styles.presetBtnText}>Tomorrow</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(3)}>
+                <Text style={styles.presetBtnText}>+3 Days</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.presetBtn} onPress={() => setPresetDate(7)}>
+                <Text style={styles.presetBtnText}>+7 Days</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* YEAR, MONTH, DAY SELECTORS */}
+            <View style={styles.dateControlRow}>
+              {/* YEAR */}
+              <View style={styles.dateControlCol}>
+                <Text style={styles.dateColLabel}>YEAR</Text>
+                <View style={styles.dateSpinRow}>
+                  <TouchableOpacity onPress={() => setTempYear(prev => Math.max(2026, prev - 1))} style={styles.spinBtn}>
+                    <Ionicons name="chevron-down" size={16} color="#1e3a8a" />
+                  </TouchableOpacity>
+                  <Text style={styles.spinValText}>{tempYear}</Text>
+                  <TouchableOpacity onPress={() => setTempYear(prev => prev + 1)} style={styles.spinBtn}>
+                    <Ionicons name="chevron-up" size={16} color="#1e3a8a" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* MONTH */}
+              <View style={styles.dateControlCol}>
+                <Text style={styles.dateColLabel}>MONTH</Text>
+                <View style={styles.dateSpinRow}>
+                  <TouchableOpacity onPress={() => setTempMonth(prev => prev > 1 ? prev - 1 : 12)} style={styles.spinBtn}>
+                    <Ionicons name="chevron-down" size={16} color="#1e3a8a" />
+                  </TouchableOpacity>
+                  <Text style={styles.spinValText}>
+                    {new Date(2026, tempMonth - 1, 1).toLocaleString('en-US', { month: 'short' })}
+                  </Text>
+                  <TouchableOpacity onPress={() => setTempMonth(prev => prev < 12 ? prev + 1 : 1)} style={styles.spinBtn}>
+                    <Ionicons name="chevron-up" size={16} color="#1e3a8a" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* DAY */}
+              <View style={styles.dateControlCol}>
+                <Text style={styles.dateColLabel}>DAY</Text>
+                <View style={styles.dateSpinRow}>
+                  <TouchableOpacity onPress={() => setTempDay(prev => prev > 1 ? prev - 1 : 31)} style={styles.spinBtn}>
+                    <Ionicons name="chevron-down" size={16} color="#1e3a8a" />
+                  </TouchableOpacity>
+                  <Text style={styles.spinValText}>{String(tempDay).padStart(2, '0')}</Text>
+                  <TouchableOpacity onPress={() => setTempDay(prev => prev < 31 ? prev + 1 : 1)} style={styles.spinBtn}>
+                    <Ionicons name="chevron-up" size={16} color="#1e3a8a" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* SELECTED SUMMARY */}
+            <View style={styles.dateSummaryBox}>
+              <Text style={styles.dateSummaryLabel}>SELECTED DATE:</Text>
+              <Text style={styles.dateSummaryValue}>
+                {`${tempYear}-${String(tempMonth).padStart(2, '0')}-${String(tempDay).padStart(2, '0')}`}
+              </Text>
+            </View>
+
+            {/* CONFIRM BUTTON */}
+            <TouchableOpacity style={styles.confirmDateBtn} onPress={confirmDateSelection} activeOpacity={0.8}>
+              <Text style={styles.confirmDateBtnText}>Set {datePickerTarget === 'start' ? 'Start Date' : 'End Date'}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* MY LEAVE REQUESTS FULL MODAL */}
@@ -1620,13 +1855,170 @@ const styles = StyleSheet.create({
 
   fileSize: {
     fontSize: 10,
-    color: '#64748b'
+    color: '#64748b',
+    marginTop: 2
   },
 
   removeLink: {
     fontSize: 11,
     color: '#ef4444',
-    fontWeight: 'bold'
+    fontWeight: '600'
+  },
+
+  /* CUSTOM MODAL & PICKER STYLES */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  pickerModalContent: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingBottom: 12
+  },
+  pickerModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  leaveTypeOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 10,
+    backgroundColor: '#f8fafc'
+  },
+  leaveTypeOptionSelected: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#eff6ff'
+  },
+  leaveTypeOptionIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  leaveTypeOptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  leaveTypeOptionDesc: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2
+  },
+
+  /* DATE PICKER MODAL STYLES */
+  presetLabelText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#64748b',
+    marginBottom: 8
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16
+  },
+  presetBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1'
+  },
+  presetBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1e3a8a'
+  },
+  dateControlRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16
+  },
+  dateControlCol: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 4
+  },
+  dateColLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#64748b',
+    marginBottom: 6
+  },
+  dateSpinRow: {
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    paddingVertical: 6,
+    width: '100%'
+  },
+  spinBtn: {
+    padding: 6
+  },
+  spinValText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginVertical: 4
+  },
+  dateSummaryBox: {
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  dateSummaryLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#0369a1'
+  },
+  dateSummaryValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0284c7',
+    marginTop: 2
+  },
+  confirmDateBtn: {
+    backgroundColor: '#1e3a8a',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center'
+  },
+  confirmDateBtnText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 14
   },
 
   proceedReviewBtn: {
