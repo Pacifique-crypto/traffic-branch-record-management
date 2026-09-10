@@ -174,12 +174,12 @@ function LeaveManagement() {
 
   useEffect(() => {
     const fetchDBLeaves = async () => {
-      try {
+      try { 
         const res = await getOfficerLeaves();
-        if (Array.isArray(res) && res.length > 0) {
+        if (Array.isArray(res)) {
           const dbMapped = res.map((l, index) => {
             const officerName = l.officer?.fullName || l.officerName || "Traffic Officer";
-            const init = officerName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "OF";
+            const init = officerName.trim().split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "OF";
             const start = l.startDate ? new Date(l.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Sep 10";
             const end = l.endDate ? new Date(l.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : start;
 
@@ -198,7 +198,7 @@ function LeaveManagement() {
 
             return {
               id: l._id || l.id,
-              leaveCode: `LV-${1040 + index}`,
+              leaveCode: l.leaveCode || `LV-${(l._id || l.id || `${1040 + index}`).slice(-4).toUpperCase()}`,
               isFromDB: true,
               officerName: officerName,
               initials: init,

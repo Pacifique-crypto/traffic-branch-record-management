@@ -314,9 +314,10 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
         const endStr = new Date(leaveRecord.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const lTypeStr = leaveRecord.leaveType || "Leave";
 
+        const targetRecipient = leaveRecord.officer._id || leaveRecord.officer;
         if (leaveRecord.status === "Approved") {
           await Notification.create({
-            recipient: leaveRecord.officer,
+            recipient: targetRecipient,
             title: "Leave Request Approved",
             message: `Your ${lTypeStr} request from ${startStr} to ${endStr} has been approved by the OIC.`,
             type: "LEAVE_APPROVED",
@@ -325,7 +326,7 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
         } else if (leaveRecord.status === "Rejected") {
           const reasonText = leaveRecord.rejectionRemarks ? ` Reason: ${leaveRecord.rejectionRemarks}` : "";
           await Notification.create({
-            recipient: leaveRecord.officer,
+            recipient: targetRecipient,
             title: "Leave Request Rejected",
             message: `Your ${lTypeStr} request from ${startStr} to ${endStr} has been rejected by the OIC.${reasonText}`,
             type: "LEAVE_REJECTED",

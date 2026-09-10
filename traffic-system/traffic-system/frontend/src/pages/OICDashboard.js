@@ -69,7 +69,7 @@ function OICDashboard() {
         const pendingReset = (resetRequests || []).filter(r => r.status === "PENDING").length;
 
         const pendingDBLeaves = (leaves || []).filter(l => l.status && l.status.toLowerCase() === "pending").length;
-        const pendingLeave = Array.isArray(leaves) && leaves.length > 0 ? pendingDBLeaves : 5;
+        const pendingLeave = Array.isArray(leaves) ? pendingDBLeaves : 5;
 
         setPendingAccCount(pendingAcc);
         setPendingViolCount(pendingViol);
