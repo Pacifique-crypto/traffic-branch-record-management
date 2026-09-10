@@ -167,6 +167,74 @@ const seedShifts = async () => {
 };
 seedShifts();
 
+// Auto-seed initial Officers and Admins
+const bcrypt = require("bcryptjs");
+const Officer = require("./models/Officer");
+const Admin = require("./models/Admin");
+
+const seedOfficersAndAdmins = async () => {
+  try {
+    const defaultPasswordHash = await bcrypt.hash("password123", 10);
+
+    const adminCount = await Admin.countDocuments();
+    if (adminCount === 0) {
+      await Admin.insertMany([
+        {
+          fullName: "IT Admin Officer",
+          username: "admin",
+          password: defaultPasswordHash,
+          role: "admin",
+          email: "admin@trafficbranch.gov.lk"
+        },
+        {
+          fullName: "OIC Traffic Branch",
+          username: "oic",
+          password: defaultPasswordHash,
+          role: "oic",
+          email: "oic@trafficbranch.gov.lk"
+        }
+      ]);
+      console.log("Admin accounts auto-seeded successfully! ✅");
+    }
+
+    const officerCount = await Officer.countDocuments();
+    if (officerCount === 0) {
+      await Officer.insertMany([
+        {
+          fullName: "Traffic Officer Perera",
+          username: "PC-09023",
+          policeId: "PC-09023",
+          rank: "Constable",
+          gender: "Male",
+          contactNo: "+94 77 123 4567",
+          nic: "199812345678",
+          password: defaultPasswordHash,
+          role: "officer",
+          status: "Active",
+          station: "Negombo PS"
+        },
+        {
+          fullName: "WPC Lihini Silva",
+          username: "WPC-0081",
+          policeId: "WPC-0081",
+          rank: "WPC",
+          gender: "Female",
+          contactNo: "+94 71 987 6543",
+          nic: "199598765432",
+          password: defaultPasswordHash,
+          role: "officer",
+          status: "Active",
+          station: "Kochchikade PS"
+        }
+      ]);
+      console.log("Officer accounts auto-seeded successfully! ✅");
+    }
+  } catch (err) {
+    console.error("Failed to seed initial officers/admins:", err);
+  }
+};
+seedOfficersAndAdmins();
+
 // test route
 app.get("/", (req, res) => {
   res.send("API Running...");
