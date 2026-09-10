@@ -176,6 +176,23 @@ router.post(["/", "/leaves", "/api/leaves"], verifyToken, async (req, res) => {
 
   } catch (error) {
     console.error("Error creating officer leave:", error);
+    if (error.code === 11000 || String(error.message).includes("officer_1_date_1")) {
+      try {
+        await OfficerAvailability.collection.dropIndex("officer_1_date_1");
+        console.log("Dropped legacy index officer_1_date_1 on duplicate key error. Retrying save... ✅");
+        await newLeave.save();
+        await newLeave.populate([
+          { path: "officer", select: "fullName policeId rank username contactNo address" },
+          { path: "actingOfficer", select: "fullName policeId rank username" }
+        ]);
+        return res.status(201).json({
+          message: "Officer leave request submitted successfully.",
+          leave: newLeave
+        });
+      } catch (retryErr) {
+        console.error("Retry after index drop failed:", retryErr);
+      }
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -203,10 +220,30 @@ router.get(["/me", "/leaves/me", "/api/leaves/me"], verifyToken, async (req, res
 // ==================================================
 router.get(["/", "/leaves", "/api/leaves"], verifyToken, async (req, res) => {
   try {
-    const leaves = await OfficerAvailability.find()
+    const rawLeaves = await OfficerAvailability.find()
       .populate("officer", "fullName policeId rank username contactNo address")
       .populate("actingOfficer", "fullName policeId rank username")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const Admin = require("../models/Admin");
+    const leaves = await Promise.all(
+      rawLeaves.map(async (l) => {
+        if (!l.officer && l.officer !== undefined) {
+          const adminDoc = await Admin.findById(l.officer || l.createdBy).lean();
+          if (adminDoc) {
+            l.officer = {
+              _id: adminDoc._id,
+              fullName: adminDoc.fullName,
+              policeId: adminDoc.username || "ADMIN",
+              rank: adminDoc.role || "Officer",
+              username: adminDoc.username
+            };
+          }
+        }
+        return l;
+      })
+    );
 
     res.json(leaves);
   } catch (error) {
