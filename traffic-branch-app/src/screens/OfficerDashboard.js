@@ -61,6 +61,7 @@ export default function OfficerDashboard({ navigation }) {
   // My Requests list from DB
   const [myRequestsList, setMyRequestsList] = useState([]);
   const [loadingMyRequests, setLoadingMyRequests] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   // Current formatted application date
   const todayDateStr = new Date().toISOString().split('T')[0];
@@ -69,6 +70,26 @@ export default function OfficerDashboard({ navigation }) {
     month: 'short',
     year: 'numeric'
   });
+
+  // Fetch logged-in officer notifications count
+  const fetchNotificationsCount = async () => {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (global.userToken) {
+        headers['Authorization'] = `Bearer ${global.userToken}`;
+      }
+      const response = await fetch(`${BASE_URL}/notifications/me`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const unread = data.filter(n => !n.isRead).length;
+          setUnreadNotifCount(unread);
+        }
+      }
+    } catch (err) {
+      console.log('Error fetching notifications count:', err);
+    }
+  };
 
   // Fetch logged-in officer profile
   const fetchOfficerProfile = async () => {
@@ -80,13 +101,13 @@ export default function OfficerDashboard({ navigation }) {
       const response = await fetch(`${BASE_URL}/officers/me`, { headers });
       if (response.ok) {
         const data = await response.json();
-        if (data && data._id) {
-          setOfficer(data);
-          global.loggedOfficer = data;
-        }
+        setOfficer(data);
+        if (data.fullName) global.loggedOfficerName = data.fullName;
+        if (data.policeId) global.loggedOfficerId = data.policeId;
+        if (data.rank) global.loggedOfficerRank = data.rank;
       }
     } catch (err) {
-      console.log('Error fetching officer profile in dashboard:', err);
+      console.log('Error fetching officer profile:', err);
     }
   };
 
@@ -128,12 +149,6 @@ export default function OfficerDashboard({ navigation }) {
               relieverDetail: leaf.actingOfficer ? `${leaf.actingOfficer.fullName} (${leaf.actingOfficer.policeId || leaf.actingOfficer.rank || 'Officer'})` : 'Unassigned',
               authorizedBy: leaf.status === 'Approved' ? 'OIC Traffic Branch' : undefined,
               authorizedRole: leaf.status === 'Approved' ? 'Officer-In-Charge (OIC)' : undefined,
-              rejectionReason: leaf.rejectionRemarks || 'No rejection reason specified.',
-              reapplyText: 'Re-apply with updated details ->',
-              footerText: leaf.status === 'Pending' 
-                ? 'Duty coverage pending OIC review' 
-                : leaf.status === 'Approved' 
-                  ? 'Endorsed by Officer-In-Charge (OIC)' 
                   : `Rejected: ${leaf.rejectionRemarks || 'Check officer feedback'}`
             };
           });
@@ -618,13 +633,26 @@ export default function OfficerDashboard({ navigation }) {
 
           {/* RIGHT - ICONS */}
           <View style={styles.topIcons}>
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color="#fff"
-              style={{ marginRight: 15 }}
-              onPress={() => navigation.navigate('Notifications')}
-            />
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ marginRight: 15, position: 'relative' }}>
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color="#fff"
+              />
+              {unreadNotifCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -3,
+                  backgroundColor: '#ef4444',
+                  borderRadius: 6,
+                  width: 10,
+                  height: 10,
+                  borderWidth: 1.5,
+                  borderColor: '#1e3a8a'
+                }} />
+              )}
+            </TouchableOpacity>
 
             <Ionicons
               name="person-circle-outline"
