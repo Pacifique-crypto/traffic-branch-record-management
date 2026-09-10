@@ -12,7 +12,7 @@ const VALID_LEAVE_TYPES = ["Annual", "Medical", "Emergency", "Casual", "Personal
 // ==================================================
 // 1. CREATE LEAVE RECORD
 // ==================================================
-router.post("/", verifyToken, async (req, res) => {
+router.post(["/", "/leaves", "/api/leaves"], verifyToken, async (req, res) => {
   try {
     const userRole = (req.user.role || "").toLowerCase().trim();
     const isAdminOrManager = ["admin", "it officer", "itofficer", "it_officer", "it", "oic", "oic traffic branch"].some(r => userRole.includes(r));
@@ -183,7 +183,7 @@ router.post("/", verifyToken, async (req, res) => {
 // ==================================================
 // 2. GET LEAVE RECORDS FOR LOGGED-IN OFFICER
 // ==================================================
-router.get("/me", verifyToken, async (req, res) => {
+router.get(["/me", "/leaves/me", "/api/leaves/me"], verifyToken, async (req, res) => {
   try {
     const officerId = req.user.id || req.user._id;
     const leaves = await OfficerAvailability.find({ officer: officerId })
@@ -201,7 +201,7 @@ router.get("/me", verifyToken, async (req, res) => {
 // ==================================================
 // 3. GET ALL LEAVE RECORDS (OIC / Admin view)
 // ==================================================
-router.get("/", verifyToken, async (req, res) => {
+router.get(["/", "/leaves", "/api/leaves"], verifyToken, async (req, res) => {
   try {
     const leaves = await OfficerAvailability.find()
       .populate("officer", "fullName policeId rank username contactNo address")
