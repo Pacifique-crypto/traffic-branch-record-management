@@ -524,8 +524,18 @@ router.delete("/violations/:id", verifyToken, authorizeRoles("oic", "admin"), as
 });
 
 // ==========================================
-// ✅ LEAVE MANAGEMENT ROUTE ALIASES (/api/leaves)
+// ✅ LEAVE MANAGEMENT & HEALTH ROUTE ALIASES
 // ==========================================
+router.get("/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const isConnected = mongoose.connection.readyState === 1;
+  res.json({
+    success: isConnected,
+    database: isConnected ? "connected" : "unavailable",
+    timestamp: new Date().toISOString()
+  });
+});
+
 const leaveRoutes = require("./leaveRoutes");
 router.use("/leaves", leaveRoutes);
 
