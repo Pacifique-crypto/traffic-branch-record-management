@@ -67,6 +67,21 @@ app.use("/api/notifications", notificationRoutes);
 const demoDriverLicenceRoutes = require("./routes/demoDriverLicenceRoutes");
 app.use("/api/demo-driver-licences", demoDriverLicenceRoutes);
 
+// System Health & Version routes
+app.get("/api/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const isConnected = mongoose.connection.readyState === 1;
+  res.json({
+    success: isConnected,
+    database: isConnected ? "connected" : "unavailable",
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/api/version", (req, res) => {
+  res.json({ version: "stage-2-v2", timestamp: Date.now() });
+});
+
 const dataRoutes = require("./routes/dataRoutes");
 app.use("/api", dataRoutes);
 
