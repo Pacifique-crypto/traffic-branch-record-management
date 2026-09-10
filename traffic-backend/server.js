@@ -59,7 +59,7 @@ const dutyRoutes = require("./routes/dutyRoutes");
 app.use("/api/duties", dutyRoutes);
 
 const leaveRoutes = require("./routes/leaveRoutes");
-app.use("/api/leaves", leaveRoutes);
+app.use(["/api/leaves", "/leaves"], leaveRoutes);
 
 const notificationRoutes = require("./routes/notificationRoutes");
 app.use("/api/notifications", notificationRoutes);
