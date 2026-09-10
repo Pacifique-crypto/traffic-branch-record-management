@@ -73,4 +73,19 @@ const officerAvailabilitySchema = new mongoose.Schema({
 // Compound index for querying officer leave periods
 officerAvailabilitySchema.index({ officer: 1, startDate: 1, endDate: 1 });
 
-module.exports = mongoose.model("OfficerAvailability", officerAvailabilitySchema);
+const OfficerAvailability = mongoose.model("OfficerAvailability", officerAvailabilitySchema);
+
+// Auto-drop legacy `officer_1_date_1` index if it exists in MongoDB Atlas/collection
+OfficerAvailability.on("index", async () => {
+  try {
+    const indexes = await OfficerAvailability.collection.indexes();
+    if (indexes.some(idx => idx.name === "officer_1_date_1")) {
+      await OfficerAvailability.collection.dropIndex("officer_1_date_1");
+      console.log("Legacy index officer_1_date_1 dropped from MongoDB collection! ✅");
+    }
+  } catch (err) {
+    // Ignore error if index is already absent or during initial connection
+  }
+});
+
+module.exports = OfficerAvailability;
