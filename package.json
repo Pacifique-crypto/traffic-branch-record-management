@@ -1,10 +1,21 @@
 {
   "name": "traffic-branch-record-management",
   "version": "1.0.0",
+  "description": "Traffic Branch Record Management System Unified Root",
+  "main": "traffic-backend/server.js",
   "scripts": {
+    "start": "node traffic-backend/server.js",
     "push-all": "git push-all"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.5.0",
+    "nodemailer": "^6.9.13",
+    "nodemon": "^3.1.14",
     "react-icons": "^5.7.0"
   }
 }
