@@ -165,6 +165,7 @@ const INITIAL_LEAVES_DATA = [
 function LeaveManagement() {
   const [leaves, setLeaves]               = useState([]);
   const [loading, setLoading]             = useState(true);
+  const [isRefreshing, setIsRefreshing]   = useState(false);
   const [activeTab, setActiveTab]         = useState("Pending");
   const [searchQuery, setSearchQuery]     = useState("");
   const [selectedCert, setSelectedCert]   = useState(null);
@@ -173,72 +174,81 @@ function LeaveManagement() {
   const [additionalRemarks, setAdditionalRemarks] = useState("");
   const [expandedCardIds, setExpandedCardIds] = useState({});
 
-  useEffect(() => {
-    const fetchDBLeaves = async () => {
-      setLoading(true);
-      try { 
-        const res = await getOfficerLeaves();
-        if (Array.isArray(res)) {
-          const dbMapped = res.map((l, index) => {
-            const officerName = l.officer?.fullName || l.officerName || "Traffic Officer";
-            const init = officerName.trim().split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "OF";
-            const start = l.startDate ? new Date(l.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Sep 10";
-            const end = l.endDate ? new Date(l.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : start;
+  const fetchDBLeaves = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    else setIsRefreshing(true);
 
-            let lType = l.leaveType || "Casual Leave";
-            if (!lType.toLowerCase().includes("leave")) lType += " Leave";
+    try { 
+      const res = await getOfficerLeaves();
+      if (Array.isArray(res)) {
+        const dbMapped = res.map((l, index) => {
+          const officerName = l.officer?.fullName || l.officerName || "Traffic Officer";
+          const init = officerName.trim().split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "OF";
+          const start = l.startDate ? new Date(l.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "Sep 10";
+          const end = l.endDate ? new Date(l.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : start;
 
-            const actingOfficerText = l.actingOfficer
-              ? `${l.actingOfficer.policeId || ''} ${l.actingOfficer.fullName ? '- ' + l.actingOfficer.fullName : ''}`.trim()
-              : "Roster Assigned Officer";
+          let lType = l.leaveType || "Casual Leave";
+          if (!lType.toLowerCase().includes("leave")) lType += " Leave";
 
-            const docs = Array.isArray(l.supportingDocuments) ? l.supportingDocuments : [];
-            const certUrl = l.medicalCertificateUrl || (docs.length > 0 ? docs[0].fileUrl : null);
-            const hasCert = !!certUrl || docs.length > 0 || lType.toLowerCase().includes("medical");
+          const actingOfficerText = l.actingOfficer
+            ? `${l.actingOfficer.policeId || ''} ${l.actingOfficer.fullName ? '- ' + l.actingOfficer.fullName : ''}`.trim()
+            : "Roster Assigned Officer";
 
-            const durDays = l.duration || 1;
+          const docs = Array.isArray(l.supportingDocuments) ? l.supportingDocuments : [];
+          const certUrl = l.medicalCertificateUrl || (docs.length > 0 ? docs[0].fileUrl : null);
+          const hasCert = !!certUrl || docs.length > 0 || lType.toLowerCase().includes("medical");
 
-            return {
-              id: l._id || l.id,
-              leaveCode: l.leaveCode || `LV-${(l._id || l.id || `${1040 + index}`).slice(-4).toUpperCase()}`,
-              isFromDB: true,
-              officerName: officerName,
-              initials: init,
-              policeId: l.officer?.policeId || l.officer?.username || "PC 0088",
-              rank: l.officer?.rank || "Constable",
-              leaveType: lType,
-              dateRange: `${start} – ${end}`,
-              durationMeta: `${durDays} day${durDays > 1 ? 's' : ''} · Requested via app`,
-              reason: l.remarks || "Officer leave request submitted via system.",
-              actingOfficer: actingOfficerText,
-              hasCertificate: hasCert,
-              certUrl: certUrl,
-              documents: docs,
-              dutyStrength: "6 of 8 officers on duty that day (from roster)",
-              leaveBalance: "Balance: Available",
-              overlapWarning: null,
-              appliedDate: new Date(l.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              lastLeaveDate: "Previous month",
-              contactNo: l.contactNo || l.officer?.contactNo || "071 234 5678",
-              duringLeaveAddress: l.address || l.officer?.address || "Registered Address",
-              status: l.status || "Pending"
-            };
-          });
+          const durDays = l.duration || 1;
+          const rawStatus = (l.status || "Pending").trim();
+          const normStatus = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
 
-          setLeaves(dbMapped);
-        } else {
-          setLeaves([]);
-        }
-      } catch (err) {
-        console.error("Failed to load leaves from API:", err);
+          return {
+            id: l._id || l.id,
+            leaveCode: l.leaveCode || `LV-${(l._id || l.id || `${1040 + index}`).slice(-4).toUpperCase()}`,
+            isFromDB: true,
+            officerName: officerName,
+            initials: init,
+            policeId: l.officer?.policeId || l.officer?.username || "PC 0088",
+            rank: l.officer?.rank || "Constable",
+            leaveType: lType,
+            dateRange: `${start} – ${end}`,
+            durationMeta: `${durDays} day${durDays > 1 ? 's' : ''} · Requested via app`,
+            reason: l.remarks || "Officer leave request submitted via system.",
+            actingOfficer: actingOfficerText,
+            hasCertificate: hasCert,
+            certUrl: certUrl,
+            documents: docs,
+            dutyStrength: "6 of 8 officers on duty that day (from roster)",
+            leaveBalance: "Balance: Available",
+            overlapWarning: null,
+            appliedDate: new Date(l.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            lastLeaveDate: "Previous month",
+            contactNo: l.contactNo || l.officer?.contactNo || "071 234 5678",
+            duringLeaveAddress: l.address || l.officer?.address || "Registered Address",
+            status: normStatus
+          };
+        });
+
+        setLeaves(dbMapped);
+      } else {
         setLeaves([]);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchDBLeaves();
+    } catch (err) {
+      console.error("Failed to load leaves from API:", err);
+      setLeaves([]);
+    } finally {
+      if (showLoading) setLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchDBLeaves(true);
+    const interval = setInterval(() => {
+      fetchDBLeaves(false);
+    }, 10000); // Auto-refresh leaves every 10 seconds!
+    return () => clearInterval(interval);
+  }, [fetchDBLeaves]);
 
   const toggleExpand = (id) => {
     setExpandedCardIds(prev => ({ ...prev, [id]: !prev[id] }));
@@ -306,10 +316,33 @@ function LeaveManagement() {
             <p className="lm-subtitle">Review and approve officer leave requests</p>
           </div>
 
-          {/* Pending Review Badge */}
-          <div className="lm-review-badge">
-            <FiClock size={16} color="#d97706" />
-            <span>{pendingCount} pending your review</span>
+          {/* Pending Review Badge & Refresh Button */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              className="lm-tab-btn"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                background: "#f1f5f9",
+                border: "1px solid #cbd5e1",
+                fontWeight: 600,
+                color: "#334155"
+              }}
+              onClick={() => fetchDBLeaves(true)}
+              title="Refresh live officer leave requests"
+            >
+              <FiRefreshCw size={14} className={isRefreshing || loading ? "spin-anim" : ""} />
+              <span>Refresh</span>
+            </button>
+
+            <div className="lm-review-badge">
+              <FiClock size={16} color="#d97706" />
+              <span>{pendingCount} pending your review</span>
+            </div>
           </div>
         </div>
 
