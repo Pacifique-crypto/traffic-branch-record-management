@@ -227,18 +227,29 @@ router.get(["/", "/leaves", "/api/leaves"], verifyToken, async (req, res) => {
       .lean();
 
     const Admin = require("../models/Admin");
+    const Officer = require("../models/Officer");
+
     const leaves = await Promise.all(
       rawLeaves.map(async (l) => {
-        if (!l.officer && l.officer !== undefined) {
-          const adminDoc = await Admin.findById(l.officer || l.createdBy).lean();
-          if (adminDoc) {
-            l.officer = {
-              _id: adminDoc._id,
-              fullName: adminDoc.fullName,
-              policeId: adminDoc.username || "ADMIN",
-              rank: adminDoc.role || "Officer",
-              username: adminDoc.username
-            };
+        if (!l.officer || !l.officer.fullName) {
+          const rawDoc = await OfficerAvailability.findById(l._id).lean();
+          const targetId = rawDoc?.officer || l.createdBy;
+          if (targetId) {
+            let userDoc = await Officer.findById(targetId).lean();
+            if (!userDoc) {
+              userDoc = await Admin.findById(targetId).lean();
+            }
+            if (userDoc) {
+              l.officer = {
+                _id: userDoc._id,
+                fullName: userDoc.fullName || userDoc.name || "Traffic Officer",
+                policeId: userDoc.policeId || userDoc.username || "PC 0001",
+                rank: userDoc.rank || userDoc.role || "Constable",
+                username: userDoc.username,
+                contactNo: userDoc.contactNo || "",
+                address: userDoc.address || ""
+              };
+            }
           }
         }
         return l;
