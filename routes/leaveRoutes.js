@@ -338,8 +338,16 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
       }
     }
 
-    const previousStatus = leaveRecord.status;
-    const statusChanged = status && status !== previousStatus;
+    const previousStatus = leaveRecord.status || "Pending";
+    let normalizedStatus = status;
+    if (status && typeof status === "string") {
+      const s = status.trim().toLowerCase();
+      if (s === "approved") normalizedStatus = "Approved";
+      else if (s === "rejected") normalizedStatus = "Rejected";
+      else if (s === "pending") normalizedStatus = "Pending";
+    }
+
+    const statusChanged = normalizedStatus && normalizedStatus.toLowerCase() !== previousStatus.toLowerCase();
 
     if (officer) leaveRecord.officer = officer;
     leaveRecord.startDate = start;
@@ -347,7 +355,7 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
     leaveRecord.duration = durationDays;
     if (leaveType) leaveRecord.leaveType = leaveType;
     if (remarks !== undefined) leaveRecord.remarks = remarks;
-    if (status) leaveRecord.status = status;
+    if (normalizedStatus) leaveRecord.status = normalizedStatus;
     if (rejectionRemarks !== undefined) leaveRecord.rejectionRemarks = rejectionRemarks;
     if (actingOfficer !== undefined) leaveRecord.actingOfficer = actingOfficer;
     if (req.body.medicalCertificateUrl !== undefined) leaveRecord.medicalCertificateUrl = req.body.medicalCertificateUrl;
@@ -355,14 +363,16 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
 
     await leaveRecord.save();
 
+    // Target recipient resolution: officer ObjectId OR createdBy ObjectId
+    const targetRecipient = leaveRecord.officer?._id || leaveRecord.officer || leaveRecord.createdBy;
+
     // Create persistent notification ONLY when status transitions (prevents duplicate notifications)
-    if (statusChanged && leaveRecord.officer) {
+    if (statusChanged && targetRecipient) {
       try {
         const startStr = new Date(leaveRecord.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const endStr = new Date(leaveRecord.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const lTypeStr = leaveRecord.leaveType || "Leave";
 
-        const targetRecipient = leaveRecord.officer._id || leaveRecord.officer;
         if (leaveRecord.status === "Approved") {
           await Notification.create({
             recipient: targetRecipient,
@@ -371,6 +381,7 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
             type: "LEAVE_APPROVED",
             relatedLeave: leaveRecord._id
           });
+          console.log(`Notification created for officer ${targetRecipient}: Leave Request Approved ✅`);
         } else if (leaveRecord.status === "Rejected") {
           const reasonText = leaveRecord.rejectionRemarks ? ` Reason: ${leaveRecord.rejectionRemarks}` : "";
           await Notification.create({
@@ -381,6 +392,7 @@ router.put("/:id", verifyToken, authorizeRoles("admin", "it officer", "oic"), as
             relatedLeave: leaveRecord._id,
             rejectionRemarks: leaveRecord.rejectionRemarks || ""
           });
+          console.log(`Notification created for officer ${targetRecipient}: Leave Request Rejected ❌`);
         }
       } catch (notifErr) {
         console.error("Error creating notification on leave status update:", notifErr);
