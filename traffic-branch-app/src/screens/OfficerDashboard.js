@@ -149,6 +149,11 @@ export default function OfficerDashboard({ navigation }) {
               relieverDetail: leaf.actingOfficer ? `${leaf.actingOfficer.fullName} (${leaf.actingOfficer.policeId || leaf.actingOfficer.rank || 'Officer'})` : 'Unassigned',
               authorizedBy: leaf.status === 'Approved' ? 'OIC Traffic Branch' : undefined,
               authorizedRole: leaf.status === 'Approved' ? 'Officer-In-Charge (OIC)' : undefined,
+              rejectionRemarks: leaf.rejectionRemarks || "",
+              footerText: leaf.status === 'Pending' 
+                ? 'Duty coverage pending OIC review' 
+                : leaf.status === 'Approved' 
+                  ? 'Endorsed by Officer-In-Charge (OIC)' 
                   : `Rejected: ${leaf.rejectionRemarks || 'Check officer feedback'}`
             };
           });
