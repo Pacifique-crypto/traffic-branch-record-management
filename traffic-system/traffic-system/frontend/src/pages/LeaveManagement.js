@@ -163,7 +163,8 @@ const INITIAL_LEAVES_DATA = [
 ];
 
 function LeaveManagement() {
-  const [leaves, setLeaves]               = useState(INITIAL_LEAVES_DATA);
+  const [leaves, setLeaves]               = useState([]);
+  const [loading, setLoading]             = useState(true);
   const [activeTab, setActiveTab]         = useState("Pending");
   const [searchQuery, setSearchQuery]     = useState("");
   const [selectedCert, setSelectedCert]   = useState(null);
@@ -174,6 +175,7 @@ function LeaveManagement() {
 
   useEffect(() => {
     const fetchDBLeaves = async () => {
+      setLoading(true);
       try { 
         const res = await getOfficerLeaves();
         if (Array.isArray(res)) {
@@ -223,12 +225,15 @@ function LeaveManagement() {
             };
           });
 
-          // Merge DB leaves with initial mock list
-          const combined = [...dbMapped, ...INITIAL_LEAVES_DATA.filter(m => !dbMapped.some(d => d.id === m.id))];
-          setLeaves(combined);
+          setLeaves(dbMapped);
+        } else {
+          setLeaves([]);
         }
       } catch (err) {
         console.error("Failed to load leaves from API:", err);
+        setLeaves([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -350,8 +355,22 @@ function LeaveManagement() {
         </div>
 
         {/* CARDS GRID */}
-        <div className="lm-grid">
-          {filteredLeaves.map(item => {
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#64748b" }}>
+            <FiClock size={32} style={{ marginBottom: "12px", color: "#2563eb" }} />
+            <p style={{ fontSize: "15px", fontWeight: "500" }}>Loading live officer leave requests from database...</p>
+          </div>
+        ) : filteredLeaves.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", backgroundColor: "#f8fafc", borderRadius: "16px", border: "1px dashed #cbd5e1", margin: "20px 0" }}>
+            <FiCheckCircle size={40} color="#94a3b8" style={{ marginBottom: "12px" }} />
+            <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#334155" }}>No Leave Requests Found</h3>
+            <p style={{ fontSize: "14px", color: "#64748b", marginTop: "4px" }}>
+              There are currently no {activeTab !== "All" ? activeTab.toLowerCase() : ""} officer leave requests in the system.
+            </p>
+          </div>
+        ) : (
+          <div className="lm-grid">
+            {filteredLeaves.map(item => {
             const isExpanded = !!expandedCardIds[item.id];
             const isMedical = item.leaveType.toLowerCase().includes("medical");
             const isPersonal = item.leaveType.toLowerCase().includes("personal");
@@ -500,15 +519,8 @@ function LeaveManagement() {
               </div>
             );
           })}
-
-          {filteredLeaves.length === 0 && (
-            <div className="lm-empty-box">
-              <FiFileText size={36} color="#94a3b8" />
-              <p className="lm-empty-title">No leave requests found</p>
-              <p className="lm-empty-sub">There are no leave requests matching your search or filter criteria.</p>
-            </div>
-          )}
         </div>
+        )}
 
       </div>
 

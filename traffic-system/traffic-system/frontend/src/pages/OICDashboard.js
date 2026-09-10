@@ -69,7 +69,7 @@ function OICDashboard() {
         const pendingReset = (resetRequests || []).filter(r => r.status === "PENDING").length;
 
         const pendingDBLeaves = (leaves || []).filter(l => l.status && l.status.toLowerCase() === "pending").length;
-        const pendingLeave = Array.isArray(leaves) ? pendingDBLeaves : 5;
+        const pendingLeave = Array.isArray(leaves) ? pendingDBLeaves : 0;
 
         setPendingAccCount(pendingAcc);
         setPendingViolCount(pendingViol);
@@ -145,10 +145,7 @@ function OICDashboard() {
         });
 
         // 4. Leave Requests
-        const leavesList = Array.isArray(leaves) && leaves.length > 0 ? leaves : [
-          { id: "leave-1", leaveCode: "LV-1042", officerName: "Nadeesha Fernando", leaveType: "Medical Leave", startDate: "2026-09-10", endDate: "2026-09-12", createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(), status: "Pending" },
-          { id: "leave-2", leaveCode: "LV-1043", officerName: "Ruwan Jayasuriya", leaveType: "Casual Leave", startDate: "2026-09-09", endDate: "2026-09-09", createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), status: "Pending" }
-        ];
+        const leavesList = Array.isArray(leaves) ? leaves : [];
 
         leavesList.forEach(l => {
           const date = new Date(l.createdAt || l.startDate || 0);
