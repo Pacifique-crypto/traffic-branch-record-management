@@ -43,4 +43,4 @@ Thumbs.db
 *.key
 *.mobileprovision
 backend/.env
-traffic-backend/.env
+!traffic-backend/.env
