@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const DutyRule = require("../models/DutyRule");
 const DutyRoster = require("../models/DutyRoster");
 const OfficerAvailability = require("../models/OfficerAvailability");
@@ -275,6 +276,12 @@ router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), asyn
       return res.status(400).json({ message: conflictError });
     }
 
+    const processedAssignments = (assignments || []).map(asg => ({
+      ...asg,
+      officer: asg.officer?._id || asg.officer || asg.officerId,
+      date: asg.date ? new Date(asg.date) : (asg.dateStr ? new Date(asg.dateStr) : undefined)
+    }));
+
     const roster = new DutyRoster({
       rosterType,
       status: status || "Draft",
@@ -282,12 +289,13 @@ router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), asyn
       weekStart,
       weekEnd,
       shift,
-      createdBy: req.user.username,
-      assignments
+      createdBy: req.user?.username || req.user?.name || "System",
+      assignments: processedAssignments
     });
 
     await roster.save();
-    res.status(201).json(roster);
+    const populated = await DutyRoster.findById(roster._id).populate("assignments.officer", "fullName policeId rank");
+    res.status(201).json(populated);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -312,7 +320,7 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
     if (status) {
       updateData.status = status;
       if (status === "Approved") {
-        updateData.approvedBy = req.user.username;
+        updateData.approvedBy = req.user?.username || req.user?.name || "OIC";
       }
       if (status === "Published") {
         updateData.publishedDate = new Date();
@@ -322,14 +330,20 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
       updateData.rejectionRemarks = rejectionRemarks;
     }
     if (assignments) {
-      updateData.assignments = assignments;
+      updateData.assignments = assignments.map(asg => ({
+        ...asg,
+        officer: asg.officer?._id || asg.officer || asg.officerId,
+        date: asg.date ? new Date(asg.date) : (asg.dateStr ? new Date(asg.dateStr) : undefined)
+      }));
     }
 
     const roster = await DutyRoster.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true }
-    );
+    ).populate("assignments.officer", "fullName policeId rank");
+
+    if (!roster) return res.status(404).json({ message: "Roster not found" });
 
     res.json(roster);
   } catch (err) {

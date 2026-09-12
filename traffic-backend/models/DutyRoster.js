@@ -9,6 +9,9 @@ const dutyAssignmentSchema = new mongoose.Schema({
   officerName: String,
   officerRank: String,
   officerPoliceId: String,
+  rank: String,
+  policeId: String,
+  name: String,
   location: {
     type: String,
     required: true
@@ -25,6 +28,10 @@ const dutyAssignmentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  remarks: {
+    type: String,
+    default: ""
+  },
   aiRecommendationReason: {
     type: String,
     default: ""
@@ -39,7 +46,7 @@ const dutyRosterSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["Draft", "Pending Approval", "Approved", "Rejected", "Published"],
+    enum: ["Draft", "Pending Approval", "Approved", "Rejected", "Published", "Changes Requested"],
     default: "Draft"
   },
   date: Date, // For daily rosters
@@ -52,6 +59,11 @@ const dutyRosterSchema = new mongoose.Schema({
   },
   approvedBy: String,
   publishedDate: Date,
+  rejectionRemarks: {
+    type: String,
+    default: ""
+  },
+  assignments: [dutyAssignmentSchema]
 }, { timestamps: true });
 
 // Indexes for high-performance roster filtering and officer mobile app queries

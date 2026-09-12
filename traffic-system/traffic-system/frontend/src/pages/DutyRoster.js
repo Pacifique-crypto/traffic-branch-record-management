@@ -249,7 +249,12 @@ export default function DutyRoster() {
             officerIndex++;
             const key = `${assignedOfficer._id}_${dayStr}`;
             newAssignments[key] = {
+              officer: assignedOfficer._id,
               officerId: assignedOfficer._id,
+              officerName: assignedOfficer.fullName,
+              officerRank: assignedOfficer.rank,
+              officerPoliceId: assignedOfficer.policeId,
+              date: new Date(dayStr),
               dateStr: dayStr,
               dutyType: req.type,
               shift: req.shift,
@@ -266,7 +271,12 @@ export default function DutyRoster() {
             officerIndex++;
             const key = `${assignedOfficer._id}_${dayStr}`;
             newAssignments[key] = {
+              officer: assignedOfficer._id,
               officerId: assignedOfficer._id,
+              officerName: assignedOfficer.fullName,
+              officerRank: assignedOfficer.rank,
+              officerPoliceId: assignedOfficer.policeId,
+              date: new Date(dayStr),
               dateStr: dayStr,
               dutyType: sp.name || "Special Duty",
               shift: sp.shift,
@@ -342,10 +352,18 @@ export default function DutyRoster() {
       setActiveRosterDoc(matching);
       const map = {};
       (matching.assignments || []).forEach(asg => {
-        if (asg && asg.officer) {
-          const offId = (asg.officer._id || asg.officer).toString();
-          const dStr = formatDateStr(asg.date);
-          map[`${offId}_${dStr}`] = asg;
+        if (asg) {
+          const rawOffId = asg.officer?._id || asg.officer || asg.officerId;
+          if (rawOffId) {
+            const offId = rawOffId.toString();
+            const dStr = formatDateStr(asg.date || asg.dateStr);
+            map[`${offId}_${dStr}`] = {
+              ...asg,
+              officer: rawOffId,
+              officerId: rawOffId,
+              dateStr: dStr
+            };
+          }
         }
       });
       setAssignmentsMap(map);
@@ -491,10 +509,14 @@ export default function DutyRoster() {
       const assignmentsList = Object.values(assignmentsMap);
 
       if (currentRosterId) {
-        await updateDutyRosterStatus(currentRosterId, {
+        const res = await updateDutyRosterStatus(currentRosterId, {
           status: "Draft",
           assignments: assignmentsList
         });
+        if (res && (res.message || res.error) && !res._id) {
+          showMsg(res.message || res.error || "Failed to update draft", "error");
+          return;
+        }
         showMsg("Weekly roster draft updated successfully!");
       } else {
         const res = await createDutyRoster({
@@ -507,11 +529,14 @@ export default function DutyRoster() {
         if (res && res._id) {
           setCurrentRosterId(res._id);
           showMsg("New weekly roster created successfully!");
+        } else {
+          showMsg(res && (res.message || res.error) ? (res.message || res.error) : "Failed to save roster draft", "error");
+          return;
         }
       }
       loadMasterData();
     } catch (err) {
-      showMsg("Failed to save roster draft", "error");
+      showMsg("Failed to save roster draft: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -533,18 +558,30 @@ export default function DutyRoster() {
           weekEnd: weekEndStr,
           assignments: assignmentsList
         });
-        targetId = res._id;
+        if (res && (res.message || res.error) && !res._id) {
+          showMsg(res.message || res.error || "Error creating roster for submission", "error");
+          return;
+        }
+        if (res && res._id) {
+          targetId = res._id;
+          setCurrentRosterId(res._id);
+        }
       }
 
-      await updateDutyRosterStatus(targetId, {
-        status: "Pending Approval",
-        assignments: assignmentsList
-      });
-
-      showMsg("Roster submitted to OIC for approval successfully!");
+      if (targetId) {
+        const res = await updateDutyRosterStatus(targetId, {
+          status: "Pending Approval",
+          assignments: assignmentsList
+        });
+        if (res && (res.message || res.error) && !res._id) {
+          showMsg(res.message || res.error || "Error submitting roster to OIC", "error");
+          return;
+        }
+        showMsg("Roster submitted to OIC for approval successfully!");
+      }
       loadMasterData();
     } catch (err) {
-      showMsg("Error submitting roster to OIC", "error");
+      showMsg("Error submitting roster to OIC: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -555,11 +592,15 @@ export default function DutyRoster() {
     if (!isOIC || !currentRosterId) return;
     try {
       setLoading(true);
-      await updateDutyRosterStatus(currentRosterId, { status: "Approved" });
+      const res = await updateDutyRosterStatus(currentRosterId, { status: "Approved" });
+      if (res && (res.message || res.error) && !res._id) {
+        showMsg(res.message || res.error || "Error approving roster", "error");
+        return;
+      }
       showMsg("Roster approved successfully!");
       loadMasterData();
     } catch (err) {
-      showMsg("Error approving roster", "error");
+      showMsg("Error approving roster: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -570,15 +611,19 @@ export default function DutyRoster() {
     if (!isOIC || !currentRosterId) return;
     try {
       setLoading(true);
-      await updateDutyRosterStatus(currentRosterId, {
+      const res = await updateDutyRosterStatus(currentRosterId, {
         status: "Rejected",
         rejectionRemarks: rejectionRemarks.trim()
       });
+      if (res && (res.message || res.error) && !res._id) {
+        showMsg(res.message || res.error || "Error rejecting roster", "error");
+        return;
+      }
       showMsg("Roster rejected with remarks.");
       setRejectModalOpen(false);
       loadMasterData();
     } catch (err) {
-      showMsg("Error rejecting roster", "error");
+      showMsg("Error rejecting roster: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -589,11 +634,15 @@ export default function DutyRoster() {
     if (!currentRosterId) return;
     try {
       setLoading(true);
-      await updateDutyRosterStatus(currentRosterId, { status: "Published" });
+      const res = await updateDutyRosterStatus(currentRosterId, { status: "Published" });
+      if (res && (res.message || res.error) && !res._id) {
+        showMsg(res.message || res.error || "Error publishing roster", "error");
+        return;
+      }
       showMsg("Roster published successfully! Visible on officer mobile app.");
       loadMasterData();
     } catch (err) {
-      showMsg("Error publishing roster", "error");
+      showMsg("Error publishing roster: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
