@@ -1047,17 +1047,21 @@ export default function DutyRoster() {
       try {
         setLoading(true);
         if (currentRosterId) {
-          await updateDutyRosterStatus(currentRosterId, {
+          const res = await updateDutyRosterStatus(currentRosterId, {
             status: "Changes Requested",
-            remarks: requestChangesReason
+            rejectionRemarks: (requestChangesReason || "").trim()
           });
+          if (res && (res.message || res.error) && !res._id) {
+            showMsg(res.message || res.error || "Failed to request changes", "error");
+            return;
+          }
         }
         showMsg("Changes requested successfully. Roster sent back to IT Officer.", "success");
         setRequestChangesOpen(false);
         setOicViewMode("approval_list");
         loadMasterData();
       } catch (err) {
-        showMsg("Failed to request changes", "error");
+        showMsg("Failed to request changes: " + (err.message || err), "error");
       } finally {
         setLoading(false);
       }

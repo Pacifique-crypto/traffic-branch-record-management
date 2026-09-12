@@ -266,10 +266,24 @@ const validateApprovedLeaveConflicts = async (assignments, rosterDate, rosterWee
   return null;
 };
 
+const ALLOWED_TRANSITIONS = {
+  "Draft": ["Draft", "Pending Approval"],
+  "Pending Approval": ["Pending Approval", "Approved", "Rejected", "Changes Requested"],
+  "Changes Requested": ["Changes Requested", "Draft", "Pending Approval"],
+  "Approved": ["Approved", "Published"],
+  "Rejected": ["Rejected"],
+  "Published": ["Published"]
+};
+
 // Create/save Roster
 router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
   try {
     const { rosterType, status, date, weekStart, weekEnd, shift, assignments } = req.body;
+
+    const initialStatus = status || "Draft";
+    if (!["Draft", "Pending Approval"].includes(initialStatus)) {
+      return res.status(400).json({ message: `New roster cannot be created directly with status '${initialStatus}'.` });
+    }
 
     const conflictError = await validateApprovedLeaveConflicts(assignments, date, weekStart);
     if (conflictError) {
@@ -284,7 +298,7 @@ router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), asyn
 
     const roster = new DutyRoster({
       rosterType,
-      status: status || "Draft",
+      status: initialStatus,
       date,
       weekStart,
       weekEnd,
@@ -305,9 +319,31 @@ router.post("/rosters", verifyToken, authorizeRoles("admin", "it officer"), asyn
 router.put("/rosters/:id", verifyToken, async (req, res) => {
   try {
     const { status, assignments, approvedBy, rejectionRemarks } = req.body;
-    
+
+    const existingRoster = await DutyRoster.findById(req.params.id);
+    if (!existingRoster) return res.status(404).json({ message: "Roster not found" });
+
+    // Validate status transition
+    if (status && status !== existingRoster.status) {
+      const allowed = ALLOWED_TRANSITIONS[existingRoster.status] || [];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          message: `Invalid status transition from '${existingRoster.status}' to '${status}'.`
+        });
+      }
+    }
+
+    // Validate remarks required for Rejected and Changes Requested
+    if (status === "Rejected" || status === "Changes Requested") {
+      const remarks = rejectionRemarks !== undefined ? rejectionRemarks : existingRoster.rejectionRemarks;
+      if (!remarks || !String(remarks).trim()) {
+        return res.status(400).json({
+          message: `Remarks are required when setting status to '${status}'.`
+        });
+      }
+    }
+
     if (assignments) {
-      const existingRoster = await DutyRoster.findById(req.params.id);
       const rDate = req.body.date || existingRoster?.date;
       const rWeekStart = req.body.weekStart || existingRoster?.weekStart;
       const conflictError = await validateApprovedLeaveConflicts(assignments, rDate, rWeekStart);
@@ -343,8 +379,6 @@ router.put("/rosters/:id", verifyToken, async (req, res) => {
       { new: true }
     ).populate("assignments.officer", "fullName policeId rank");
 
-    if (!roster) return res.status(404).json({ message: "Roster not found" });
-
     res.json(roster);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -379,7 +413,8 @@ router.get("/officer/:policeId", verifyToken, async (req, res) => {
     rosters.forEach(r => {
       if (Array.isArray(r.assignments)) {
         r.assignments.forEach(asg => {
-          if (asg && asg.officer && asg.officer.toString() === officer._id.toString()) {
+          const asgOffId = asg?.officer?._id || asg?.officer;
+          if (asgOffId && asgOffId.toString() === officer._id.toString()) {
             officerDuties.push({
               id: asg._id,
               rosterId: r._id,
@@ -388,6 +423,7 @@ router.get("/officer/:policeId", verifyToken, async (req, res) => {
               dutyType: asg.dutyType,
               date: asg.date,
               shift: asg.shift,
+              remarks: asg.remarks || "",
               publishedDate: r.publishedDate
             });
           }
