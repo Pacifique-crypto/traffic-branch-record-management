@@ -35,6 +35,9 @@ const dutyAssignmentSchema = new mongoose.Schema({
   aiRecommendationReason: {
     type: String,
     default: ""
+  },
+  vehicle: {
+    type: mongoose.Schema.Types.Mixed
   }
 });
 

@@ -195,6 +195,33 @@ router.post("/availability", verifyToken, async (req, res) => {
 });
 
 // ==========================================
+// AUTO GENERATE ROSTER API
+// ==========================================
+router.post("/generate", verifyToken, authorizeRoles("admin", "it officer"), async (req, res) => {
+  try {
+    const { weekStart, weekEnd, dutyRequirements, specialDuties, enabledRules } = req.body;
+
+    if (!weekStart || !weekEnd) {
+      return res.status(400).json({ message: "weekStart and weekEnd parameters are required." });
+    }
+
+    const { generateDutyRoster } = require("../services/dutyGenerator");
+    const result = await generateDutyRoster({
+      weekStart,
+      weekEnd,
+      dutyRequirements: dutyRequirements || [],
+      specialDuties: specialDuties || [],
+      enabledRules: enabledRules || {}
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Auto generate route error:", err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ==========================================
 // DUTY ROSTERS API
 // ==========================================
 

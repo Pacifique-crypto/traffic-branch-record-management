@@ -302,6 +302,15 @@ export const getDutyRosterById = async (id) => {
   return res.json();
 };
 
+export const generateDutyRoster = async (data) => {
+  const res = await fetch(`${BASE_URL}/duties/generate`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
 export const createDutyRoster = async (data) => {
   const res = await fetch(`${BASE_URL}/duties/rosters`, {
     method: "POST",

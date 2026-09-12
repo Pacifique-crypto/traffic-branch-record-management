@@ -26,7 +26,7 @@ import {
 import {
   getDutyRosters, getDutyRosterById, createDutyRoster,
   updateDutyRosterStatus, deleteDutyRoster, getOfficers,
-  getDutyShifts, getOfficerLeaves, getVehicles
+  getDutyShifts, getOfficerLeaves, getVehicles, generateDutyRoster
 } from "../api";
 
 // Helpers
@@ -220,79 +220,93 @@ export default function DutyRoster() {
   ]);
 
   const [submitToOICModalOpen, setSubmitToOICModalOpen] = useState(false);
+  const [autoGenResult, setAutoGenResult] = useState(null);
 
-  const handleRunAutoGenerate = () => {
+  const handleRunAutoGenerate = async () => {
     try {
       setLoading(true);
-      const newAssignments = { ...assignmentsMap };
-      const days = weekDays;
 
-      const leaveOfficerIds = leaves
-        .filter(l => (l.status || "").toLowerCase() === "approved")
-        .map(l => l.officerId || (l.officer && (l.officer._id || l.officer)));
-      const activeOfficers = officers.filter(o => !leaveOfficerIds.includes(o._id));
+      const enabledRulesMap = {
+        leaveCheck: true,
+        avoidOverlap: true,
+        respectMinRest: true,
+        checkRank: true,
+        checkEligibility: true,
+        balanceWorkload: true,
+        checkSpecialDuties: true,
+        avoidRepeatedNight: true,
+        avoidMorningAfterNight: true,
+        maintainRequiredCount: true
+      };
 
-      if (activeOfficers.length === 0) {
-        showMsg("No available officers to auto-assign.", "warning");
-        setLoading(false);
+      schedulingRules.forEach(rule => {
+        if (rule.id === 1) enabledRulesMap.leaveCheck = rule.enabled;
+        if (rule.id === 2) enabledRulesMap.avoidOverlap = rule.enabled;
+        if (rule.id === 3) enabledRulesMap.respectMinRest = rule.enabled;
+        if (rule.id === 4) enabledRulesMap.checkRank = rule.enabled;
+        if (rule.id === 5) enabledRulesMap.checkEligibility = rule.enabled;
+        if (rule.id === 6) enabledRulesMap.balanceWorkload = rule.enabled;
+        if (rule.id === 7) enabledRulesMap.checkSpecialDuties = rule.enabled;
+        if (rule.id === 8) enabledRulesMap.avoidRepeatedNight = rule.enabled;
+        if (rule.id === 9) enabledRulesMap.avoidMorningAfterNight = rule.enabled;
+        if (rule.id === 10) enabledRulesMap.maintainRequiredCount = rule.enabled;
+      });
+
+      const payload = {
+        weekStart: weekStartStr,
+        weekEnd: weekEndStr,
+        dutyRequirements: dutyRequirements.map(r => ({
+          type: r.type,
+          shift: r.shift,
+          location: r.location,
+          required: r.required,
+          minRank: r.rank,
+          priority: r.priority
+        })),
+        specialDuties: specialDutiesList.map(s => ({
+          name: s.name,
+          date: s.date,
+          shift: s.shift,
+          location: s.location,
+          required: s.required,
+          minRank: s.rank,
+          priority: s.priority
+        })),
+        enabledRules: enabledRulesMap
+      };
+
+      const result = await generateDutyRoster(payload);
+
+      if (result && (result.error || result.message) && !result.assignments) {
+        showMsg("Auto generate failed: " + (result.error || result.message), "error");
         return;
       }
 
-      let officerIndex = 0;
-      days.forEach((dayDate) => {
-        const dayStr = formatDateStr(dayDate);
+      setAutoGenResult(result);
 
-        // Assign normal duty requirements
-        dutyRequirements.forEach((req) => {
-          for (let i = 0; i < req.required; i++) {
-            const assignedOfficer = activeOfficers[officerIndex % activeOfficers.length];
-            officerIndex++;
-            const key = `${assignedOfficer._id}_${dayStr}`;
-            newAssignments[key] = {
-              officer: assignedOfficer._id,
-              officerId: assignedOfficer._id,
-              officerName: assignedOfficer.fullName,
-              officerRank: assignedOfficer.rank,
-              officerPoliceId: assignedOfficer.policeId,
-              date: new Date(dayStr),
-              dateStr: dayStr,
-              dutyType: req.type,
-              shift: req.shift,
-              location: req.location,
-              remarks: `Auto-generated (${req.priority} Priority)`
-            };
-          }
+      // Store returned assignments into assignmentsMap
+      const newAssignmentsMap = {};
+      if (Array.isArray(result.assignments)) {
+        result.assignments.forEach((asg, idx) => {
+          const rawOffId = asg.officer?._id || asg.officer || asg.officerId;
+          const offId = rawOffId ? rawOffId.toString() : "";
+          const dStr = asg.dateStr || formatDateStr(asg.date);
+          const key = `${offId}_${dStr}_${asg.shift}_${idx}`;
+          newAssignmentsMap[key] = {
+            ...asg,
+            officer: rawOffId,
+            officerId: rawOffId,
+            dateStr: dStr
+          };
         });
+      }
 
-        // Assign special duty requirements
-        specialDutiesList.forEach((sp) => {
-          for (let i = 0; i < sp.required; i++) {
-            const assignedOfficer = activeOfficers[officerIndex % activeOfficers.length];
-            officerIndex++;
-            const key = `${assignedOfficer._id}_${dayStr}`;
-            newAssignments[key] = {
-              officer: assignedOfficer._id,
-              officerId: assignedOfficer._id,
-              officerName: assignedOfficer.fullName,
-              officerRank: assignedOfficer.rank,
-              officerPoliceId: assignedOfficer.policeId,
-              date: new Date(dayStr),
-              dateStr: dayStr,
-              dutyType: sp.name || "Special Duty",
-              shift: sp.shift,
-              location: sp.location,
-              remarks: `Special Duty: ${sp.name} (${sp.priority})`
-            };
-          }
-        });
-      });
-
-      setAssignmentsMap(newAssignments);
-      setAutoStep(6); // Transition to Step 6: "Roster Generated Successfully" (Image 1)
+      setAssignmentsMap(newAssignmentsMap);
+      setAutoStep(6);
       showMsg("Weekly Duty Roster auto-generated successfully!", "success");
     } catch (err) {
-      console.error("Auto generate error:", err);
-      showMsg("Failed to auto-generate roster.", "error");
+      console.error("Auto generate API error:", err);
+      showMsg("Failed to auto-generate roster: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -2183,8 +2197,12 @@ export default function DutyRoster() {
                     {/* Monday - Sunday Assignment Cells */}
                     {weekDays.map((day) => {
                       const dateStr = formatDateStr(day);
-                      const key = `${officer._id.toString()}_${dateStr}`;
-                      const assignment = assignmentsMap[key];
+                      const cellAsgs = Object.values(assignmentsMap).filter(a => {
+                        if (!a) return false;
+                        const aOffId = (a.officer?._id || a.officer || a.officerId)?.toString();
+                        const aDateStr = a.dateStr || formatDateStr(a.date);
+                        return aOffId === officer._id.toString() && aDateStr === dateStr;
+                      });
                       const leaveRec = getOfficerLeaveForDate(officer._id, day);
 
                       if (leaveRec) {
@@ -2211,8 +2229,7 @@ export default function DutyRoster() {
                         );
                       }
 
-                      if (assignment) {
-                        const styleConfig = DUTY_CARD_STYLES[assignment.dutyType] || DUTY_CARD_STYLES["Traffic Patrol"];
+                      if (cellAsgs.length > 0) {
                         return (
                           <TableCell
                             key={dateStr}
@@ -2224,27 +2241,47 @@ export default function DutyRoster() {
                               "&:hover": { opacity: isOIC ? 1 : 0.85 }
                             }}
                           >
-                            <Paper
-                              elevation={0}
-                              sx={{
-                                p: 1,
-                                borderRadius: 2,
-                                background: styleConfig.bg,
-                                border: `1px solid ${styleConfig.border}`,
-                                color: styleConfig.text,
-                                textAlign: "left"
-                              }}
-                            >
-                              <Typography variant="caption" sx={{ fontWeight: 800, display: "block", fontSize: "0.78rem" }}>
-                                {styleConfig.title}
-                              </Typography>
-                              <Typography variant="caption" sx={{ fontSize: "0.7rem", opacity: 0.9, display: "block", mt: 0.3 }}>
-                                ⏱ {assignment.shift}
-                              </Typography>
-                              <Typography variant="caption" sx={{ fontSize: "0.68rem", opacity: 0.8, display: "block", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                📍 {assignment.location}
-                              </Typography>
-                            </Paper>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.8 }}>
+                              {cellAsgs.map((assignment, asgIdx) => {
+                                const styleConfig = DUTY_CARD_STYLES[assignment.dutyType] || DUTY_CARD_STYLES["Traffic Patrol"];
+                                return (
+                                  <Paper
+                                    key={asgIdx}
+                                    elevation={0}
+                                    sx={{
+                                      p: 1,
+                                      borderRadius: 2,
+                                      background: styleConfig.bg,
+                                      border: `1px solid ${styleConfig.border}`,
+                                      color: styleConfig.text,
+                                      textAlign: "left"
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ fontWeight: 800, display: "block", fontSize: "0.78rem" }}>
+                                      {styleConfig.title}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ fontSize: "0.7rem", opacity: 0.9, display: "block", mt: 0.3 }}>
+                                      ⏱ {assignment.shift}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ fontSize: "0.68rem", opacity: 0.8, display: "block", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                      📍 {assignment.location}
+                                    </Typography>
+                                    {assignment.vehicle && (
+                                      <Typography variant="caption" sx={{ fontSize: "0.68rem", opacity: 0.8, display: "block", fontWeight: 600 }}>
+                                        🚗 {typeof assignment.vehicle === "object" ? (assignment.vehicle.registrationNumber || assignment.vehicle.model || "Vehicle") : assignment.vehicle}
+                                      </Typography>
+                                    )}
+                                    {assignment.aiRecommendationReason && (
+                                      <Tooltip title={assignment.aiRecommendationReason} arrow>
+                                        <Typography variant="caption" sx={{ fontSize: "0.65rem", color: "#0284c7", display: "block", mt: 0.3, fontStyle: "italic" }}>
+                                          💡 {assignment.aiRecommendationReason}
+                                        </Typography>
+                                      </Tooltip>
+                                    )}
+                                  </Paper>
+                                );
+                              })}
+                            </Box>
                           </TableCell>
                         );
                       }
@@ -3321,12 +3358,12 @@ export default function DutyRoster() {
                     </Typography>
                   </Box>
 
-                  {/* 8 STATS SUMMARY GRID (MATCHING IMAGE 1 EXACTLY) */}
+                  {/* 8 STATS SUMMARY GRID */}
                   <Grid container spacing={2} sx={{ mb: 4 }}>
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
-                          12
+                          {autoGenResult?.statistics?.officersConsidered ?? officers.length}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           OFFICERS CONSIDERED
@@ -3337,7 +3374,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#10b981", mb: 0.5 }}>
-                          11
+                          {autoGenResult?.statistics?.officersAssigned ?? (new Set(Object.values(assignmentsMap).map(a => (a.officer?._id || a.officer || a.officerId)?.toString()))).size}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           OFFICERS ASSIGNED
@@ -3348,7 +3385,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
-                          3
+                          {autoGenResult?.statistics?.officersUnavailable ?? 0}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           OFFICERS UNAVAILABLE
@@ -3359,7 +3396,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
-                          {Object.keys(assignmentsMap).length || 69}
+                          {autoGenResult?.statistics?.totalAssignments ?? Object.keys(assignmentsMap).length}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           DUTY ASSIGNMENTS
@@ -3370,7 +3407,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#f59e0b", mb: 0.5 }}>
-                          1
+                          {autoGenResult?.statistics?.totalSpecialDuties ?? specialDutiesList.length}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           SPECIAL DUTIES
@@ -3381,7 +3418,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#ef4444", mb: 0.5 }}>
-                          1
+                          {autoGenResult?.statistics?.criticalConflicts ?? (autoGenResult?.conflicts?.length || 0)}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           CRITICAL CONFLICTS
@@ -3392,7 +3429,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#f59e0b", mb: 0.5 }}>
-                          1
+                          {autoGenResult?.statistics?.totalWarnings ?? (autoGenResult?.warnings?.length || 0)}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           WARNINGS
@@ -3403,7 +3440,7 @@ export default function DutyRoster() {
                     <Grid item xs={12} sm={6} md={3}>
                       <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2.5, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <Typography variant="h4" sx={{ fontWeight: 800, color: "#ef4444", mb: 0.5 }}>
-                          2
+                          {autoGenResult?.statistics?.unassignedDuties ?? (autoGenResult?.unassignedDuties?.length || 0)}
                         </Typography>
                         <Typography variant="caption" sx={{ fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                           UNASSIGNED
@@ -3412,11 +3449,38 @@ export default function DutyRoster() {
                     </Grid>
                   </Grid>
 
-                  {/* 4 ACTION BUTTONS (MATCHING IMAGE 1 EXACTLY) */}
+                  {/* CONFLICTS & WARNINGS DETAILED LIST */}
+                  {((autoGenResult?.conflicts && autoGenResult.conflicts.length > 0) ||
+                    (autoGenResult?.warnings && autoGenResult.warnings.length > 0) ||
+                    (autoGenResult?.unassignedDuties && autoGenResult.unassignedDuties.length > 0)) && (
+                    <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2.5, background: "#fff1f2", border: "1px solid #fecdd3" }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: "#991b1b", mb: 1 }}>
+                        ⚠️ Generator Alerts & Conflicts
+                      </Typography>
+                      {autoGenResult?.conflicts?.map((c, i) => (
+                        <Typography key={`c-${i}`} variant="body2" sx={{ color: "#b91c1c", fontWeight: 600, fontSize: "0.85rem", mb: 0.5 }}>
+                          • [Conflict] {typeof c === "string" ? c : (c.reason || c.message || JSON.stringify(c))}
+                        </Typography>
+                      ))}
+                      {autoGenResult?.warnings?.map((w, i) => (
+                        <Typography key={`w-${i}`} variant="body2" sx={{ color: "#d97706", fontWeight: 600, fontSize: "0.85rem", mb: 0.5 }}>
+                          • [Warning] {typeof w === "string" ? w : (w.reason || w.message || JSON.stringify(w))}
+                        </Typography>
+                      ))}
+                      {autoGenResult?.unassignedDuties?.map((u, i) => (
+                        <Typography key={`u-${i}`} variant="body2" sx={{ color: "#475569", fontWeight: 600, fontSize: "0.85rem", mb: 0.5 }}>
+                          • [Unassigned] {typeof u === "string" ? u : (`${u.dutyType || u.type || 'Duty'} on ${u.date || u.dateStr || 'selected date'}: ${u.reason || 'No eligible officer'}`)}
+                        </Typography>
+                      ))}
+                    </Paper>
+                  )}
+
+                  {/* 4 ACTION BUTTONS */}
                   <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap", mt: 3 }}>
                     <Button
                       variant="outlined"
-                      onClick={() => setAutoStep(1)}
+                      onClick={handleRunAutoGenerate}
+                      disabled={loading}
                       sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#334155", background: "#ffffff" }}
                     >
                       Regenerate
@@ -3430,10 +3494,11 @@ export default function DutyRoster() {
                     </Button>
                     <Button
                       variant="outlined"
-                      onClick={() => {
+                      onClick={async () => {
+                        await handleSaveDraft();
                         setAutoGenerateModalOpen(false);
-                        showMsg("Roster draft saved successfully!");
                       }}
+                      disabled={loading}
                       sx={{ textTransform: "none", fontWeight: 700, px: 3, borderRadius: 2, borderColor: "#cbd5e1", color: "#334155", background: "#ffffff" }}
                     >
                       Save Draft
@@ -3463,7 +3528,7 @@ export default function DutyRoster() {
           </Box>
         </Dialog>
 
-        {/* SUBMIT TO OIC CONFIRMATION MODAL (MATCHING IMAGE 2 EXACTLY) */}
+        {/* SUBMIT TO OIC CONFIRMATION MODAL */}
         <Dialog
           open={submitToOICModalOpen}
           onClose={() => setSubmitToOICModalOpen(false)}
@@ -3493,19 +3558,19 @@ export default function DutyRoster() {
               <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                 <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Assignments</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
-                  {Object.keys(assignmentsMap).length || 69}
+                  {Object.keys(assignmentsMap).length}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                 <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Special duties</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
-                  {specialDutiesList.length || 1}
+                  {specialDutiesList.length}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                 <Typography variant="body2" sx={{ color: "#64748b", fontWeight: 600 }}>Validation</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
-                  1 conflict(s)
+                  {autoGenResult?.conflicts?.length || 0} conflict(s)
                 </Typography>
               </Box>
             </Paper>
@@ -3520,19 +3585,14 @@ export default function DutyRoster() {
             </Button>
             <Button
               variant="contained"
+              disabled={loading}
               onClick={async () => {
                 try {
-                  setLoading(true);
-                  if (currentRosterId) {
-                    await updateDutyRosterStatus(currentRosterId, { status: "Pending Approval" });
-                  }
+                  await handleSubmitToOIC();
                   setSubmitToOICModalOpen(false);
                   setAutoGenerateModalOpen(false);
-                  showMsg("Duty roster submitted to OIC for approval successfully!");
                 } catch (err) {
                   showMsg("Failed to submit roster to OIC.", "error");
-                } finally {
-                  setLoading(false);
                 }
               }}
               sx={{
