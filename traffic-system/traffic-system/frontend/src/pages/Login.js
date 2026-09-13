@@ -1,7 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { FiUser, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
+import {
+  FiUser,
+  FiLock,
+  FiEye,
+  FiEyeOff,
+  FiShield,
+  FiUsers,
+  FiTrendingUp,
+  FiArrowRight,
+} from "react-icons/fi";
 import { loginAdmin } from "../api";
+import bgImage from "../assets/traffic_police_bg.jpg";
 
 function Login() {
   const navigate = useNavigate();
@@ -47,66 +57,129 @@ function Login() {
 
   return (
     <div className="login-page-pro">
-      <div className="login-card-pro">
-        <img
-          src="https://images.seeklogo.com/logo-png/37/1/sri-lanka-police-logo-png_seeklogo-374521.png"
-          alt="Sri Lanka Police"
-          className="login-logo-pro"
-        />
-        <h2 className="login-title-pro">SRI LANKA POLICE</h2>
-        <p className="login-sub-pro">Traffic Branch - Negombo</p>
+      <div className="login-container-pro">
+        {/* Left Section - Sri Lanka Traffic Police visual panel */}
+        <div className="login-left-panel" style={{ backgroundImage: `url(${bgImage})` }}>
+          <div className="login-left-overlay">
+            <div className="login-left-top">
+              <h2 className="login-quote-heading">
+                “Safer Roads<br />Brighter Tomorrows”
+              </h2>
+              <p className="login-quote-sub">
+                Our Commitment<br />Your Safety
+              </p>
+            </div>
 
-        <form onSubmit={handleLogin}>
-          <div className="login-field-pro">
-            <label className="login-label-pro">Username</label>
-            <div className="login-input-wrap-pro">
-              <FiUser className="login-icon-pro" />
-              <input
-                className="login-input-pro"
-                type="text"
-                placeholder="Enter username"
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); setError(""); }}
-                autoComplete="username"
-              />
+            <div className="login-left-features">
+              <div className="login-feature-item">
+                <FiShield className="login-feature-icon" />
+                <span>Serve the People</span>
+              </div>
+              <div className="login-feature-divider"></div>
+
+              <div className="login-feature-item">
+                <FiUsers className="login-feature-icon" />
+                <span>Ensure Safer Roads</span>
+              </div>
+              <div className="login-feature-divider"></div>
+
+              <div className="login-feature-item">
+                <FiTrendingUp className="login-feature-icon" />
+                <span>Build a Safer Sri Lanka</span>
+              </div>
+            </div>
+
+            <div className="login-left-bottom">
+              <span>TOGETHER FOR A</span>
+              <br />
+              <strong>SAFER TOMORROW</strong>
             </div>
           </div>
+        </div>
 
-          <div className="login-field-pro">
-            <label className="login-label-pro">Password</label>
-            <div className="login-input-wrap-pro">
-              <FiLock className="login-icon-pro" />
-              <input
-                className="login-input-pro"
-                type={showPw ? "text" : "password"}
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                autoComplete="current-password"
-              />
-              <button type="button" className="login-eye-pro" onClick={() => setShowPw(!showPw)}>
-                {showPw ? <FiEyeOff /> : <FiEye />}
-              </button>
+        {/* Right Section - Clean white login card */}
+        <div className="login-card-pro">
+          <div className="login-header-section">
+            <img
+              src="https://images.seeklogo.com/logo-png/37/1/sri-lanka-police-logo-png_seeklogo-374521.png"
+              alt="Sri Lanka Police"
+              className="login-logo-pro"
+            />
+            <h2 className="login-title-pro">SRI LANKA POLICE</h2>
+            <p className="login-sub-pro">TRAFFIC BRANCH - NEGOMBO</p>
+
+            <div className="login-motto-divider">
+              <span className="login-motto-line"></span>
+              <span className="login-motto-text">DISCIPLINE | SERVICE | SAFETY</span>
+              <span className="login-motto-line"></span>
+            </div>
+
+            <h3 className="login-officer-title">Officer Login</h3>
+            <p className="login-officer-sub">Access your account to continue</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="login-form-pro">
+            <div className="login-field-pro">
+              <label className="login-label-pro">Username</label>
+              <div className="login-input-wrap-pro">
+                <FiUser className="login-icon-pro" />
+                <input
+                  className="login-input-pro"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setError(""); }}
+                  autoComplete="username"
+                />
+              </div>
+            </div>
+
+            <div className="login-field-pro">
+              <label className="login-label-pro">Password</label>
+              <div className="login-input-wrap-pro">
+                <FiLock className="login-icon-pro" />
+                <input
+                  className="login-input-pro"
+                  type={showPw ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                  autoComplete="current-password"
+                />
+                <button type="button" className="login-eye-pro" onClick={() => setShowPw(!showPw)}>
+                  {showPw ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+            </div>
+
+            {error && <p className="login-error-pro">{error}</p>}
+
+            <div className="login-options-pro">
+              <label className="login-remember-pro">
+                <input type="checkbox" /> Remember me
+              </label>
+              <Link to="/reset-password" className="login-forgot-pro">Forgot password?</Link>
+            </div>
+
+            <button className="login-btn-pro" type="submit" disabled={loading}>
+              {loading ? "Logging in..." : (
+                <>
+                  LOGIN <FiArrowRight className="login-btn-arrow" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div>
+            <div className="login-footer-divider"></div>
+
+            <div className="login-footer-pro">
+              <p className="login-footer-system">Group 13 – Traffic Branch Digital Operations &amp; Reporting System</p>
+              <p className="login-footer-branch">Sri Lanka Police – Traffic Branch, Negombo</p>
+              <p className="login-footer-copy">© 2026 | All rights reserved.</p>
             </div>
           </div>
-
-          {error && <p className="login-error-pro">{error}</p>}
-
-          <div className="login-options-pro">
-            <label className="login-remember-pro">
-              <input type="checkbox" /> Remember me
-            </label>
-            <Link to="/reset-password" className="login-forgot-pro">Forgot password?</Link>
-          </div>
-
-          <button className="login-btn-pro" type="submit" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
-
-        <p className="login-footer-pro">
-          © 2026 Sri Lanka Police Traffic Branch<br />All rights reserved.
-        </p>
+        </div>
       </div>
     </div>
   );
