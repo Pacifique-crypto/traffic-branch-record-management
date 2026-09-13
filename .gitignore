@@ -41,6 +41,4 @@ Thumbs.db
 *.p8
 *.p12
 *.key
-*.mobileprovision
-backend/.env
-!traffic-backend/.env
+*.mobileprovision
