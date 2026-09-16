@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import OICLayout from "../layouts/OICLayout";
+import ITLayout from "../layouts/ITLayout";
 import {
   FiCalendar,
   FiPlus,
@@ -21,12 +23,17 @@ import {
 import "./DutyRoster.css";
 
 export default function DutyRoster() {
+  const userRole = localStorage.getItem("userRole") || "IT Officer";
+  const isOIC = userRole === "OIC" || (userRole || "").toLowerCase().includes("oic");
+  const LayoutComponent = isOIC ? OICLayout : ITLayout;
+
   // Navigation & View States
   const [activeScreen, setActiveScreen] = useState("dashboard");
-  const [dashTab, setDashTab] = useState("draft");
+  const [dashTab, setDashTab] = useState(isOIC ? "pending" : "draft");
   const [dashMode, setDashMode] = useState("weekly");
   const [wizStep, setWizStep] = useState(1);
   const [oicTab, setOicTab] = useState("pending");
+  const [selectedRoster, setSelectedRoster] = useState(null);
 
   // Rejection Modal State
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -107,7 +114,9 @@ export default function DutyRoster() {
     ],
     approved: [
       { t: "23–29 Aug weekly roster", badge: "approved", label: "Approved", meta: "Approved by OIC Ranasinghe", d1: "Approved", v1: "23 Aug, 11:05", d2: "Duties", v2: "27 slots" },
-      { t: "16–22 Aug weekly roster", badge: "approved", label: "Approved", meta: "Approved by OIC Ranasinghe", d1: "Approved", v1: "16 Aug, 10:40", d2: "Duties", v2: "27 slots" },
+    ],
+    published: [
+      { t: "16–22 Aug weekly roster", badge: "published", label: "Published", meta: "Published & Active for Officers", d1: "Published", v1: "16 Aug, 10:40", d2: "Duties", v2: "27 slots" },
     ]
   };
 
@@ -119,7 +128,8 @@ export default function DutyRoster() {
     changes: [
       { t: "30 Aug–05 Sep weekly roster", badge: "changes", label: "Changes requested", meta: "Awaiting IT Officer revision", d1: "Returned", v1: "04 Sep, 09:15", d2: "Duties", v2: "26 slots" }
     ],
-    approved: dashRows.approved
+    approved: dashRows.approved,
+    published: dashRows.published
   };
 
   const handleCellClick = (officerIdx, dayIdx, currentVal) => {
@@ -134,7 +144,25 @@ export default function DutyRoster() {
   };
 
   const handleOICApprove = () => {
-    showToast("Roster approved successfully!");
+    if (selectedRoster) {
+      setSelectedRoster({
+        ...selectedRoster,
+        badge: 'approved',
+        label: 'Approved'
+      });
+    }
+    showToast("Roster approved! It is now in the Approved tab.");
+  };
+
+  const handleOICPublish = () => {
+    if (selectedRoster) {
+      setSelectedRoster({
+        ...selectedRoster,
+        badge: 'published',
+        label: 'Published'
+      });
+    }
+    showToast("Roster published and is now active in the system!");
   };
 
   const handleOICRequestChanges = () => {
@@ -142,18 +170,15 @@ export default function DutyRoster() {
       alert("Please enter a comment describing the requested changes.");
       return;
     }
+    if (selectedRoster) {
+      setSelectedRoster({
+        ...selectedRoster,
+        badge: 'changes',
+        label: 'Changes requested'
+      });
+    }
     showToast("Changes requested and returned to IT Officer.");
     setOicComment("");
-  };
-
-  const handleOICRejectSubmit = () => {
-    if (!rejectionReason.trim()) {
-      alert("Please enter a mandatory rejection reason.");
-      return;
-    }
-    setShowRejectModal(false);
-    showToast("Roster rejected.");
-    setRejectionReason("");
   };
 
   const wizTitles = {
@@ -163,8 +188,64 @@ export default function DutyRoster() {
     4: "Review & publish"
   };
 
+  const parseDutyCell = (code) => {
+    if (!code || code === 'OFF') {
+      return { isOff: true };
+    }
+
+    const lookup = {
+      'PD-06': { name: 'Point Duty', shift: '06:00 – 14:00', loc: 'Poruthota Jn.' },
+      'MP-14': { name: 'Mobile Patrol', shift: '14:00 – 22:00', loc: 'Sector 3' },
+      'CP-22': { name: 'Checkpoint', shift: '22:00 – 06:00', loc: 'Kurana' },
+      'VIP-06': { name: 'VIP Escort', shift: '06:00 – 14:00', loc: 'Katunayake Rd.' },
+    };
+
+    if (code.includes('·')) {
+      const parts = code.split('·').map(s => s.trim());
+      const items = parts.map(p => lookup[p] || { name: p, shift: '06:00 – 14:00', loc: 'Field' });
+      return { isConflict: true, items };
+    }
+
+    const item = lookup[code] || { name: code, shift: '06:00 – 14:00', loc: 'Field' };
+    return { isConflict: false, items: [item] };
+  };
+
+  const renderDutyCell = (val, onClick) => {
+    const parsed = parseDutyCell(val);
+    if (parsed.isOff) {
+      return <span className="dr-cell-duty off">OFF</span>;
+    }
+
+    if (parsed.isConflict) {
+      return (
+        <div className="dr-cell-detailed conflict" onClick={onClick}>
+          {parsed.items.map((it, idx) => (
+            <React.Fragment key={idx}>
+              {idx > 0 && <div className="dr-cell-divider" />}
+              <div>
+                <div className="dr-cell-name">{it.name}</div>
+                <div className="dr-cell-shift">{it.shift}</div>
+                <div className="dr-cell-loc">{it.loc}</div>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      );
+    }
+
+    const it = parsed.items[0];
+    return (
+      <div className="dr-cell-detailed" onClick={onClick}>
+        <div className="dr-cell-name">{it.name}</div>
+        <div className="dr-cell-shift">{it.shift}</div>
+        <div className="dr-cell-loc">{it.loc}</div>
+      </div>
+    );
+  };
+
   return (
-    <div className="dr-container">
+    <LayoutComponent>
+      <div className="dr-container">
       {/* Toast Notification */}
       {toastMessage && (
         <div style={{
@@ -188,65 +269,15 @@ export default function DutyRoster() {
         </div>
       )}
 
-      {/* TOP NAVIGATION BAR */}
-      <div className="dr-top-nav">
-        <div className="dr-nav-brand">
-          <div className="dr-brand-icon">
-            <FiLayers size={20} />
-          </div>
-          <div className="dr-brand-text">
-            <div className="dr-brand-org">Negombo Traffic Branch</div>
-            <div className="dr-brand-title">Duty Roster Console</div>
-          </div>
-        </div>
 
-        <div className="dr-subnav-items">
-          <button
-            className={`dr-subnav-item ${activeScreen === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveScreen('dashboard')}
-          >
-            <FiGrid size={15} />
-            <span>Dashboard</span>
-          </button>
-
-          <button
-            className={`dr-subnav-item ${activeScreen === 'wizard' ? 'active' : ''}`}
-            onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}
-          >
-            <FiPlus size={15} />
-            <span>Create Roster</span>
-          </button>
-
-          <button
-            className={`dr-subnav-item ${activeScreen === 'daily' ? 'active' : ''}`}
-            onClick={() => setActiveScreen('daily')}
-          >
-            <FiCalendar size={15} />
-            <span>Daily View</span>
-          </button>
-
-          <button
-            className={`dr-subnav-item ${activeScreen === 'oic' ? 'active' : ''}`}
-            onClick={() => setActiveScreen('oic')}
-          >
-            <FiCheckCircle size={15} />
-            <span>OIC Approval</span>
-          </button>
-        </div>
-      </div>
 
       {/* ================= SCREEN 1 — DASHBOARD ================= */}
       {activeScreen === 'dashboard' && (
         <section>
           <div className="dr-topline">
             <div>
-              <div className="dr-crumb">Duty Roster</div>
-              <h1 className="dr-screen-title">Dashboard</h1>
+              <h1 className="dr-screen-title">Duty Roster</h1>
             </div>
-            <button className="dr-btn dr-btn-primary" onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}>
-              <FiPlus size={15} />
-              <span>Create new roster</span>
-            </button>
           </div>
 
           <div className="dr-stat-row">
@@ -255,34 +286,50 @@ export default function DutyRoster() {
               <div className="value">42</div>
               <div className="sub">Across 3 shifts</div>
             </div>
-            <div className="dr-stat-card">
-              <div className="label">Drafts</div>
-              <div className="value">2</div>
-              <div className="sub">Not yet submitted</div>
-            </div>
+            {!isOIC ? (
+              <div className="dr-stat-card">
+                <div className="label">Drafts</div>
+                <div className="value">2</div>
+                <div className="sub">Not yet submitted</div>
+              </div>
+            ) : (
+              <div className="dr-stat-card">
+                <div className="label">Changes requested</div>
+                <div className="value">1</div>
+                <div className="sub">Returned to IT Officer</div>
+              </div>
+            )}
             <div className="dr-stat-card">
               <div className="label">Pending approval</div>
               <div className="value">1</div>
               <div className="sub">Awaiting OIC review</div>
             </div>
             <div className="dr-stat-card flag">
-              <div className="label">Conflicts this week</div>
-              <div className="value">3</div>
-              <div className="sub">Need manual fix</div>
+              <div className="label">{isOIC ? "Published" : "Conflicts this week"}</div>
+              <div className="value">{isOIC ? "1" : "3"}</div>
+              <div className="sub">{isOIC ? "Active in system" : "Need manual fix"}</div>
             </div>
           </div>
 
           <div className="dr-control-row">
             <div className="dr-segmented">
-              <button className={dashMode === 'weekly' ? 'active' : ''} onClick={() => setDashMode('weekly')}>Weekly</button>
-              <button className={dashMode === 'daily' ? 'active' : ''} onClick={() => setDashMode('daily')}>Daily</button>
+              <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
+              <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
             </div>
+            {!isOIC && (
+              <button className="dr-btn dr-btn-primary" onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}>
+                <FiPlus size={15} />
+                <span>Create new roster</span>
+              </button>
+            )}
           </div>
 
           <div className="dr-tabs">
-            <button className={`dr-tab ${dashTab === 'draft' ? 'active' : ''}`} onClick={() => setDashTab('draft')}>
-              Draft <span className="count">2</span>
-            </button>
+            {!isOIC && (
+              <button className={`dr-tab ${dashTab === 'draft' ? 'active' : ''}`} onClick={() => setDashTab('draft')}>
+                Draft <span className="count">2</span>
+              </button>
+            )}
             <button className={`dr-tab ${dashTab === 'pending' ? 'active' : ''}`} onClick={() => setDashTab('pending')}>
               Pending <span className="count">1</span>
             </button>
@@ -290,7 +337,10 @@ export default function DutyRoster() {
               Changes requested <span className="count">1</span>
             </button>
             <button className={`dr-tab ${dashTab === 'approved' ? 'active' : ''}`} onClick={() => setDashTab('approved')}>
-              Approved <span className="count">6</span>
+              Approved <span className="count">1</span>
+            </button>
+            <button className={`dr-tab ${dashTab === 'published' ? 'active' : ''}`} onClick={() => setDashTab('published')}>
+              Published <span className="count">1</span>
             </button>
           </div>
 
@@ -305,62 +355,55 @@ export default function DutyRoster() {
                 <div><div className="dr-col-label">{r.d2}</div><div className="dr-col-val">{r.v2}</div></div>
                 <div className="dr-row-actions">
                   <span className={`dr-badge ${r.badge}`} style={{ marginRight: '10px' }}>{r.label}</span>
-                  <button className="dr-btn dr-btn-sm dr-btn-ghost">View</button>
+                  <button
+                    className="dr-btn dr-btn-sm dr-btn-ghost"
+                    onClick={() => {
+                      if (r.v1 === 'Daily') {
+                        setDashMode('daily');
+                        setActiveScreen('daily');
+                      } else {
+                        setSelectedRoster(r);
+                        setActiveScreen('viewRoster');
+                      }
+                    }}
+                  >
+                    View
+                  </button>
                 </div>
               </div>
             ))}
           </div>
 
-          <div style={{ marginTop: '28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: '15px', margin: 0, fontWeight: 700, color: '#152238' }}>13–19 Sep weekly roster · working copy</h2>
-            <button className="dr-btn dr-btn-ghost dr-btn-sm" onClick={() => { setActiveScreen('wizard'); setWizStep(4); }}>
-              Open full editor →
-            </button>
-          </div>
+          {dashTab === 'draft' && (
+            <>
+              <div style={{ marginTop: '28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: '15px', margin: 0, fontWeight: 700, color: '#152238' }}>13–19 Sep weekly roster</h2>
+              </div>
 
-          <div className="dr-grid-wrap" style={{ marginTop: '12px' }}>
-            <table className="dr-roster-grid">
-              <thead>
-                <tr>
-                  <th>Officer</th>
-                  {days.map((d, i) => <th key={i}>{d}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {officers.map((off, rIdx) => (
-                  <tr key={rIdx}>
-                    <td>{off}</td>
-                    {cellData[rIdx].map((val, cIdx) => (
-                      <td key={cIdx}>
-                        {val === 'OFF' ? (
-                          <span className="dr-cell-duty off">OFF</span>
-                        ) : val.includes('·') ? (
-                          <span className="dr-cell-duty conflict" onClick={() => handleCellClick(rIdx, cIdx, val)}>
-                            {val}
-                          </span>
-                        ) : (
-                          <span className="dr-cell-duty" onClick={() => handleCellClick(rIdx, cIdx, val)}>
-                            {val}
-                          </span>
-                        )}
-                      </td>
+              <div className="dr-grid-wrap" style={{ marginTop: '12px' }}>
+                <table className="dr-roster-grid">
+                  <thead>
+                    <tr>
+                      <th>Officer</th>
+                      {days.map((d, i) => <th key={i}>{d}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {officers.map((off, rIdx) => (
+                      <tr key={rIdx}>
+                        <td>{off}</td>
+                        {cellData[rIdx].map((val, cIdx) => (
+                          <td key={cIdx}>
+                            {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="dr-legend">
-            <span><i className="dr-dot" style={{ background: '#e7eef6', border: '1px solid #c3cedc' }}></i> Assigned duty</span>
-            <span><i className="dr-dot" style={{ background: '#fce9e7', border: '1px solid #efc1bc' }}></i> Conflict — click cell to edit</span>
-            <span><i className="dr-dot" style={{ background: 'transparent', border: '1px dashed #c3cedc' }}></i> Off duty</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '22px' }}>
-            <button className="dr-btn" onClick={() => showToast("Draft saved successfully.")}>Save draft</button>
-            <button className="dr-btn dr-btn-primary" onClick={() => showToast("Roster submitted to OIC for review.")}>Submit to OIC</button>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
       )}
 
@@ -426,7 +469,6 @@ export default function DutyRoster() {
                     <th>Shift</th>
                     <th style={{ width: '110px' }}>Assigned Count</th>
                     <th>Location</th>
-                    <th style={{ width: '90px', textAlign: 'center' }}>Vehicle</th>
                     <th style={{ width: '40px' }}></th>
                   </tr>
                 </thead>
@@ -483,17 +525,7 @@ export default function DutyRoster() {
                           placeholder="Location"
                         />
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={row.vehicle}
-                          onChange={(e) => {
-                            const updated = [...regDuties];
-                            updated[idx].vehicle = e.target.checked;
-                            setRegDuties(updated);
-                          }}
-                        />
-                      </td>
+
                       <td>
                         <button className="dr-icon-btn" onClick={() => removeRegDuty(row.id)}>
                           <FiTrash2 size={14} />
@@ -521,7 +553,6 @@ export default function DutyRoster() {
                     <th>Location</th>
                     <th style={{ width: '110px' }}>Assigned Count</th>
                     <th>Shift</th>
-                    <th style={{ width: '90px', textAlign: 'center' }}>Vehicle</th>
                     <th style={{ width: '40px' }}></th>
                   </tr>
                 </thead>
@@ -589,17 +620,7 @@ export default function DutyRoster() {
                           <option>22:00–06:00</option>
                         </select>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={row.vehicle}
-                          onChange={(e) => {
-                            const updated = [...specDuties];
-                            updated[idx].vehicle = e.target.checked;
-                            setSpecDuties(updated);
-                          }}
-                        />
-                      </td>
+
                       <td>
                         <button className="dr-icon-btn" onClick={() => removeSpecDuty(row.id)}>
                           <FiTrash2 size={14} />
@@ -639,17 +660,7 @@ export default function DutyRoster() {
                         <td>{off}</td>
                         {cellData[rIdx].map((val, cIdx) => (
                           <td key={cIdx}>
-                            {val === 'OFF' ? (
-                              <span className="dr-cell-duty off">OFF</span>
-                            ) : val.includes('·') ? (
-                              <span className="dr-cell-duty conflict" onClick={() => handleCellClick(rIdx, cIdx, val)}>
-                                {val}
-                              </span>
-                            ) : (
-                              <span className="dr-cell-duty" onClick={() => handleCellClick(rIdx, cIdx, val)}>
-                                {val}
-                              </span>
-                            )}
+                            {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
                           </td>
                         ))}
                       </tr>
@@ -698,6 +709,13 @@ export default function DutyRoster() {
             <div>
               <div className="dr-crumb">Duty Roster</div>
               <h1 className="dr-screen-title">Daily view</h1>
+            </div>
+          </div>
+
+          <div className="dr-control-row">
+            <div className="dr-segmented">
+              <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
+              <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
             </div>
           </div>
 
@@ -769,138 +787,86 @@ export default function DutyRoster() {
         </section>
       )}
 
-      {/* ================= SCREEN 4 — OIC APPROVAL ================= */}
-      {activeScreen === 'oic' && (
+      {/* ================= SCREEN — VIEW ROSTER ================= */}
+      {activeScreen === 'viewRoster' && (
         <section>
           <div className="dr-topline">
             <div>
               <div className="dr-crumb">Duty Roster</div>
-              <h1 className="dr-screen-title">OIC approval queue</h1>
+              <h1 className="dr-screen-title">
+                {selectedRoster ? selectedRoster.t : "13–19 Sep weekly roster"}
+              </h1>
             </div>
-          </div>
-
-          <div className="dr-tabs">
-            <button className={`dr-tab ${oicTab === 'pending' ? 'active' : ''}`} onClick={() => setOicTab('pending')}>
-              Pending <span className="count">1</span>
-            </button>
-            <button className={`dr-tab ${oicTab === 'changes' ? 'active' : ''}`} onClick={() => setOicTab('changes')}>
-              Changes requested <span className="count">1</span>
-            </button>
-            <button className={`dr-tab ${oicTab === 'approved' ? 'active' : ''}`} onClick={() => setOicTab('approved')}>
-              Approved <span className="count">6</span>
+            <button className="dr-btn dr-btn-ghost" onClick={() => setActiveScreen('dashboard')}>
+              ← Back to Dashboard
             </button>
           </div>
 
-          <div className="dr-panel">
-            {oicRows[oicTab].map((r, idx) => (
-              <div key={idx} className="dr-roster-row">
-                <div>
-                  <div className="dr-roster-title">{r.t}</div>
-                  <div className="dr-roster-meta">{r.meta}</div>
-                </div>
-                <div><div className="dr-col-label">{r.d1}</div><div className="dr-col-val">{r.v1}</div></div>
-                <div><div className="dr-col-label">{r.d2}</div><div className="dr-col-val">{r.v2}</div></div>
-                <div className="dr-row-actions">
-                  <span className={`dr-badge ${r.badge}`} style={{ marginRight: '10px' }}>{r.label}</span>
-                  <button className="dr-btn dr-btn-sm dr-btn-ghost">Review</button>
-                </div>
-              </div>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <span className={`dr-badge ${selectedRoster?.badge || 'pending'}`}>
+              {selectedRoster?.label || 'Pending'}
+            </span>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>
+              {selectedRoster?.meta || 'Submitted by IT Officer Nuri · 15 Sep 2026, 09:42'}
+            </span>
           </div>
 
-          <div style={{ marginTop: '24px' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0' }}>13–19 Sep weekly roster</h2>
-            <div style={{ fontSize: '12.5px', color: '#8b96ac', marginBottom: '12px' }}>
-              Submitted by IT Officer Nuri · 15 Sep 2026, 09:42
-            </div>
-
-            <div className="dr-grid-wrap">
-              <table className="dr-roster-grid">
-                <thead>
-                  <tr>
-                    <th>Officer</th>
-                    {days.map((d, i) => <th key={i}>{d}</th>)}
+          <div className="dr-grid-wrap">
+            <table className="dr-roster-grid">
+              <thead>
+                <tr>
+                  <th>Officer</th>
+                  {days.map((d, i) => <th key={i}>{d}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {officers.map((off, rIdx) => (
+                  <tr key={rIdx}>
+                    <td>{off}</td>
+                    {cellData[rIdx].map((val, cIdx) => (
+                      <td key={cIdx}>
+                        {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                      </td>
+                    ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {officers.map((off, rIdx) => (
-                    <tr key={rIdx}>
-                      <td>{off}</td>
-                      {cellData[rIdx].map((val, cIdx) => (
-                        <td key={cIdx}>
-                          {val === 'OFF' ? (
-                            <span className="dr-cell-duty off">OFF</span>
-                          ) : val.includes('·') ? (
-                            <span className="dr-cell-duty conflict">{val}</span>
-                          ) : (
-                            <span className="dr-cell-duty">{val}</span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="dr-comment-box">
-              <textarea
-                placeholder="Add a comment for changes requested (required if requesting changes)..."
-                value={oicComment}
-                onChange={(e) => setOicComment(e.target.value)}
-              />
-            </div>
-
-            <div className="dr-approval-toolbar">
-              <button className="dr-btn dr-btn-danger" onClick={() => setShowRejectModal(true)}>
-                <FiX size={15} /> Reject
-              </button>
-              <button className="dr-btn" onClick={handleOICRequestChanges}>
-                <FiMessageSquare size={15} /> Request changes
-              </button>
-              <button className="dr-btn dr-btn-primary" onClick={handleOICApprove}>
-                <FiCheck size={15} /> Approve
-              </button>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          {/* OIC Actions for Pending or Changes Requested Roster */}
+          {isOIC && (selectedRoster?.badge === 'pending' || selectedRoster?.badge === 'changes' || !selectedRoster) && (
+            <div style={{ marginTop: '24px' }}>
+              <div className="dr-comment-box">
+                <textarea
+                  placeholder="Add a comment for changes requested (required if requesting changes)..."
+                  value={oicComment}
+                  onChange={(e) => setOicComment(e.target.value)}
+                />
+              </div>
+
+              <div className="dr-approval-toolbar">
+                <button className="dr-btn" onClick={handleOICRequestChanges}>
+                  <FiMessageSquare size={15} /> Request changes
+                </button>
+                <button className="dr-btn dr-btn-primary" onClick={handleOICApprove}>
+                  <FiCheck size={15} /> Approve
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* OIC Action for Approved Roster to Publish */}
+          {isOIC && selectedRoster?.badge === 'approved' && (
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="dr-btn dr-btn-primary" onClick={handleOICPublish}>
+                <FiSend size={15} /> Publish Roster
+              </button>
+            </div>
+          )}
         </section>
       )}
-
-      {/* REJECT REASON MANDATORY MODAL */}
-      {showRejectModal && (
-        <div className="dr-modal-overlay">
-          <div className="dr-modal">
-            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#152238', margin: '0 0 8px 0' }}>
-              Reject Roster
-            </h3>
-            <p style={{ fontSize: '13px', color: '#54617a', margin: '0 0 16px 0' }}>
-              Please provide a mandatory reason for rejecting this roster:
-            </p>
-            <textarea
-              style={{
-                width: '100%',
-                minHeight: '80px',
-                border: '1px solid #c3cedc',
-                borderRadius: '6px',
-                padding: '10px',
-                fontSize: '13px',
-                marginBottom: '18px'
-              }}
-              placeholder="Reason for rejection (mandatory)..."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="dr-btn dr-btn-ghost" onClick={() => setShowRejectModal(false)}>
-                Cancel
-              </button>
-              <button className="dr-btn dr-btn-danger" onClick={handleOICRejectSubmit}>
-                Confirm Rejection
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+    </LayoutComponent>
   );
 }
