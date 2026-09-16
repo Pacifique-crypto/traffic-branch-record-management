@@ -340,9 +340,11 @@ export default function DutyRoster() {
             <button className={`dr-tab ${dashTab === 'approved' ? 'active' : ''}`} onClick={() => setDashTab('approved')}>
               Approved <span className="count">1</span>
             </button>
-            <button className={`dr-tab ${dashTab === 'published' ? 'active' : ''}`} onClick={() => setDashTab('published')}>
-              Published <span className="count">1</span>
-            </button>
+            {isOIC && (
+              <button className={`dr-tab ${dashTab === 'published' ? 'active' : ''}`} onClick={() => setDashTab('published')}>
+                Published <span className="count">1</span>
+              </button>
+            )}
           </div>
 
           <div className="dr-panel">
