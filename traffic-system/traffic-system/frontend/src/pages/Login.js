@@ -15,11 +15,11 @@ import bgImage from "../assets/traffic_police_bg.jpg";
 
 function Login() {
   const navigate = useNavigate();
-  const [username, setUsername]   = useState("");
-  const [password, setPassword]   = useState("");
-  const [showPw, setShowPw]       = useState(false);
-  const [error, setError]         = useState("");
-  const [loading, setLoading]     = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -114,7 +114,7 @@ function Login() {
               <span className="login-motto-line"></span>
             </div>
 
-            <h3 className="login-officer-title">Officer Login</h3>
+            <h3 className="login-officer-title">Login</h3>
             <p className="login-officer-sub">Access your account to continue</p>
           </div>
 
@@ -174,7 +174,7 @@ function Login() {
             <div className="login-footer-divider"></div>
 
             <div className="login-footer-pro">
-              <p className="login-footer-system">Group 13 – Traffic Branch Digital Operations &amp; Reporting System</p>
+              <p className="login-footer-system">Group 13 – Traffic Branch Management System</p>
               <p className="login-footer-branch">Sri Lanka Police – Traffic Branch, Negombo</p>
               <p className="login-footer-copy">© 2026 | All rights reserved.</p>
             </div>
