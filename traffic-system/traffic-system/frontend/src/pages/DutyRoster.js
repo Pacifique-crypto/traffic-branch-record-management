@@ -313,7 +313,7 @@ export default function DutyRoster() {
 
           <div className="dr-control-row">
             <div className="dr-segmented">
-              <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
+              <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); setDashTab('draft'); }}>Weekly</button>
               <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
             </div>
 
@@ -375,28 +375,30 @@ export default function DutyRoster() {
             ))}
           </div>
 
-          <div className="dr-grid-wrap" style={{ marginTop: '20px' }}>
-            <table className="dr-roster-grid">
-              <thead>
-                <tr>
-                  <th>Officer</th>
-                  {days.map((d, i) => <th key={i}>{d}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {officers.map((off, rIdx) => (
-                  <tr key={rIdx}>
-                    <td>{off}</td>
-                    {cellData[rIdx].map((val, cIdx) => (
-                      <td key={cIdx}>
-                        {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                      </td>
-                    ))}
+          {dashTab === 'draft' && (
+            <div className="dr-grid-wrap" style={{ marginTop: '20px' }}>
+              <table className="dr-roster-grid">
+                <thead>
+                  <tr>
+                    <th>Officer</th>
+                    {days.map((d, i) => <th key={i}>{d}</th>)}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {officers.map((off, rIdx) => (
+                    <tr key={rIdx}>
+                      <td>{off}</td>
+                      {cellData[rIdx].map((val, cIdx) => (
+                        <td key={cIdx}>
+                          {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       )}
 
