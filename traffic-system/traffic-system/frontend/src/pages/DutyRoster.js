@@ -311,7 +311,7 @@ export default function DutyRoster() {
             </div>
           </div>
 
-          <div className="dr-control-row">
+          <div className="dr-control-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '20px' }}>
             <div className="dr-segmented">
               <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
               <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
@@ -338,7 +338,7 @@ export default function DutyRoster() {
             </div>
 
             {!isOIC && (
-              <button className="dr-btn dr-btn-primary" onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}>
+              <button className="dr-btn dr-btn-primary" style={{ marginLeft: 'auto' }} onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}>
                 <FiPlus size={15} />
                 <span>Create new roster</span>
               </button>
