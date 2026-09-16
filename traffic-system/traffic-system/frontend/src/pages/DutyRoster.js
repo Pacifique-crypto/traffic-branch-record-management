@@ -311,38 +311,38 @@ export default function DutyRoster() {
             </div>
           </div>
 
-          <div className="dr-control-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '20px' }}>
+          <div className="dr-control-row">
             <div className="dr-segmented">
               <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
               <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
             </div>
 
-            <div className="dr-tabs" style={{ margin: 0, borderBottom: 'none' }}>
-              {!isOIC && (
-                <button className={`dr-tab ${dashTab === 'draft' ? 'active' : ''}`} onClick={() => setDashTab('draft')}>
-                  Draft <span className="count">2</span>
-                </button>
-              )}
-              <button className={`dr-tab ${dashTab === 'pending' ? 'active' : ''}`} onClick={() => setDashTab('pending')}>
-                Pending <span className="count">1</span>
-              </button>
-              <button className={`dr-tab ${dashTab === 'changes' ? 'active' : ''}`} onClick={() => setDashTab('changes')}>
-                Changes requested <span className="count">1</span>
-              </button>
-              <button className={`dr-tab ${dashTab === 'approved' ? 'active' : ''}`} onClick={() => setDashTab('approved')}>
-                Approved <span className="count">1</span>
-              </button>
-              <button className={`dr-tab ${dashTab === 'published' ? 'active' : ''}`} onClick={() => setDashTab('published')}>
-                Published <span className="count">1</span>
-              </button>
-            </div>
-
             {!isOIC && (
-              <button className="dr-btn dr-btn-primary" style={{ marginLeft: 'auto' }} onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}>
+              <button className="dr-btn dr-btn-primary" onClick={() => { setActiveScreen('wizard'); setWizStep(1); }}>
                 <FiPlus size={15} />
                 <span>Create new roster</span>
               </button>
             )}
+          </div>
+
+          <div className="dr-tabs">
+            {!isOIC && (
+              <button className={`dr-tab ${dashTab === 'draft' ? 'active' : ''}`} onClick={() => setDashTab('draft')}>
+                Draft <span className="count">2</span>
+              </button>
+            )}
+            <button className={`dr-tab ${dashTab === 'pending' ? 'active' : ''}`} onClick={() => setDashTab('pending')}>
+              Pending <span className="count">1</span>
+            </button>
+            <button className={`dr-tab ${dashTab === 'changes' ? 'active' : ''}`} onClick={() => setDashTab('changes')}>
+              Changes requested <span className="count">1</span>
+            </button>
+            <button className={`dr-tab ${dashTab === 'approved' ? 'active' : ''}`} onClick={() => setDashTab('approved')}>
+              Approved <span className="count">1</span>
+            </button>
+            <button className={`dr-tab ${dashTab === 'published' ? 'active' : ''}`} onClick={() => setDashTab('published')}>
+              Published <span className="count">1</span>
+            </button>
           </div>
 
           <div className="dr-panel">
