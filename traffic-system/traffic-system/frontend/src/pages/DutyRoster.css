@@ -1,0 +1,849 @@
+/* DutyRoster.css - Duty Roster Module Styles matching reference design */
+
+.dr-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 10px 40px 10px;
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+  color: #152238;
+}
+
+/* Header & Nav Bar */
+.dr-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f2038;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(15, 32, 56, 0.15);
+}
+
+.dr-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dr-brand-icon {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #eaf0f8;
+}
+
+.dr-brand-text {
+  line-height: 1.25;
+}
+
+.dr-brand-org {
+  font-size: 11px;
+  color: #9fb2cc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.dr-brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.dr-subnav-items {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.dr-subnav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c4d2e6;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dr-subnav-item:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dr-subnav-item.active {
+  background: #1b3a5e;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Screen Topline */
+.dr-topline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.dr-crumb {
+  font-size: 12px;
+  color: #8b96ac;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.dr-screen-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #152238;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.dr-subtitle {
+  color: #54617a;
+  font-size: 13.5px;
+  margin-top: 4px;
+}
+
+/* Buttons */
+.dr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 6px;
+  border: 1px solid #c3cedc;
+  background: #ffffff;
+  color: #152238;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dr-btn:hover {
+  background: #f6f8fb;
+}
+
+.dr-btn-primary {
+  background: #1b3a5e;
+  border-color: #1b3a5e;
+  color: #ffffff;
+}
+
+.dr-btn-primary:hover {
+  background: #2a5286;
+}
+
+.dr-btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: #54617a;
+}
+
+.dr-btn-ghost:hover {
+  background: #e7eef6;
+  color: #152238;
+}
+
+.dr-btn-danger {
+  background: #b4402f;
+  border-color: #b4402f;
+  color: #ffffff;
+}
+
+.dr-btn-danger:hover {
+  background: #8e2f21;
+}
+
+.dr-btn-sm {
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+/* Stats Row */
+.dr-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.dr-stat-card {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(15, 34, 58, 0.04);
+}
+
+.dr-stat-card .label {
+  font-size: 12.5px;
+  color: #54617a;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.dr-stat-card .value {
+  font-size: 26px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace, ui-monospace;
+  color: #152238;
+}
+
+.dr-stat-card .sub {
+  font-size: 12px;
+  color: #8b96ac;
+  margin-top: 4px;
+}
+
+.dr-stat-card.flag .value {
+  color: #c1443b;
+}
+
+/* Segmented & Tabs */
+.dr-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.dr-segmented {
+  display: inline-flex;
+  background: #e7eef6;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.dr-segmented button {
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #54617a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dr-segmented button.active {
+  background: #ffffff;
+  color: #132a47;
+  box-shadow: 0 1px 2px rgba(15, 32, 56, 0.12);
+}
+
+.dr-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #dce3ed;
+  margin-bottom: 18px;
+}
+
+.dr-tab {
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #54617a;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+}
+
+.dr-tab .count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  background: #e7eef6;
+  color: #54617a;
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+
+.dr-tab.active {
+  color: #132a47;
+  border-bottom-color: #1b3a5e;
+}
+
+.dr-tab.active .count {
+  background: #1b3a5e;
+  color: #ffffff;
+}
+
+/* Badges */
+.dr-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.dr-badge.draft {
+  background: #eef0f4;
+  color: #7c879b;
+}
+
+.dr-badge.pending {
+  background: #fbefdd;
+  color: #a6650f;
+}
+
+.dr-badge.changes {
+  background: #fbe7e3;
+  color: #b4402f;
+}
+
+.dr-badge.approved {
+  background: #e4f3eb;
+  color: #2e7d57;
+}
+
+/* Panel & List */
+.dr-panel {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dr-roster-row {
+  display: grid;
+  grid-template-columns: 1.6fr 0.9fr 1fr 0.8fr;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid #dce3ed;
+  gap: 10px;
+}
+
+.dr-roster-row:last-child {
+  border-bottom: none;
+}
+
+.dr-roster-row:hover {
+  background: #fafbfd;
+}
+
+.dr-roster-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #152238;
+}
+
+.dr-roster-meta {
+  font-size: 12px;
+  color: #8b96ac;
+  margin-top: 3px;
+}
+
+.dr-col-label {
+  font-size: 11px;
+  color: #8b96ac;
+}
+
+.dr-col-val {
+  font-size: 13px;
+  color: #152238;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.dr-row-actions {
+  text-align: right;
+}
+
+/* Grid & Table Chart */
+.dr-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+table.dr-roster-grid {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+}
+
+table.dr-roster-grid th,
+table.dr-roster-grid td {
+  border-bottom: 1px solid #dce3ed;
+  border-right: 1px solid #dce3ed;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+table.dr-roster-grid th {
+  background: #e7eef6;
+  font-size: 11.5px;
+  color: #54617a;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+}
+
+table.dr-roster-grid td:first-child,
+table.dr-roster-grid th:first-child {
+  position: sticky;
+  left: 0;
+  background: #ffffff;
+  font-weight: 700;
+  z-index: 1;
+  border-right: 1px solid #c3cedc;
+  color: #0f2038;
+}
+
+table.dr-roster-grid th:first-child {
+  background: #e7eef6;
+  z-index: 2;
+}
+
+.dr-cell-duty {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 5px;
+  background: #e7eef6;
+  color: #1b3a5e;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.dr-cell-duty:hover {
+  transform: scale(1.03);
+}
+
+.dr-cell-duty.conflict {
+  background: #fce9e7;
+  color: #c1443b;
+  border: 1px solid #efc1bc;
+}
+
+.dr-cell-duty.off {
+  background: transparent;
+  color: #8b96ac;
+  cursor: default;
+  font-weight: 400;
+}
+
+.dr-legend {
+  display: flex;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: #54617a;
+}
+
+.dr-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dr-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Wizard Stepper */
+.dr-wizard-steps {
+  display: flex;
+  gap: 0;
+  margin-bottom: 26px;
+}
+
+.dr-wstep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  position: relative;
+}
+
+.dr-wstep:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: calc(50% + 24px);
+  right: calc(-50% + 24px);
+  height: 2px;
+  background: #c3cedc;
+}
+
+.dr-wstep .num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 2px solid #c3cedc;
+  color: #8b96ac;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.dr-wstep.done .num {
+  background: #1b3a5e;
+  border-color: #1b3a5e;
+  color: #ffffff;
+}
+
+.dr-wstep.current .num {
+  border-color: #1b3a5e;
+  color: #1b3a5e;
+  font-weight: 800;
+}
+
+.dr-wstep .wlabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8b96ac;
+}
+
+.dr-wstep.done .wlabel,
+.dr-wstep.current .wlabel {
+  color: #152238;
+}
+
+.dr-form-card {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(15, 34, 58, 0.04);
+}
+
+.dr-field-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.dr-field {
+  flex: 1;
+  min-width: 160px;
+}
+
+.dr-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #54617a;
+  margin-bottom: 6px;
+}
+
+.dr-field select,
+.dr-field input[type="text"],
+.dr-field input[type="date"] {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #c3cedc;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13.5px;
+  background: #ffffff;
+  color: #152238;
+}
+
+.dr-mini-stats {
+  display: flex;
+  gap: 14px;
+  margin: 20px 0 10px 0;
+}
+
+.dr-mini-stat {
+  flex: 1;
+  background: #e7eef6;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.dr-mini-stat .n {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: #132a47;
+}
+
+.dr-mini-stat .l {
+  font-size: 11.5px;
+  color: #54617a;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.dr-mini-stat.warn .n {
+  color: #c1443b;
+}
+
+.dr-wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+table.dr-duty-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.dr-duty-table th {
+  text-align: left;
+  font-size: 11.5px;
+  color: #54617a;
+  font-weight: 700;
+  padding: 10px;
+  border-bottom: 2px solid #c3cedc;
+  background: #f8fafc;
+}
+
+table.dr-duty-table td {
+  padding: 10px;
+  border-bottom: 1px solid #dce3ed;
+  vertical-align: middle;
+}
+
+table.dr-duty-table input[type="text"],
+table.dr-duty-table input[type="number"],
+table.dr-duty-table input[type="date"],
+table.dr-duty-table select {
+  width: 100%;
+  border: 1px solid #dce3ed;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.dr-row-num {
+  font-family: 'IBM Plex Mono', monospace;
+  color: #8b96ac;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dr-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #8b96ac;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.dr-icon-btn:hover {
+  color: #c1443b;
+  background: #fce9e7;
+}
+
+.dr-add-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b3a5e;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 12px 10px 4px 10px;
+}
+
+.dr-note-banner {
+  background: #fbefdd;
+  border: 1px solid #efd7ae;
+  color: #8a5a0c;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* Daily View */
+.dr-day-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  background: #ffffff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid #dce3ed;
+}
+
+.dr-day-picker .arrow {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #c3cedc;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #ffffff;
+  font-size: 16px;
+  color: #152238;
+}
+
+.dr-day-picker .arrow:hover {
+  background: #f1f5f9;
+}
+
+.dr-day-picker .datebox {
+  font-weight: 800;
+  font-size: 15px;
+  color: #152238;
+}
+
+.dr-day-picker .datebox span {
+  font-weight: 500;
+  color: #54617a;
+  font-size: 12px;
+  display: block;
+}
+
+.dr-duty-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.dr-duty-card {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(15, 34, 58, 0.04);
+}
+
+.dr-duty-card .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dr-duty-card h4 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #152238;
+}
+
+.dr-duty-card .shift {
+  font-size: 12px;
+  color: #54617a;
+  font-weight: 500;
+}
+
+.dr-duty-card .meta {
+  display: flex;
+  gap: 20px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.dr-duty-card .meta div .k {
+  font-size: 11px;
+  color: #8b96ac;
+  font-weight: 500;
+}
+
+.dr-duty-card .meta div .v {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 2px;
+  color: #152238;
+}
+
+/* OIC Approval */
+.dr-approval-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dr-comment-box {
+  margin-top: 14px;
+}
+
+.dr-comment-box textarea {
+  width: 100%;
+  min-height: 70px;
+  border: 1px solid #c3cedc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.dr-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 34, 58, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.dr-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .dr-stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dr-duty-cards {
+    grid-template-columns: 1fr;
+  }
+  .dr-roster-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
