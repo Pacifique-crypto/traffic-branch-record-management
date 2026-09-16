@@ -48,8 +48,68 @@ export default function DutyRoster() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Sample Days & Officers for Grid
-  const days = ['Sun 13', 'Mon 14', 'Tue 15', 'Wed 16', 'Thu 17', 'Fri 18', 'Sat 19'];
+  // Week Navigation State & Helper
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const getWeekData = (offset) => {
+    const baseSun = new Date(2026, 8, 13);
+    baseSun.setDate(baseSun.getDate() + offset * 7);
+
+    const baseSat = new Date(baseSun);
+    baseSat.setDate(baseSat.getDate() + 6);
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const daysName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const startDay = String(baseSun.getDate()).padStart(2, '0');
+    const endDay = String(baseSat.getDate()).padStart(2, '0');
+    const startMonth = months[baseSun.getMonth()];
+    const endMonth = months[baseSat.getMonth()];
+
+    let titleLabel = "";
+    if (startMonth === endMonth) {
+      titleLabel = `${startDay}–${endDay} ${startMonth} weekly roster`;
+    } else {
+      titleLabel = `${startDay} ${startMonth}–${endDay} ${endMonth} weekly roster`;
+    }
+
+    const calculatedDays = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(baseSun);
+      d.setDate(d.getDate() + i);
+      calculatedDays.push(`${daysName[i]} ${String(d.getDate()).padStart(2, '0')}`);
+    }
+
+    return { titleLabel, calculatedDays };
+  };
+
+  const currentWeek = getWeekData(weekOffset);
+  const days = currentWeek.calculatedDays;
+
+  const renderWeekNavigator = () => (
+    <div className="dr-week-nav">
+      <button
+        type="button"
+        className="dr-week-arrow-btn"
+        onClick={() => setWeekOffset(prev => prev - 1)}
+        title="Previous week"
+      >
+        <FiChevronLeft size={18} />
+      </button>
+      <div className="dr-week-label-pill">
+        {currentWeek.titleLabel}
+      </div>
+      <button
+        type="button"
+        className="dr-week-arrow-btn"
+        onClick={() => setWeekOffset(prev => prev + 1)}
+        title="Next week"
+      >
+        <FiChevronRight size={18} />
+      </button>
+    </div>
+  );
+
   const officers = [
     'PC 4471 Fernando',
     'PC 5012 Perera',
@@ -378,27 +438,30 @@ export default function DutyRoster() {
           </div>
 
           {dashTab === 'draft' && (
-            <div className="dr-grid-wrap" style={{ marginTop: '20px' }}>
-              <table className="dr-roster-grid">
-                <thead>
-                  <tr>
-                    <th>Officer</th>
-                    {days.map((d, i) => <th key={i}>{d}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {officers.map((off, rIdx) => (
-                    <tr key={rIdx}>
-                      <td>{off}</td>
-                      {cellData[rIdx].map((val, cIdx) => (
-                        <td key={cIdx}>
-                          {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                        </td>
-                      ))}
+            <div style={{ marginTop: '20px' }}>
+              {renderWeekNavigator()}
+              <div className="dr-grid-wrap">
+                <table className="dr-roster-grid">
+                  <thead>
+                    <tr>
+                      <th>Officer</th>
+                      {days.map((d, i) => <th key={i}>{d}</th>)}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {officers.map((off, rIdx) => (
+                      <tr key={rIdx}>
+                        <td>{off}</td>
+                        {cellData[rIdx].map((val, cIdx) => (
+                          <td key={cIdx}>
+                            {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </section>
@@ -808,6 +871,7 @@ export default function DutyRoster() {
             </span>
           </div>
 
+          {renderWeekNavigator()}
           <div className="dr-grid-wrap">
             <table className="dr-roster-grid">
               <thead>

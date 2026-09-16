@@ -912,3 +912,46 @@ table.dr-duty-table select {
   border-top: 1px dashed #e2a9a4;
   margin: 4px 0;
 }
+
+/* Week Navigation Controls */
+.dr-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.dr-week-arrow-btn {
+  background: #ffffff;
+  border: 1px solid #c3cedc;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #1b3a5e;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.dr-week-arrow-btn:hover {
+  background: #1b3a5e;
+  color: #ffffff;
+  border-color: #1b3a5e;
+}
+
+.dr-week-label-pill {
+  background: #f0f4f9;
+  border: 1px solid #d8e2ee;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0d233a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
