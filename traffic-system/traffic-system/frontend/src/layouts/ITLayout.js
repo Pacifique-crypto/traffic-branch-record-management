@@ -18,7 +18,6 @@ function ITLayout({ children }) {
     { label: t("dashboard"),          path: "/dashboard",          icon: <FiGrid /> },
     { label: t("accidents"),          path: "/accidents",          icon: <FiAlertTriangle /> },
     { label: t("violations"),         path: "/tor",                icon: <FiAlertCircle /> },
-    { label: t("reports"),            path: "/reports",            icon: <FiFileText /> },
     { label: t("dutyRoster"),         path: "/duty-roster",        icon: <FiCalendar /> },
     { label: t("vehicleManagement"), path: "/vehicle-management", icon: <FiTruck /> },
     { label: t("userManagement"),    path: "/user-management",    icon: <FiUsers /> },
