@@ -1,231 +1,57 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-  Modal,
-  Alert
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LanguageContext } from '../context/LanguageContext';
-import { BASE_URL } from '../config';
 
-export default function DutyScreen({ navigation }) {
+export default function DutyScreen() {
   const { language } = useContext(LanguageContext);
-  const [duties, setDuties] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDuty, setSelectedDuty] = useState(null);
 
   const translations = {
     EN: {
       title: "Duty Roster",
-      today: "Today's Duties",
-      thisWeek: "This Week's Duties",
-      morning: "Morning",
-      afternoon: "Afternoon",
-      night: "Night",
-      onLeave: "On Leave",
-      noDuties: "No duties assigned to you at this time.",
-      loading: "Loading schedule...",
-      location: "Location",
-      dutyType: "Duty Type",
-      date: "Date",
-      shift: "Shift",
-      details: "Duty Details",
-      close: "Close"
+      badge: "Module Under Development",
+      message: "The Duty Roster module is currently being reconstructed for upcoming release.",
+      note: "Please contact your Traffic Branch OIC or IT Administrator for manual duty assignments."
     },
     SI: {
       title: "රාජකාරි කාලසටහන",
-      today: "අද දවසේ රාජකාරි",
-      thisWeek: "මේ සතියේ රාජකාරි",
-      morning: "උදෑසන",
-      afternoon: "දවල්",
-      night: "රාත්‍රී",
-      onLeave: "නිවාඩු",
-      noDuties: "මෙම අවස්ථාවේදී ඔබට රාජකාරි පවරා නොමැත.",
-      loading: "රාජකාරි පූරණය වෙමින්...",
-      location: "ස්ථානය",
-      dutyType: "රාජකාරි වර්ගය",
-      date: "දිනය",
-      shift: "මුරය",
-      details: "රාජකාරි විස්තර",
-      close: "වසා දමන්න"
+      badge: "මොඩියුලය සංවර්ධනය වෙමින් පවතී",
+      message: "රාජකාරි කාලසටහන මොඩියුලය ඉදිරි නිකුතුව සඳහා සංවර්ධනය වෙමින් පවතී.",
+      note: "අතින් පවරන ලද රාජකාරි සඳහා කරුණාකර ඔබගේ OIC හෝ IT පරිපාලක අමතන්න."
     }
   };
 
-  const t = translations[language];
-
-  const fetchDuties = async () => {
-    try {
-      setLoading(true);
-      const policeId = global.loggedOfficerPoliceId || "PC0001";
-      const headers = {
-        "Content-Type": "application/json",
-        ...(global.userToken ? { "Authorization": `Bearer ${global.userToken}` } : {})
-      };
-
-      const response = await fetch(`${BASE_URL}/duties/officer/${policeId}`, { headers });
-      const data = await response.json();
-      
-      if (response.ok && Array.isArray(data)) {
-        setDuties(data);
-      } else {
-        setDuties([]);
-      }
-    } catch (err) {
-      console.log("Error loading duties:", err);
-      Alert.alert("Connection Error", "Could not fetch duty schedule.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDuties();
-  }, []);
-
-  const getTodayDuties = () => {
-    const todayStr = new Date().toDateString();
-    return duties.filter(d => new Date(d.date).toDateString() === todayStr);
-  };
-
-  const getWeeklyDuties = () => {
-    const todayStr = new Date().toDateString();
-    return duties.filter(d => new Date(d.date).toDateString() !== todayStr);
-  };
-
-  const getShiftColor = (shift) => {
-    if (!shift) return "#94a3b8";
-    const s = shift.toLowerCase();
-    if (s.includes("full")) return "#3b82f6";
-    if (s.includes("early") || s.includes("morning")) return "#facc15";
-    if (s.includes("late") || s.includes("evening")) return "#fb923c";
-    if (s.includes("night")) return "#475569";
-    return "#1e3a8a";
-  };
+  const t = translations[language] || translations.EN;
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>{t.title}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons 
-            name="refresh-outline"
-            size={22}
-            color="#fff"
-            style={{ marginRight: 15 }}
-            onPress={fetchDuties}
-          />
-          <Ionicons 
-            name="notifications-outline" 
-            size={22} 
-            color="#fff" 
-            style={{ marginRight: 15 }} 
-            onPress={() => navigation.navigate('Notifications')}
-          />
-          <Ionicons 
-            name="person-circle-outline" 
-            size={24} 
-            color="#fff" 
-            onPress={() => navigation.navigate('Profile')}
-          />
-        </View>
+        <Text style={styles.headerTitle}>{t.title}</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#1e3a8a" />
-          <Text style={{ marginTop: 10, color: '#64748b' }}>{t.loading}</Text>
+      {/* PLACEHOLDER CONTENT */}
+      <View style={styles.content}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="calendar-outline" size={44} color="#2563EB" />
         </View>
-      ) : duties.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="calendar-outline" size={48} color="#94a3b8" />
-          <Text style={{ marginTop: 10, color: '#64748b', textAlign: 'center', paddingHorizontal: 40 }}>{t.noDuties}</Text>
+
+        <View style={styles.badgeContainer}>
+          <Ionicons name="time-outline" size={14} color="#2563EB" style={{ marginRight: 6 }} />
+          <Text style={styles.badgeText}>{t.badge}</Text>
         </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-          {/* TODAY'S DUTIES */}
-          {getTodayDuties().length > 0 && (
-            <View>
-              <Text style={styles.sectionHeader}>{t.today}</Text>
-              {getTodayDuties().map((item) => (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={[styles.shiftCard, { borderTopColor: getShiftColor(item.shift) }]}
-                  onPress={() => setSelectedDuty(item)}
-                >
-                  <Text style={styles.shiftTitle}>{item.shift}</Text>
-                  <Text style={styles.dutyType}>{item.dutyType}</Text>
-                  <Text style={styles.location}>📍 {item.location}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
 
-          {/* WEEKLY DUTIES */}
-          {getWeeklyDuties().length > 0 && (
-            <View>
-              <Text style={styles.sectionHeader}>{t.thisWeek}</Text>
-              {getWeeklyDuties().map((item) => (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={[styles.shiftCard, { borderTopColor: getShiftColor(item.shift) }]}
-                  onPress={() => setSelectedDuty(item)}
-                >
-                  <Text style={styles.shiftTitle}>{new Date(item.date).toDateString()} - {item.shift}</Text>
-                  <Text style={styles.dutyType}>{item.dutyType}</Text>
-                  <Text style={styles.location}>📍 {item.location}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      )}
-
-      {/* DETAIL MODAL */}
-      <Modal
-        visible={selectedDuty !== null}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setSelectedDuty(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t.details}</Text>
-            
-            {selectedDuty && (
-              <View style={styles.modalBody}>
-                <Text style={styles.detailLabel}>{t.date}:</Text>
-                <Text style={styles.detailValue}>{new Date(selectedDuty.date).toDateString()}</Text>
-
-                <Text style={styles.detailLabel}>{t.shift}:</Text>
-                <Text style={styles.detailValue}>{selectedDuty.shift}</Text>
-
-                <Text style={styles.detailLabel}>{t.location}:</Text>
-                <Text style={styles.detailValue}>{selectedDuty.location}</Text>
-
-                <Text style={styles.detailLabel}>{t.dutyType}:</Text>
-                <Text style={styles.detailValue}>{selectedDuty.dutyType}</Text>
-                
-                <Text style={[styles.detailLabel, { marginTop: 10 }]}>Status:</Text>
-                <Text style={[styles.detailValue, { color: '#16a34a', fontWeight: 'bold' }]}>Published by OIC</Text>
-              </View>
-            )}
-
-            <TouchableOpacity 
-              style={styles.closeButton} 
-              onPress={() => setSelectedDuty(null)}
-            >
-              <Text style={styles.closeButtonText}>{t.close}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        <Text style={styles.messageText}>{t.message}</Text>
+        <Text style={styles.noteText}>{t.note}</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -233,103 +59,64 @@ export default function DutyScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6'
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#1e3a8a',
-    padding: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  headerText: {
-    color: '#fff',
+  headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold'
+    fontWeight: '800',
+    color: '#0F172A',
   },
-  center: {
+  content: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center'
+    paddingHorizontal: 28,
+    marginTop: -40,
   },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginLeft: 15,
-    marginTop: 20,
-    marginBottom: 5
-  },
-  shiftCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginVertical: 5,
-    padding: 15,
-    borderRadius: 10,
-    borderTopWidth: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 1 }
-  },
-  shiftTitle: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    color: '#64748b',
-    textTransform: 'uppercase',
-    marginBottom: 4
-  },
-  dutyType: {
-    fontWeight: 'bold',
-    fontSize: 15,
-    color: '#0f172a',
-    marginBottom: 4
-  },
-  location: {
-    color: '#475569',
-    fontSize: 13
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  iconCircle: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center'
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    width: '85%',
-    borderRadius: 15,
-    padding: 20,
-    elevation: 5
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    marginBottom: 16,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e3a8a',
-    marginBottom: 15,
-    textAlign: 'center'
-  },
-  modalBody: {
-    marginBottom: 20
-  },
-  detailLabel: {
+  badgeText: {
     fontSize: 12,
-    color: '#64748b',
-    marginTop: 8
+    fontWeight: '700',
+    color: '#1E40AF',
   },
-  detailValue: {
+  messageText: {
     fontSize: 15,
-    color: '#0f172a',
-    fontWeight: '500'
+    fontWeight: '700',
+    color: '#1E293B',
+    textAlign: 'center',
+    marginBottom: 10,
+    lineHeight: 22,
   },
-  closeButton: {
-    backgroundColor: '#1e3a8a',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center'
+  noteText: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: 'bold'
-  }
 });

@@ -239,38 +239,8 @@ export const resetPassword = async (email, otp, newPassword, role) => {
 };
 
 // ==========================================
-// DUTY ROSTER API CALLS
+// OFFICER AVAILABILITY API CALLS (PRESERVED FOR LEAVE MANAGEMENT)
 // ==========================================
-export const getDutyRules = async () => {
-  const res = await fetch(`${BASE_URL}/duties/rules`, { headers: getHeaders() });
-  return res.json();
-};
-
-export const createDutyRule = async (data) => {
-  const res = await fetch(`${BASE_URL}/duties/rules`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const updateDutyRule = async (id, data) => {
-  const res = await fetch(`${BASE_URL}/duties/rules/${id}`, {
-    method: "PUT",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const deleteDutyRule = async (id) => {
-  const res = await fetch(`${BASE_URL}/duties/rules/${id}`, {
-    method: "DELETE",
-    headers: getHeaders(),
-  });
-  return res.json();
-};
 
 export const getOfficerAvailability = async () => {
   const res = await fetch(`${BASE_URL}/duties/availability`, { headers: getHeaders() });
@@ -282,88 +252,6 @@ export const saveOfficerAvailability = async (data) => {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const getDutyRosters = async (status = "", rosterType = "") => {
-  let url = `${BASE_URL}/duties/rosters`;
-  const params = [];
-  if (status) params.push(`status=${status}`);
-  if (rosterType) params.push(`rosterType=${rosterType}`);
-  if (params.length > 0) url += `?${params.join("&")}`;
-
-  const res = await fetch(url, { headers: getHeaders() });
-  return res.json();
-};
-
-export const getDutyRosterById = async (id) => {
-  const res = await fetch(`${BASE_URL}/duties/rosters/${id}`, { headers: getHeaders() });
-  return res.json();
-};
-
-export const generateDutyRoster = async (data) => {
-  const res = await fetch(`${BASE_URL}/duties/generate`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const createDutyRoster = async (data) => {
-  const res = await fetch(`${BASE_URL}/duties/rosters`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const updateDutyRosterStatus = async (id, data) => {
-  const res = await fetch(`${BASE_URL}/duties/rosters/${id}`, {
-    method: "PUT",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const deleteDutyRoster = async (id) => {
-  const res = await fetch(`${BASE_URL}/duties/rosters/${id}`, {
-    method: "DELETE",
-    headers: getHeaders(),
-  });
-  return res.json();
-};
-
-export const getDutyShifts = async () => {
-  const res = await fetch(`${BASE_URL}/duties/shifts`, { headers: getHeaders() });
-  return res.json();
-};
-
-export const createDutyShift = async (data) => {
-  const res = await fetch(`${BASE_URL}/duties/shifts`, {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const updateDutyShift = async (id, data) => {
-  const res = await fetch(`${BASE_URL}/duties/shifts/${id}`, {
-    method: "PUT",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
-  return res.json();
-};
-
-export const deleteDutyShift = async (id) => {
-  const res = await fetch(`${BASE_URL}/duties/shifts/${id}`, {
-    method: "DELETE",
-    headers: getHeaders(),
   });
   return res.json();
 };
