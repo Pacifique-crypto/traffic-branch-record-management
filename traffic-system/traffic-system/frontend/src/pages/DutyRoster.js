@@ -375,36 +375,28 @@ export default function DutyRoster() {
             ))}
           </div>
 
-          {dashTab === 'draft' && (
-            <>
-              <div style={{ marginTop: '28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h2 style={{ fontSize: '15px', margin: 0, fontWeight: 700, color: '#152238' }}>13–19 Sep weekly roster</h2>
-              </div>
-
-              <div className="dr-grid-wrap" style={{ marginTop: '12px' }}>
-                <table className="dr-roster-grid">
-                  <thead>
-                    <tr>
-                      <th>Officer</th>
-                      {days.map((d, i) => <th key={i}>{d}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {officers.map((off, rIdx) => (
-                      <tr key={rIdx}>
-                        <td>{off}</td>
-                        {cellData[rIdx].map((val, cIdx) => (
-                          <td key={cIdx}>
-                            {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                          </td>
-                        ))}
-                      </tr>
+          <div className="dr-grid-wrap" style={{ marginTop: '20px' }}>
+            <table className="dr-roster-grid">
+              <thead>
+                <tr>
+                  <th>Officer</th>
+                  {days.map((d, i) => <th key={i}>{d}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {officers.map((off, rIdx) => (
+                  <tr key={rIdx}>
+                    <td>{off}</td>
+                    {cellData[rIdx].map((val, cIdx) => (
+                      <td key={cIdx}>
+                        {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                      </td>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
