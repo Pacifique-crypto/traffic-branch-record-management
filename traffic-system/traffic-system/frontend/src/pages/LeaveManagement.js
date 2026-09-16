@@ -18,7 +18,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Constable",
     leaveType: "Medical Leave",
     dateRange: "Sep 10 – Sep 12",
-    durationMeta: "3 days · 3 hours ago",
+    durationMeta: "3 days",
     reason: "Diagnosed with viral fever, doctor has advised 3 days of rest before returning to field duty.",
     actingOfficer: "PC 0071 - S. Kumara",
     hasCertificate: true,
@@ -40,7 +40,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Sergeant",
     leaveType: "Casual Leave",
     dateRange: "Sep 09 – Sep 09",
-    durationMeta: "1 day · 5 hours ago",
+    durationMeta: "1 day",
     reason: "Attending a family function in Kurunegala.",
     actingOfficer: "PC 0084 - W. Perera",
     hasCertificate: false,
@@ -61,7 +61,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Constable",
     leaveType: "Personal Leave",
     dateRange: "Sep 14 – Sep 16",
-    durationMeta: "3 days · 1 day ago",
+    durationMeta: "3 days",
     reason: "Relocating to a new residence, need time to arrange logistics.",
     actingOfficer: "PC 0055 - M. Bandara",
     hasCertificate: false,
@@ -83,7 +83,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Woman Constable",
     leaveType: "Casual Leave",
     dateRange: "Sep 11 – Sep 11",
-    durationMeta: "1 day · 1 day ago",
+    durationMeta: "1 day",
     reason: "Personal errand, needs to visit the divisional secretariat office.",
     actingOfficer: "WPC 0092 - K. Jayawardena",
     hasCertificate: false,
@@ -104,7 +104,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Constable",
     leaveType: "Medical Leave",
     dateRange: "Sep 08 – Sep 09",
-    durationMeta: "2 days · 2 days ago",
+    durationMeta: "2 days",
     reason: "Recovering from a minor road accident sustained while off duty.",
     actingOfficer: "PC 0041 - A. Fernando",
     hasCertificate: true,
@@ -125,7 +125,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Sub-Inspector",
     leaveType: "Annual Leave",
     dateRange: "Sep 01 – Sep 05",
-    durationMeta: "5 days · 1 week ago",
+    durationMeta: "5 days",
     reason: "Annual family vacation to Nuwara Eliya.",
     actingOfficer: "SI 0019 - N. Jayasinghe",
     hasCertificate: false,
@@ -146,7 +146,7 @@ const INITIAL_LEAVES_DATA = [
     rank: "Sergeant",
     leaveType: "Casual Leave",
     dateRange: "Sep 07 – Sep 07",
-    durationMeta: "1 day · 3 days ago",
+    durationMeta: "1 day",
     reason: "Attending a private event without prior roster notification.",
     actingOfficer: "PC 0022 - H. De Silva",
     hasCertificate: false,
@@ -212,7 +212,7 @@ function LeaveManagement() {
             rank: l.officer?.rank || "Constable",
             leaveType: lType,
             dateRange: `${start} – ${end}`,
-            durationMeta: `${durDays} day${durDays > 1 ? 's' : ''} · Requested via app`,
+            durationMeta: `${durDays} day${durDays > 1 ? 's' : ''}`,
             reason: l.remarks || "Officer leave request submitted via system.",
             actingOfficer: actingOfficerText,
             hasCertificate: hasCert,
@@ -430,7 +430,6 @@ function LeaveManagement() {
                       <span className="lm-type-badge" style={{ backgroundColor: typeBg, color: typeColor }}>
                         {item.leaveType}
                       </span>
-                      <div className="lm-rank-text">{item.rank}</div>
                     </div>
                   </div>
 
@@ -463,23 +462,15 @@ function LeaveManagement() {
 
                 <hr className="lm-divider" />
 
-                {/* METRICS & OVERLAPS */}
-                <div className="lm-metrics-list">
-                  <div className="lm-metric-item">
-                    <FiUsers size={15} color="#64748b" />
-                    <span>{item.dutyStrength}</span>
-                  </div>
-                  <div className="lm-metric-item">
-                    <FiBarChart2 size={15} color="#64748b" />
-                    <span>{item.leaveBalance}</span>
-                  </div>
-                  {item.overlapWarning && (
+                {/* OVERLAPS */}
+                {item.overlapWarning && (
+                  <div className="lm-metrics-list">
                     <div className="lm-warning-item">
                       <FiAlertTriangle size={15} color="#dc2626" />
                       <span>{item.overlapWarning}</span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* EXPAND TOGGLE LINK */}
                 <div className="lm-toggle-row">

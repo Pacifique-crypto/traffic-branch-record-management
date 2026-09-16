@@ -1055,16 +1055,6 @@ export default function OfficerDashboard({ navigation }) {
                   </View>
                 )}
               </View>
-
-              <Text style={[styles.formInputLabel, { marginTop: 12 }]}>{t.handoverNotesLabel}</Text>
-              <TextInput
-                style={styles.textAreaInput}
-                placeholder="Specific instructions or notes for duty handover..."
-                value={handoverNotes}
-                onChangeText={setHandoverNotes}
-                multiline
-                numberOfLines={2}
-              />
             </View>
 
             {/* 6. SUPPORTING DOCUMENTS CARD (ALWAYS VISIBLE) */}
