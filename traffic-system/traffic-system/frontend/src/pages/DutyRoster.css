@@ -503,10 +503,11 @@ table.dr-roster-grid th:first-child {
   content: '';
   position: absolute;
   top: 14px;
-  left: calc(50% + 24px);
-  right: calc(-50% + 24px);
+  left: 28px;
+  right: -10px;
   height: 2px;
   background: #c3cedc;
+  z-index: 0;
 }
 
 .dr-wstep .num {
@@ -523,6 +524,7 @@ table.dr-roster-grid th:first-child {
   color: #8b96ac;
   flex-shrink: 0;
   z-index: 1;
+  position: relative;
 }
 
 .dr-wstep.done .num {
@@ -541,6 +543,11 @@ table.dr-roster-grid th:first-child {
   font-size: 13px;
   font-weight: 600;
   color: #8b96ac;
+  z-index: 1;
+  position: relative;
+  background: #f0f4f8;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 .dr-wstep.done .wlabel,
@@ -955,3 +962,159 @@ table.dr-duty-table select {
   align-items: center;
   gap: 6px;
 }
+
+/* Daily Roster View Styles (Matching Pictures 1, 2, and 3) */
+.dr-daily-header-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.dr-daily-header-sub {
+  font-size: 14px;
+  color: #64748b;
+  margin: 4px 0 0 0;
+}
+
+.dr-daily-date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  margin: 20px 0 16px 0;
+}
+
+.dr-daily-date-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #1e293b;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.dr-daily-date-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.dr-daily-date-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.dr-daily-table-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  margin-top: 16px;
+}
+
+.dr-daily-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.dr-daily-table th {
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dr-daily-table td {
+  padding: 18px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.dr-daily-table tr:last-child td {
+  border-bottom: none;
+}
+
+.dr-daily-table tr:hover td {
+  background: #f8fafc;
+}
+
+.dr-daily-duty-title {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.dr-daily-shift-time {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.dr-daily-shift-pill {
+  display: inline-block;
+  margin-top: 6px;
+  background: #eff6ff;
+  color: #3b82f6;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 12px;
+}
+
+.dr-daily-location {
+  font-weight: 600;
+  color: #334155;
+  font-size: 14px;
+}
+
+.dr-daily-officer-list {
+  list-style-type: disc;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.dr-daily-officer-item {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+}
+
+.dr-daily-officer-item:last-child {
+  margin-bottom: 0;
+}
+
+.dr-daily-action-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.dr-daily-action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+

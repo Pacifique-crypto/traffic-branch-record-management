@@ -18,7 +18,8 @@ import {
   FiFileText,
   FiShare2,
   FiUsers,
-  FiLayers
+  FiLayers,
+  FiMoreVertical
 } from "react-icons/fi";
 import "./DutyRoster.css";
 
@@ -50,6 +51,35 @@ export default function DutyRoster() {
 
   // Week Navigation State & Helper
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Daily View Date State & Helper
+  const [dailyDate, setDailyDate] = useState(new Date(2026, 8, 14)); // Mon, 14 Sep 2026
+
+  const formatDailyDate = (dateObj) => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayName = days[dateObj.getDay()];
+    const dayNum = dateObj.getDate();
+    const monthName = months[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+    return `${dayName}, ${dayNum} ${monthName} ${year}`;
+  };
+
+  const handleDailyPrevDay = () => {
+    setDailyDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      return d;
+    });
+  };
+
+  const handleDailyNextDay = () => {
+    setDailyDate(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      return d;
+    });
+  };
 
   const getWeekData = (offset) => {
     const baseSun = new Date(2026, 8, 13);
@@ -164,7 +194,6 @@ export default function DutyRoster() {
   const dashRows = {
     draft: [
       { t: "13–19 Sep weekly roster", badge: "draft", label: "Draft", meta: "Last edited 15 Sep, 08:10", d1: "Type", v1: "Weekly", d2: "Duties", v2: "28 slots" },
-      { t: "Tue 15 Sep daily roster", badge: "draft", label: "Draft", meta: "Last edited 14 Sep, 19:02", d1: "Type", v1: "Daily", d2: "Duties", v2: "6 slots" },
     ],
     pending: [
       { t: "06–12 Sep weekly roster", badge: "pending", label: "Pending", meta: "Submitted 12 Sep, 17:30", d1: "Submitted", v1: "12 Sep, 17:30", d2: "Duties", v2: "27 slots" },
@@ -349,7 +378,7 @@ export default function DutyRoster() {
             {!isOIC ? (
               <div className="dr-stat-card">
                 <div className="label">Drafts</div>
-                <div className="value">2</div>
+                <div className="value">1</div>
                 <div className="sub">Not yet submitted</div>
               </div>
             ) : (
@@ -373,8 +402,8 @@ export default function DutyRoster() {
 
           <div className="dr-control-row">
             <div className="dr-segmented">
-              <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); setDashTab('draft'); }}>Weekly</button>
-              <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
+              <button className={dashMode === 'weekly' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); setDashTab(isOIC ? 'pending' : 'draft'); }}>Weekly</button>
+              <button className={dashMode === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
             </div>
 
             {!isOIC && (
@@ -388,7 +417,7 @@ export default function DutyRoster() {
           <div className="dr-tabs">
             {!isOIC && (
               <button className={`dr-tab ${dashTab === 'draft' ? 'active' : ''}`} onClick={() => setDashTab('draft')}>
-                Draft <span className="count">2</span>
+                Draft <span className="count">1</span>
               </button>
             )}
             <button className={`dr-tab ${dashTab === 'pending' ? 'active' : ''}`} onClick={() => setDashTab('pending')}>
@@ -421,13 +450,8 @@ export default function DutyRoster() {
                   <button
                     className="dr-btn dr-btn-sm dr-btn-ghost"
                     onClick={() => {
-                      if (r.v1 === 'Daily') {
-                        setDashMode('daily');
-                        setActiveScreen('daily');
-                      } else {
-                        setSelectedRoster(r);
-                        setActiveScreen('viewRoster');
-                      }
+                      setSelectedRoster(r);
+                      setActiveScreen('viewRoster');
                     }}
                   >
                     View
@@ -437,7 +461,7 @@ export default function DutyRoster() {
             ))}
           </div>
 
-          {dashTab === 'draft' && (
+          {dashMode === 'weekly' && (isOIC ? dashTab === 'pending' : dashTab === 'draft') && (
             <div style={{ marginTop: '20px' }}>
               {renderWeekNavigator()}
               <div className="dr-grid-wrap">
@@ -499,7 +523,7 @@ export default function DutyRoster() {
               <div className="dr-field-row">
                 <div className="dr-field">
                   <label>Roster type</label>
-                  <select><option>Weekly roster</option><option>Daily roster</option></select>
+                  <select><option>Weekly roster</option></select>
                 </div>
                 <div className="dr-field">
                   <label>Week starting</label>
@@ -762,87 +786,176 @@ export default function DutyRoster() {
         </section>
       )}
 
+
+
       {/* ================= SCREEN 3 — DAILY VIEW ================= */}
       {activeScreen === 'daily' && (
         <section>
-          <div className="dr-topline">
+          {/* Picture 3: Header */}
+          <div className="dr-topline" style={{ marginBottom: "16px" }}>
             <div>
-              <div className="dr-crumb">Duty Roster</div>
-              <h1 className="dr-screen-title">Daily view</h1>
+              <h1 className="dr-daily-header-title">Daily Roster</h1>
+              <p className="dr-daily-header-sub">Duties scheduled for the selected date</p>
             </div>
           </div>
 
-          <div className="dr-control-row">
+          {/* Segmented Control Bar */}
+          <div className="dr-control-row" style={{ marginBottom: "16px" }}>
             <div className="dr-segmented">
-              <button className={activeScreen === 'dashboard' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
-              <button className={activeScreen === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
+              <button className={dashMode === 'weekly' ? 'active' : ''} onClick={() => { setDashMode('weekly'); setActiveScreen('dashboard'); }}>Weekly</button>
+              <button className={dashMode === 'daily' ? 'active' : ''} onClick={() => { setDashMode('daily'); setActiveScreen('daily'); }}>Daily</button>
             </div>
           </div>
 
-          <div className="dr-day-picker">
-            <div className="arrow">‹</div>
-            <div className="datebox">
-              <span>Tuesday</span>
-              15 September 2026
-            </div>
-            <div className="arrow">›</div>
-            <span style={{ fontSize: '12.5px', color: '#8b96ac', marginLeft: '6px' }}>
-              Pulled automatically from the 13–19 Sep weekly roster
-            </span>
+          {/* Picture 2: Date Navigator */}
+          <div className="dr-daily-date-nav">
+            <button type="button" className="dr-daily-date-btn" onClick={handleDailyPrevDay} title="Previous day">
+              <FiChevronLeft size={18} />
+            </button>
+            <span className="dr-daily-date-label">{formatDailyDate(dailyDate)}</span>
+            <button type="button" className="dr-daily-date-btn" onClick={handleDailyNextDay} title="Next day">
+              <FiChevronRight size={18} />
+            </button>
           </div>
 
-          <div className="dr-duty-cards">
-            <div className="dr-duty-card">
-              <div className="top">
-                <h4>Point Duty — Poruthota Jn.</h4>
-                <span className="dr-badge approved">Confirmed</span>
-              </div>
-              <div className="shift">06:00 – 14:00</div>
-              <div className="meta">
-                <div><div className="k">Officer</div><div className="v">PC 4471 Fernando</div></div>
-                <div><div className="k">Location</div><div className="v">Poruthota Junction</div></div>
-                <div><div className="k">Vehicle</div><div className="v">—</div></div>
-              </div>
-            </div>
+          {/* Picture 1: Daily Roster Table */}
+          <div className="dr-daily-table-card">
+            <table className="dr-daily-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "60px", textAlign: "center" }}>#</th>
+                  <th style={{ width: "220px" }}>Duty</th>
+                  <th style={{ width: "160px" }}>Shift</th>
+                  <th style={{ width: "220px" }}>Location</th>
+                  <th>Assigned Officers</th>
+                  <th style={{ width: "50px", textAlign: "center" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style={{ textAlign: "center", fontWeight: "700" }}>1</td>
+                  <td>
+                    <div className="dr-daily-duty-title">Accident Investigation</div>
+                  </td>
+                  <td>
+                    <div className="dr-daily-shift-time">06:00 - 18:00</div>
+                    <span className="dr-daily-shift-pill">12 hrs</span>
+                  </td>
+                  <td>
+                    <div className="dr-daily-location">Main Station / Field</div>
+                  </td>
+                  <td>
+                    <ul className="dr-daily-officer-list">
+                      <li className="dr-daily-officer-item">PC 1015 - Siva</li>
+                      <li className="dr-daily-officer-item">PC 2010 - Perera</li>
+                    </ul>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button type="button" className="dr-daily-action-btn" title="Options">
+                      <FiMoreVertical size={18} />
+                    </button>
+                  </td>
+                </tr>
 
-            <div className="dr-duty-card">
-              <div className="top">
-                <h4>Mobile Patrol — Sector 3</h4>
-                <span className="dr-badge approved">Confirmed</span>
-              </div>
-              <div className="shift">14:00 – 22:00</div>
-              <div className="meta">
-                <div><div className="k">Officer</div><div className="v">PC 5012 Perera +2</div></div>
-                <div><div className="k">Location</div><div className="v">Sector 3, coastal road</div></div>
-                <div><div className="k">Vehicle</div><div className="v">WP PD 2214</div></div>
-              </div>
-            </div>
+                <tr>
+                  <td style={{ textAlign: "center", fontWeight: "700" }}>2</td>
+                  <td>
+                    <div className="dr-daily-duty-title">Accident Investigation</div>
+                  </td>
+                  <td>
+                    <div className="dr-daily-shift-time">18:00 - 06:00</div>
+                    <span className="dr-daily-shift-pill">12 hrs</span>
+                  </td>
+                  <td>
+                    <div className="dr-daily-location">Main Station / Field</div>
+                  </td>
+                  <td>
+                    <ul className="dr-daily-officer-list">
+                      <li className="dr-daily-officer-item">PC 3056 - Fernando</li>
+                      <li className="dr-daily-officer-item">PC 4123 - Silva</li>
+                    </ul>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button type="button" className="dr-daily-action-btn" title="Options">
+                      <FiMoreVertical size={18} />
+                    </button>
+                  </td>
+                </tr>
 
-            <div className="dr-duty-card">
-              <div className="top">
-                <h4>Checkpoint — Kurana</h4>
-                <span className="dr-badge pending">Unconfirmed</span>
-              </div>
-              <div className="shift">22:00 – 06:00</div>
-              <div className="meta">
-                <div><div className="k">Officer</div><div className="v">PC 3390 Silva</div></div>
-                <div><div className="k">Location</div><div className="v">Kurana checkpoint</div></div>
-                <div><div className="k">Vehicle</div><div className="v">WP PD 0087</div></div>
-              </div>
-            </div>
+                <tr>
+                  <td style={{ textAlign: "center", fontWeight: "700" }}>3</td>
+                  <td>
+                    <div className="dr-daily-duty-title">Point Duty — Poruthota Jn.</div>
+                  </td>
+                  <td>
+                    <div className="dr-daily-shift-time">06:00 - 14:00</div>
+                    <span className="dr-daily-shift-pill">8 hrs</span>
+                  </td>
+                  <td>
+                    <div className="dr-daily-location">Poruthota Junction</div>
+                  </td>
+                  <td>
+                    <ul className="dr-daily-officer-list">
+                      <li className="dr-daily-officer-item">PC 4471 - Fernando</li>
+                    </ul>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button type="button" className="dr-daily-action-btn" title="Options">
+                      <FiMoreVertical size={18} />
+                    </button>
+                  </td>
+                </tr>
 
-            <div className="dr-duty-card">
-              <div className="top">
-                <h4>VIP Escort</h4>
-                <span className="dr-badge changes">Reassign</span>
-              </div>
-              <div className="shift">06:00 – 14:00</div>
-              <div className="meta">
-                <div><div className="k">Officer</div><div className="v" style={{ color: '#c1443b' }}>Conflict — 2 duties</div></div>
-                <div><div className="k">Location</div><div className="v">Negombo–Katunayake rd.</div></div>
-                <div><div className="k">Vehicle</div><div className="v">WP PD 1145</div></div>
-              </div>
-            </div>
+                <tr>
+                  <td style={{ textAlign: "center", fontWeight: "700" }}>4</td>
+                  <td>
+                    <div className="dr-daily-duty-title">Mobile Patrol — Sector 3</div>
+                  </td>
+                  <td>
+                    <div className="dr-daily-shift-time">14:00 - 22:00</div>
+                    <span className="dr-daily-shift-pill">8 hrs</span>
+                  </td>
+                  <td>
+                    <div className="dr-daily-location">Sector 3, Coastal Rd.</div>
+                  </td>
+                  <td>
+                    <ul className="dr-daily-officer-list">
+                      <li className="dr-daily-officer-item">PC 5012 - Perera</li>
+                      <li className="dr-daily-officer-item">PC 3390 - Silva</li>
+                    </ul>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button type="button" className="dr-daily-action-btn" title="Options">
+                      <FiMoreVertical size={18} />
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style={{ textAlign: "center", fontWeight: "700" }}>5</td>
+                  <td>
+                    <div className="dr-daily-duty-title">Checkpoint — Kurana</div>
+                  </td>
+                  <td>
+                    <div className="dr-daily-shift-time">22:00 - 06:00</div>
+                    <span className="dr-daily-shift-pill">8 hrs</span>
+                  </td>
+                  <td>
+                    <div className="dr-daily-location">Kurana Checkpoint</div>
+                  </td>
+                  <td>
+                    <ul className="dr-daily-officer-list">
+                      <li className="dr-daily-officer-item">PC 6120 - Bandara</li>
+                    </ul>
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button type="button" className="dr-daily-action-btn" title="Options">
+                      <FiMoreVertical size={18} />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
       )}
@@ -922,6 +1035,29 @@ export default function DutyRoster() {
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="dr-btn dr-btn-primary" onClick={handleOICPublish}>
                 <FiSend size={15} /> Publish Roster
+              </button>
+            </div>
+          )}
+
+          {/* IT Officer Action to Submit Draft / Changes Roster to OIC */}
+          {!isOIC && (selectedRoster?.badge === 'draft' || selectedRoster?.badge === 'changes' || !selectedRoster) && (
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                className="dr-btn dr-btn-primary"
+                onClick={() => {
+                  if (selectedRoster) {
+                    setSelectedRoster({
+                      ...selectedRoster,
+                      badge: 'pending',
+                      label: 'Pending'
+                    });
+                  }
+                  showToast("Roster submitted to OIC for approval!");
+                  setActiveScreen('dashboard');
+                  setDashTab('pending');
+                }}
+              >
+                <FiSend size={15} /> Submit to OIC
               </button>
             </div>
           )}
