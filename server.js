@@ -58,6 +58,9 @@ app.use("/api/vehicles", vehicleRoutes);
 const dutyRoutes = require("./routes/dutyRoutes");
 app.use("/api/duties", dutyRoutes);
 
+const dutyRosterRoutes = require("./routes/dutyRosterRoutes");
+app.use("/api/duty-rosters", dutyRosterRoutes);
+
 const leaveRoutes = require("./routes/leaveRoutes");
 app.use(["/api/leaves", "/leaves"], leaveRoutes);
 
