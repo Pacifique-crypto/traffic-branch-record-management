@@ -3,6 +3,7 @@ const router = express.Router();
 const DutyRoster = require("../models/DutyRoster");
 const DutyAssignment = require("../models/DutyAssignment");
 const Officer = require("../models/Officer");
+const Notification = require("../models/Notification");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const { validateAssignment, formatDateStr, toMidnight } = require("../services/rosterValidator");
 const { ROSTER_STATUSES, SHIFT_PRESETS } = require("../config/rosterConfig");
@@ -210,6 +211,8 @@ router.put("/:id", verifyToken, async (req, res) => {
       });
     }
 
+    let notificationCount = 0;
+
     if (status && Object.values(ROSTER_STATUSES).includes(status.toUpperCase())) {
       const newStatus = status.toUpperCase();
       roster.status = newStatus;
@@ -220,6 +223,36 @@ router.put("/:id", verifyToken, async (req, res) => {
         roster.approvedAt = new Date();
       } else if (newStatus === ROSTER_STATUSES.PUBLISHED) {
         roster.publishedAt = new Date();
+
+        // Create notifications for assigned officers with duplicate prevention
+        const assignments = await DutyAssignment.find({ roster: roster._id }).populate("officer");
+        for (const assignment of assignments) {
+          if (!assignment.officer || assignment.dutyType === "OFF") continue;
+
+          const recipientId = assignment.officer._id || assignment.officer;
+
+          // Duplicate prevention check
+          const existingNotif = await Notification.findOne({
+            recipient: recipientId,
+            type: "DUTY_ASSIGNED",
+            relatedDuty: assignment._id
+          });
+
+          if (!existingNotif) {
+            const dutyDateStr = new Date(assignment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const dutyName = assignment.dutyType === 'Special Duty' ? (assignment.specialDutyText || 'Special Duty') : assignment.dutyType;
+
+            await Notification.create({
+              recipient: recipientId,
+              title: "New Duty Assigned",
+              message: `You have been assigned ${dutyName} on ${dutyDateStr} (${assignment.shift}) at ${assignment.location || 'Main Station'}.`,
+              type: "DUTY_ASSIGNED",
+              relatedDuty: assignment._id,
+              relatedRoster: roster._id
+            });
+            notificationCount++;
+          }
+        }
       }
     }
 
@@ -239,7 +272,10 @@ router.put("/:id", verifyToken, async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Duty roster updated successfully. Status is now '${roster.status}'.`,
+      message: roster.status === ROSTER_STATUSES.PUBLISHED
+        ? "Roster published successfully. Officer notifications created."
+        : `Duty roster updated successfully. Status is now '${roster.status}'.`,
+      notificationCount,
       roster: updatedRoster
     });
   } catch (error) {

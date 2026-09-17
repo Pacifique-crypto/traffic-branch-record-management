@@ -16,12 +16,22 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["LEAVE_APPROVED", "LEAVE_REJECTED", "SYSTEM"],
+    enum: ["LEAVE_APPROVED", "LEAVE_REJECTED", "SYSTEM", "DUTY_ASSIGNED"],
     required: true
   },
   relatedLeave: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "OfficerAvailability",
+    required: false
+  },
+  relatedDuty: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "DutyAssignment",
+    required: false
+  },
+  relatedRoster: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "DutyRoster",
     required: false
   },
   rejectionRemarks: {
