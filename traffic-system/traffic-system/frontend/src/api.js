@@ -376,3 +376,79 @@ export const updateMyPassword = async (data) => {
     return { ok: false, error: err.message };
   }
 };
+
+// ==========================================
+// DUTY ROSTER API CALLS
+// ==========================================
+
+export const getDutyRosters = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`${BASE_URL}/duty-rosters${query ? `?${query}` : ""}`, {
+    headers: getHeaders(),
+  });
+  return res.json();
+};
+
+export const getDutyRosterByWeek = async (startDate) => {
+  const res = await fetch(`${BASE_URL}/duty-rosters/week?startDate=${startDate}`, {
+    headers: getHeaders(),
+  });
+  return res.json();
+};
+
+export const createDutyRoster = async (data) => {
+  const res = await fetch(`${BASE_URL}/duty-rosters`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  const resData = await res.json();
+  return { ok: res.ok, data: resData };
+};
+
+export const updateDutyRoster = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/duty-rosters/${id}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  const resData = await res.json();
+  return { ok: res.ok, data: resData };
+};
+
+export const getDuties = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`${BASE_URL}/duties${query ? `?${query}` : ""}`, {
+    headers: getHeaders(),
+  });
+  return res.json();
+};
+
+export const createDuty = async (data) => {
+  const res = await fetch(`${BASE_URL}/duties`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  const resData = await res.json();
+  return { ok: res.ok, data: resData };
+};
+
+export const updateDuty = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/duties/${id}`, {
+    method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  const resData = await res.json();
+  return { ok: res.ok, data: resData };
+};
+
+export const deleteDuty = async (id) => {
+  const res = await fetch(`${BASE_URL}/duties/${id}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  const resData = await res.json();
+  return { ok: res.ok, data: resData };
+};

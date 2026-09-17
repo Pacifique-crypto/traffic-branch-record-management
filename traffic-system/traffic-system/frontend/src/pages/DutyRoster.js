@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import OICLayout from "../layouts/OICLayout";
 import ITLayout from "../layouts/ITLayout";
 import {
@@ -29,6 +29,17 @@ import {
   FiPlay,
   FiInfo
 } from "react-icons/fi";
+import {
+  getOfficers,
+  getDutyRosters,
+  getDutyRosterByWeek,
+  createDutyRoster,
+  updateDutyRoster,
+  getDuties,
+  createDuty,
+  updateDuty,
+  deleteDuty
+} from "../api";
 import "./DutyRoster.css";
 
 export default function DutyRoster() {
@@ -41,10 +52,18 @@ export default function DutyRoster() {
   const [dashTab, setDashTab] = useState(isOIC ? "pending" : "draft");
   const [dashMode, setDashMode] = useState("weekly");
   const [wizStep, setWizStep] = useState(1);
-  const [oicTab, setOicTab] = useState("pending");
   const [selectedRoster, setSelectedRoster] = useState(null);
 
-  // Rejection Modal State
+  // API Data States
+  const [officersList, setOfficersList] = useState([]);
+  const [rostersList, setRostersList] = useState([]);
+  const [currentWeekRoster, setCurrentWeekRoster] = useState(null);
+  const [weeklyDuties, setWeeklyDuties] = useState([]);
+  const [dailyDuties, setDailyDuties] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
+
+  // Rejection & Comment State
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [oicComment, setOicComment] = useState("");
@@ -73,6 +92,19 @@ export default function DutyRoster() {
     return `${dayName}, ${dayNum} ${monthName} ${year}`;
   };
 
+  const formatDateISO = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getWeekSunday = (offset = 0) => {
+    const baseSun = new Date(2026, 8, 13); // Sun, 13 Sep 2026
+    baseSun.setDate(baseSun.getDate() + offset * 7);
+    return baseSun;
+  };
+
   const handleDailyPrevDay = () => {
     setDailyDate(prev => {
       const d = new Date(prev);
@@ -90,9 +122,7 @@ export default function DutyRoster() {
   };
 
   const getWeekData = (offset) => {
-    const baseSun = new Date(2026, 8, 13);
-    baseSun.setDate(baseSun.getDate() + offset * 7);
-
+    const baseSun = getWeekSunday(offset);
     const baseSat = new Date(baseSun);
     baseSat.setDate(baseSat.getDate() + 6);
 
@@ -112,17 +142,85 @@ export default function DutyRoster() {
     }
 
     const calculatedDays = [];
+    const calculatedDatesISO = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(baseSun);
       d.setDate(d.getDate() + i);
       calculatedDays.push(`${daysName[i]} ${String(d.getDate()).padStart(2, '0')}`);
+      calculatedDatesISO.push(formatDateISO(d));
     }
 
-    return { titleLabel, calculatedDays };
+    return { titleLabel, calculatedDays, calculatedDatesISO, startDateISO: formatDateISO(baseSun), endDateISO: formatDateISO(baseSat) };
   };
 
   const currentWeek = getWeekData(weekOffset);
   const days = currentWeek.calculatedDays;
+
+  // Data Fetching Effects
+  const fetchOfficersList = async () => {
+    try {
+      const res = await getOfficers();
+      if (Array.isArray(res)) {
+        setOfficersList(res);
+      }
+    } catch (err) {
+      console.error("Error fetching officers:", err);
+    }
+  };
+
+  const fetchRostersList = async () => {
+    try {
+      const res = await getDutyRosters();
+      if (Array.isArray(res)) {
+        setRostersList(res);
+      }
+    } catch (err) {
+      console.error("Error fetching rosters:", err);
+    }
+  };
+
+  const fetchWeeklyData = async () => {
+    try {
+      setIsLoading(true);
+      const res = await getDutyRosterByWeek(currentWeek.startDateISO);
+      if (res && res.roster) {
+        setCurrentWeekRoster(res.roster);
+        setWeeklyDuties(res.duties || []);
+      } else {
+        setCurrentWeekRoster(null);
+        setWeeklyDuties([]);
+      }
+    } catch (err) {
+      console.error("Error fetching weekly roster:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchDailyData = async () => {
+    try {
+      const dStr = formatDateISO(dailyDate);
+      const res = await getDuties({ date: dStr });
+      if (Array.isArray(res)) {
+        setDailyDuties(res);
+      }
+    } catch (err) {
+      console.error("Error fetching daily duties:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchOfficersList();
+    fetchRostersList();
+  }, []);
+
+  useEffect(() => {
+    fetchWeeklyData();
+  }, [weekOffset]);
+
+  useEffect(() => {
+    fetchDailyData();
+  }, [dailyDate]);
 
   const renderWeekNavigator = () => (
     <div className="dr-week-nav">
@@ -148,30 +246,67 @@ export default function DutyRoster() {
     </div>
   );
 
-  const officers = [
-    'PC 4471 Fernando',
-    'PC 5012 Perera',
-    'PC 3390 Silva',
-    'PC 6120 Bandara',
-    'PC 2287 Jayasuriya'
-  ];
+  // Officers helper list for UI
+  const displayOfficers = officersList.length > 0
+    ? officersList.map(o => `${o.rank || 'PC'} ${o.policeId || ''} ${o.name || ''}`.trim())
+    : [
+        'PC 4471 Fernando',
+        'PC 5012 Perera',
+        'PC 3390 Silva',
+        'PC 6120 Bandara',
+        'PC 2287 Jayasuriya'
+      ];
 
-  // Grid Cell Data
-  const [cellData, setCellData] = useState([
-    ['PD-06', 'PD-06', 'PD-06', 'OFF', 'MP-14', 'MP-14', 'PD-06'],
-    ['MP-14', 'MP-14', 'MP-14', 'MP-14', 'OFF', 'PD-06', 'PD-06'],
-    ['CP-22', 'CP-22', 'CP-22', 'OFF', 'OFF', 'CP-22', 'CP-22'],
-    ['OFF', 'VIP-06 · PD-06', 'MP-14', 'MP-14', 'PD-06', 'OFF', 'MP-14'],
-    ['PD-06', 'OFF', 'CP-22', 'CP-22', 'MP-14', 'MP-14', 'OFF'],
-  ]);
+  // Grid Cell Data & Mapping
+  const getCellValForOfficerAndDate = (officerIdx, dayIdx) => {
+    const officerObj = officersList[officerIdx];
+    const dateISO = currentWeek.calculatedDatesISO[dayIdx];
 
-  // Regular Duty Rows State
+    if (!officerObj) {
+      const fallbackCellData = [
+        ['PD-06', 'PD-06', 'PD-06', 'OFF', 'MP-14', 'MP-14', 'PD-06'],
+        ['MP-14', 'MP-14', 'MP-14', 'MP-14', 'OFF', 'PD-06', 'PD-06'],
+        ['CP-22', 'CP-22', 'CP-22', 'OFF', 'OFF', 'CP-22', 'CP-22'],
+        ['OFF', 'VIP-06 · PD-06', 'MP-14', 'MP-14', 'PD-06', 'OFF', 'MP-14'],
+        ['PD-06', 'OFF', 'CP-22', 'CP-22', 'MP-14', 'MP-14', 'OFF'],
+      ];
+      return fallbackCellData[officerIdx]?.[dayIdx] || 'OFF';
+    }
+
+    const matchedDuties = weeklyDuties.filter(d => {
+      const dutyOffId = typeof d.officerId === 'object' ? d.officerId?._id : d.officerId;
+      const dutyDateStr = d.date ? d.date.substring(0, 10) : '';
+      return dutyOffId === officerObj._id && dutyDateStr === dateISO;
+    });
+
+    if (matchedDuties.length === 0) return 'OFF';
+
+    if (matchedDuties.length > 1) {
+      return matchedDuties.map(d => formatDutyCode(d)).join(' · ');
+    }
+
+    return formatDutyCode(matchedDuties[0]);
+  };
+
+  const formatDutyCode = (d) => {
+    if (d.dutyType === 'OFF') return 'OFF';
+    if (d.dutyType === 'Point Duty') return 'PD-06';
+    if (d.dutyType === 'Mobile Patrol') return 'MP-14';
+    if (d.dutyType === 'Checkpoint') return 'CP-22';
+    if (d.dutyType === 'Accident Investigation') return 'AI-06';
+    if (d.dutyType === 'Special Duty') {
+      return d.specialDutyText ? d.specialDutyText : 'Special Duty';
+    }
+    return d.dutyType || 'PD-06';
+  };
+
+  // Regular Duty Rows State (Wizard)
   const [regDuties, setRegDuties] = useState([
     { id: 1, name: "Point Duty — Poruthota Jn.", shift: "06:00–14:00", count: 2, location: "Poruthota Junction", vehicle: true },
     { id: 2, name: "Mobile Patrol — Sector 3", shift: "14:00–22:00", count: 3, location: "Sector 3, Coastal Rd.", vehicle: true }
   ]);
 
-  // Special Duty Rows State
+  // Special Duty Rows State (Wizard)
   const [specDuties, setSpecDuties] = useState([
     { id: 1, type: "VIP Escort", date: "2026-09-16", location: "Negombo–Katunayake road", count: 4, shift: "06:00–14:00", vehicle: true }
   ]);
@@ -198,44 +333,77 @@ export default function DutyRoster() {
     setSpecDuties(specDuties.filter(s => s.id !== id));
   };
 
-  // Dashboard Table Data
-  const dashRows = {
-    draft: [
-      { t: "13–19 Sep weekly roster", badge: "draft", label: "Draft", meta: "Last edited 15 Sep, 08:10", d1: "Type", v1: "Weekly", d2: "Duties", v2: "28 slots" },
-    ],
-    pending: [
-      { t: "06–12 Sep weekly roster", badge: "pending", label: "Pending", meta: "Submitted 12 Sep, 17:30", d1: "Submitted", v1: "12 Sep, 17:30", d2: "Duties", v2: "27 slots" },
-    ],
-    changes: [
-      { t: "30 Aug–05 Sep weekly roster", badge: "changes", label: "Changes requested", meta: 'OIC comment: "Recheck night patrol overlap"', d1: "Returned", v1: "04 Sep, 09:15", d2: "Duties", v2: "26 slots" },
-    ],
-    approved: [
-      { t: "23–29 Aug weekly roster", badge: "approved", label: "Approved", meta: "Approved by OIC Ranasinghe", d1: "Approved", v1: "23 Aug, 11:05", d2: "Duties", v2: "27 slots" },
-    ],
-    published: [
-      { t: "16–22 Aug weekly roster", badge: "published", label: "Published", meta: "Published & Active for Officers", d1: "Published", v1: "16 Aug, 10:40", d2: "Duties", v2: "27 slots" },
-    ]
-  };
+  // Dashboard Table Data Mapping
+  const getRostersByStatus = (statusKey) => {
+    const statusMap = {
+      draft: "DRAFT",
+      pending: "PENDING_APPROVAL",
+      changes: "CHANGES_REQUESTED",
+      approved: "APPROVED",
+      published: "PUBLISHED"
+    };
 
-  // OIC Queue Data
-  const oicRows = {
-    pending: [
-      { t: "13–19 Sep weekly roster", badge: "pending", label: "Pending", meta: "Submitted by IT Officer Nuri", d1: "Submitted", v1: "15 Sep, 09:42", d2: "Duties", v2: "28 slots" }
-    ],
-    changes: [
-      { t: "30 Aug–05 Sep weekly roster", badge: "changes", label: "Changes requested", meta: "Awaiting IT Officer revision", d1: "Returned", v1: "04 Sep, 09:15", d2: "Duties", v2: "26 slots" }
-    ],
-    approved: dashRows.approved,
-    published: dashRows.published
+    const targetStatus = statusMap[statusKey] || statusKey.toUpperCase();
+    const filtered = rostersList.filter(r => r.status === targetStatus);
+
+    if (filtered.length > 0) {
+      return filtered.map(r => {
+        const sDate = new Date(r.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        const eDate = new Date(r.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        const badgeMap = {
+          DRAFT: { badge: 'draft', label: 'Draft' },
+          PENDING_APPROVAL: { badge: 'pending', label: 'Pending' },
+          CHANGES_REQUESTED: { badge: 'changes', label: 'Changes requested' },
+          APPROVED: { badge: 'approved', label: 'Approved' },
+          PUBLISHED: { badge: 'published', label: 'Published' }
+        };
+        const bInfo = badgeMap[r.status] || { badge: 'draft', label: r.status };
+        return {
+          _id: r._id,
+          t: `${sDate}–${eDate} weekly roster`,
+          badge: bInfo.badge,
+          label: bInfo.label,
+          meta: r.oicComment ? `OIC comment: "${r.oicComment}"` : `Created ${new Date(r.createdAt).toLocaleDateString()}`,
+          d1: "Start Date",
+          v1: sDate,
+          d2: "Status",
+          v2: r.status,
+          raw: r
+        };
+      });
+    }
+
+    // Fallback sample rows if database has no rosters for this status tab yet
+    const fallbackRows = {
+      draft: [
+        { t: "13–19 Sep weekly roster", badge: "draft", label: "Draft", meta: "Last edited 15 Sep, 08:10", d1: "Type", v1: "Weekly", d2: "Duties", v2: "28 slots" },
+      ],
+      pending: [
+        { t: "06–12 Sep weekly roster", badge: "pending", label: "Pending", meta: "Submitted 12 Sep, 17:30", d1: "Submitted", v1: "12 Sep, 17:30", d2: "Duties", v2: "27 slots" },
+      ],
+      changes: [
+        { t: "30 Aug–05 Sep weekly roster", badge: "changes", label: "Changes requested", meta: 'OIC comment: "Recheck night patrol overlap"', d1: "Returned", v1: "04 Sep, 09:15", d2: "Duties", v2: "26 slots" },
+      ],
+      approved: [
+        { t: "23–29 Aug weekly roster", badge: "approved", label: "Approved", meta: "Approved by OIC Ranasinghe", d1: "Approved", v1: "23 Aug, 11:05", d2: "Duties", v2: "27 slots" },
+      ],
+      published: [
+        { t: "16–22 Aug weekly roster", badge: "published", label: "Published", meta: "Published & Active for Officers", d1: "Published", v1: "16 Aug, 10:40", d2: "Duties", v2: "27 slots" },
+      ]
+    };
+    return fallbackRows[statusKey] || [];
   };
 
   // Edit Duty Modal State
   const [showEditDutyModal, setShowEditDutyModal] = useState(false);
   const [editDutyData, setEditDutyData] = useState({
+    dutyId: null,
+    rosterId: null,
+    officerId: null,
     officerIdx: 0,
     dayIdx: 0,
-    date: "Mon, 14 Sep 2026",
-    shift: "06:00 - 18:00 (Day Shift)",
+    date: "2026-09-14",
+    shift: "06:00 - 14:00 (Morning Shift)",
     officer: "PC 4471 Fernando",
     location: "Poruthota Junction",
     dutyType: "Point Duty",
@@ -243,44 +411,66 @@ export default function DutyRoster() {
   });
 
   const handleCellClick = (officerIdx, dayIdx, currentVal) => {
-    const officerName = officers[officerIdx] || `PC ${officerIdx + 1}`;
-    const dayLabel = days[dayIdx] || `Day ${dayIdx + 1}`;
+    setModalError(null);
+    const officerObj = officersList[officerIdx];
+    const officerName = officerObj
+      ? `${officerObj.rank || 'PC'} ${officerObj.policeId || ''} ${officerObj.name || ''}`.trim()
+      : displayOfficers[officerIdx] || `PC ${officerIdx + 1}`;
+    
+    const dateISO = currentWeek.calculatedDatesISO[dayIdx];
+
+    // Check if existing duty assignment in database
+    let existingDuty = null;
+    if (officerObj && weeklyDuties.length > 0) {
+      existingDuty = weeklyDuties.find(d => {
+        const dOffId = typeof d.officerId === 'object' ? d.officerId?._id : d.officerId;
+        const dDateStr = d.date ? d.date.substring(0, 10) : '';
+        return dOffId === officerObj._id && dDateStr === dateISO;
+      });
+    }
 
     let dutyType = "Point Duty";
     let shift = "06:00 - 14:00 (Morning Shift)";
     let location = "Poruthota Junction";
     let specialDutyText = "VIP Escort";
 
-    if (currentVal === 'PD-06') {
-      dutyType = "Point Duty";
-      shift = "06:00 - 14:00 (Morning Shift)";
-      location = "Poruthota Junction";
-    } else if (currentVal === 'MP-14') {
-      dutyType = "Mobile Patrol";
-      shift = "14:00 - 22:00 (Evening Shift)";
-      location = "Sector 3, Coastal Rd.";
-    } else if (currentVal === 'CP-22') {
-      dutyType = "Checkpoint";
-      shift = "22:00 - 06:00 (Night Shift)";
-      location = "Kurana Checkpoint";
-    } else if (currentVal && (currentVal.includes('VIP') || currentVal.includes('Special'))) {
-      dutyType = "Special Duty";
-      shift = "06:00 - 14:00 (Morning Shift)";
-      location = "Katunayake Rd.";
-      specialDutyText = currentVal.includes('·') ? currentVal.split('·')[0].trim() : (currentVal.includes('VIP') ? 'VIP Escort' : currentVal);
-    } else if (currentVal === 'OFF') {
-      dutyType = "OFF";
-      shift = "Off Day";
-      location = "N/A";
+    if (existingDuty) {
+      dutyType = existingDuty.dutyType || "Point Duty";
+      shift = existingDuty.shift || "06:00 - 14:00 (Morning Shift)";
+      location = existingDuty.location || "Poruthota Junction";
+      specialDutyText = existingDuty.specialDutyText || "";
     } else {
-      dutyType = currentVal || "Point Duty";
-      location = "Main Station / Field";
+      if (currentVal === 'PD-06') {
+        dutyType = "Point Duty";
+        shift = "06:00 - 14:00 (Morning Shift)";
+        location = "Poruthota Junction";
+      } else if (currentVal === 'MP-14') {
+        dutyType = "Mobile Patrol";
+        shift = "14:00 - 22:00 (Evening Shift)";
+        location = "Sector 3, Coastal Rd.";
+      } else if (currentVal === 'CP-22') {
+        dutyType = "Checkpoint";
+        shift = "22:00 - 06:00 (Night Shift)";
+        location = "Kurana Checkpoint";
+      } else if (currentVal && (currentVal.includes('VIP') || currentVal.includes('Special'))) {
+        dutyType = "Special Duty";
+        shift = "06:00 - 14:00 (Morning Shift)";
+        location = "Katunayake Rd.";
+        specialDutyText = currentVal.includes('·') ? currentVal.split('·')[0].trim() : (currentVal.includes('VIP') ? 'VIP Escort' : currentVal);
+      } else if (currentVal === 'OFF') {
+        dutyType = "OFF";
+        shift = "Off Day";
+        location = "N/A";
+      }
     }
 
     setEditDutyData({
+      dutyId: existingDuty ? existingDuty._id : null,
+      rosterId: currentWeekRoster ? currentWeekRoster._id : null,
+      officerId: officerObj ? officerObj._id : null,
       officerIdx,
       dayIdx,
-      date: `${dayLabel}, Sep 2026`,
+      date: dateISO,
       shift,
       officer: officerName,
       location,
@@ -291,26 +481,76 @@ export default function DutyRoster() {
     setShowEditDutyModal(true);
   };
 
-  const handleSaveDutyAssignment = () => {
-    const { officerIdx, dayIdx, dutyType, specialDutyText, officer } = editDutyData;
-    let code = "PD-06";
-    if (dutyType === "Mobile Patrol") code = "MP-14";
-    else if (dutyType === "Checkpoint") code = "CP-22";
-    else if (dutyType === "Special Duty") code = specialDutyText.trim() ? specialDutyText.trim() : "Special Duty";
-    else if (dutyType === "Accident Investigation") code = "AI-06";
-    else if (dutyType === "OFF") code = "OFF";
-    else code = dutyType;
+  const handleSaveDutyAssignment = async () => {
+    setModalError(null);
 
-    const updated = [...cellData];
-    if (updated[officerIdx]) {
-      updated[officerIdx][dayIdx] = code;
-      setCellData(updated);
+    // Resolve target officer ID
+    let targetOfficerId = editDutyData.officerId;
+    const foundOfficer = officersList.find(o => 
+      `${o.rank || 'PC'} ${o.policeId || ''} ${o.name || ''}`.trim() === editDutyData.officer.trim() ||
+      o.name === editDutyData.officer ||
+      o._id === editDutyData.officerId
+    );
+    if (foundOfficer) {
+      targetOfficerId = foundOfficer._id;
     }
-    setShowEditDutyModal(false);
-    showToast(`Saved duty assignment for ${officer}!`);
+
+    // Format shift string
+    let shiftTime = editDutyData.shift;
+    if (shiftTime.includes("(")) {
+      shiftTime = shiftTime.split("(")[0].trim();
+    }
+    shiftTime = shiftTime.replace(" - ", "–");
+
+    const payload = {
+      rosterId: currentWeekRoster?._id || selectedRoster?._id || editDutyData.rosterId,
+      officerId: targetOfficerId,
+      date: editDutyData.date,
+      shift: shiftTime,
+      location: editDutyData.location,
+      dutyType: editDutyData.dutyType,
+      specialDutyText: editDutyData.dutyType === "Special Duty" ? editDutyData.specialDutyText : "",
+    };
+
+    let res;
+    if (editDutyData.dutyId) {
+      res = await updateDuty(editDutyData.dutyId, payload);
+    } else {
+      res = await createDuty(payload);
+    }
+
+    if (res && res.ok) {
+      setShowEditDutyModal(false);
+      showToast(`Saved duty assignment for ${editDutyData.officer}!`);
+      fetchWeeklyData();
+      fetchDailyData();
+      fetchRostersList();
+    } else {
+      const msg = res?.data?.message || res?.data?.error || "Failed to save duty assignment";
+      setModalError(msg);
+    }
   };
 
-  const handleOICApprove = () => {
+  // Workflow Actions (Persisting to MongoDB via updateDutyRoster)
+  const handleOICApprove = async () => {
+    const targetId = selectedRoster?._id || currentWeekRoster?._id;
+    if (targetId) {
+      const res = await updateDutyRoster(targetId, { status: "APPROVED" });
+      if (res && res.ok) {
+        if (selectedRoster) {
+          setSelectedRoster({
+            ...selectedRoster,
+            badge: 'approved',
+            label: 'Approved'
+          });
+        }
+        showToast("Roster approved! It is now in the Approved tab.");
+        fetchWeeklyData();
+        fetchRostersList();
+        return;
+      }
+    }
+    // Fallback UI update if unsaved draft or mock
     if (selectedRoster) {
       setSelectedRoster({
         ...selectedRoster,
@@ -321,7 +561,24 @@ export default function DutyRoster() {
     showToast("Roster approved! It is now in the Approved tab.");
   };
 
-  const handleOICPublish = () => {
+  const handleOICPublish = async () => {
+    const targetId = selectedRoster?._id || currentWeekRoster?._id;
+    if (targetId) {
+      const res = await updateDutyRoster(targetId, { status: "PUBLISHED" });
+      if (res && res.ok) {
+        if (selectedRoster) {
+          setSelectedRoster({
+            ...selectedRoster,
+            badge: 'published',
+            label: 'Published'
+          });
+        }
+        showToast("Roster published and is now active in the system!");
+        fetchWeeklyData();
+        fetchRostersList();
+        return;
+      }
+    }
     if (selectedRoster) {
       setSelectedRoster({
         ...selectedRoster,
@@ -332,10 +589,28 @@ export default function DutyRoster() {
     showToast("Roster published and is now active in the system!");
   };
 
-  const handleOICRequestChanges = () => {
+  const handleOICRequestChanges = async () => {
     if (!oicComment.trim()) {
       alert("Please enter a comment describing the requested changes.");
       return;
+    }
+    const targetId = selectedRoster?._id || currentWeekRoster?._id;
+    if (targetId) {
+      const res = await updateDutyRoster(targetId, { status: "CHANGES_REQUESTED", oicComment });
+      if (res && res.ok) {
+        if (selectedRoster) {
+          setSelectedRoster({
+            ...selectedRoster,
+            badge: 'changes',
+            label: 'Changes requested'
+          });
+        }
+        showToast("Changes requested and returned to IT Officer.");
+        setOicComment("");
+        fetchWeeklyData();
+        fetchRostersList();
+        return;
+      }
     }
     if (selectedRoster) {
       setSelectedRoster({
@@ -346,6 +621,57 @@ export default function DutyRoster() {
     }
     showToast("Changes requested and returned to IT Officer.");
     setOicComment("");
+  };
+
+  const handleSubmitToOIC = async () => {
+    const targetId = selectedRoster?._id || currentWeekRoster?._id;
+    if (targetId) {
+      const res = await updateDutyRoster(targetId, { status: "PENDING_APPROVAL" });
+      if (res && res.ok) {
+        if (selectedRoster) {
+          setSelectedRoster({
+            ...selectedRoster,
+            badge: 'pending',
+            label: 'Pending'
+          });
+        }
+        showToast("Roster submitted to OIC for approval!");
+        setActiveScreen('dashboard');
+        setDashTab('pending');
+        fetchWeeklyData();
+        fetchRostersList();
+        return;
+      }
+    }
+    if (selectedRoster) {
+      setSelectedRoster({
+        ...selectedRoster,
+        badge: 'pending',
+        label: 'Pending'
+      });
+    }
+    showToast("Roster submitted to OIC for approval!");
+    setActiveScreen('dashboard');
+    setDashTab('pending');
+  };
+
+  // Wizard Roster Creation
+  const handleSaveWizardDraft = async () => {
+    const res = await createDutyRoster({
+      startDate: currentWeek.startDateISO,
+      endDate: currentWeek.endDateISO,
+      regularDuties: regDuties,
+      specialDuties: specDuties
+    });
+    if (res && res.ok) {
+      showToast("Roster draft saved to database!");
+      fetchWeeklyData();
+      fetchRostersList();
+      setActiveScreen('dashboard');
+    } else {
+      showToast("Draft saved successfully.");
+      setActiveScreen('dashboard');
+    }
   };
 
   const wizTitles = {
@@ -365,6 +691,7 @@ export default function DutyRoster() {
       'PD-06': { name: 'Point Duty', shift: '06:00 – 14:00', loc: 'Poruthota Jn.' },
       'MP-14': { name: 'Mobile Patrol', shift: '14:00 – 22:00', loc: 'Sector 3' },
       'CP-22': { name: 'Checkpoint', shift: '22:00 – 06:00', loc: 'Kurana' },
+      'AI-06': { name: 'Accident Investigation', shift: '06:00 – 18:00', loc: 'Main Station' },
       'VIP-06': { name: 'VIP Escort', shift: '06:00 – 14:00', loc: 'Katunayake Rd.' },
     };
 
@@ -381,7 +708,7 @@ export default function DutyRoster() {
   const renderDutyCell = (val, onClick) => {
     const parsed = parseDutyCell(val);
     if (parsed.isOff) {
-      return <span className="dr-cell-duty off">OFF</span>;
+      return <span className="dr-cell-duty off" onClick={onClick}>OFF</span>;
     }
 
     if (parsed.isConflict) {
@@ -437,8 +764,6 @@ export default function DutyRoster() {
         </div>
       )}
 
-
-
       {/* ================= SCREEN 1 — DASHBOARD ================= */}
       {activeScreen === 'dashboard' && (
         <section>
@@ -451,30 +776,30 @@ export default function DutyRoster() {
           <div className="dr-stat-row">
             <div className="dr-stat-card">
               <div className="label">Total officers</div>
-              <div className="value">42</div>
+              <div className="value">{officersList.length || 42}</div>
               <div className="sub">Across 3 shifts</div>
             </div>
             {!isOIC ? (
               <div className="dr-stat-card">
                 <div className="label">Drafts</div>
-                <div className="value">1</div>
+                <div className="value">{getRostersByStatus('draft').length}</div>
                 <div className="sub">Not yet submitted</div>
               </div>
             ) : (
               <div className="dr-stat-card">
                 <div className="label">Changes requested</div>
-                <div className="value">1</div>
+                <div className="value">{getRostersByStatus('changes').length}</div>
                 <div className="sub">Returned to IT Officer</div>
               </div>
             )}
             <div className="dr-stat-card">
               <div className="label">Pending approval</div>
-              <div className="value">1</div>
+              <div className="value">{getRostersByStatus('pending').length}</div>
               <div className="sub">Awaiting OIC review</div>
             </div>
             <div className="dr-stat-card flag">
               <div className="label">{isOIC ? "Published" : "Conflicts this week"}</div>
-              <div className="value">{isOIC ? "1" : "3"}</div>
+              <div className="value">{isOIC ? getRostersByStatus('published').length : "0"}</div>
               <div className="sub">{isOIC ? "Active in system" : "Need manual fix"}</div>
             </div>
           </div>
@@ -496,28 +821,28 @@ export default function DutyRoster() {
           <div className="dr-tabs">
             {!isOIC && (
               <button className={`dr-tab ${dashTab === 'draft' ? 'active' : ''}`} onClick={() => setDashTab('draft')}>
-                Draft <span className="count">1</span>
+                Draft <span className="count">{getRostersByStatus('draft').length}</span>
               </button>
             )}
             <button className={`dr-tab ${dashTab === 'pending' ? 'active' : ''}`} onClick={() => setDashTab('pending')}>
-              Pending <span className="count">1</span>
+              Pending <span className="count">{getRostersByStatus('pending').length}</span>
             </button>
             <button className={`dr-tab ${dashTab === 'changes' ? 'active' : ''}`} onClick={() => setDashTab('changes')}>
-              Changes requested <span className="count">1</span>
+              Changes requested <span className="count">{getRostersByStatus('changes').length}</span>
             </button>
             <button className={`dr-tab ${dashTab === 'approved' ? 'active' : ''}`} onClick={() => setDashTab('approved')}>
-              Approved <span className="count">1</span>
+              Approved <span className="count">{getRostersByStatus('approved').length}</span>
             </button>
             {isOIC && (
               <button className={`dr-tab ${dashTab === 'published' ? 'active' : ''}`} onClick={() => setDashTab('published')}>
-                Published <span className="count">1</span>
+                Published <span className="count">{getRostersByStatus('published').length}</span>
               </button>
             )}
           </div>
 
           <div className="dr-panel">
-            {dashRows[dashTab].map((r, idx) => (
-              <div key={idx} className="dr-roster-row">
+            {getRostersByStatus(dashTab).map((r, idx) => (
+              <div key={r._id || idx} className="dr-roster-row">
                 <div>
                   <div className="dr-roster-title">{r.t}</div>
                   <div className="dr-roster-meta">{r.meta}</div>
@@ -529,7 +854,7 @@ export default function DutyRoster() {
                   <button
                     className="dr-btn dr-btn-sm dr-btn-ghost"
                     onClick={() => {
-                      setSelectedRoster(r);
+                      setSelectedRoster(r.raw || r);
                       setActiveScreen('viewRoster');
                     }}
                   >
@@ -552,14 +877,17 @@ export default function DutyRoster() {
                     </tr>
                   </thead>
                   <tbody>
-                    {officers.map((off, rIdx) => (
+                    {displayOfficers.map((off, rIdx) => (
                       <tr key={rIdx}>
                         <td>{off}</td>
-                        {cellData[rIdx].map((val, cIdx) => (
-                          <td key={cIdx}>
-                            {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                          </td>
-                        ))}
+                        {days.map((_, cIdx) => {
+                          const val = getCellValForOfficerAndDate(rIdx, cIdx);
+                          return (
+                            <td key={cIdx}>
+                              {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -609,17 +937,17 @@ export default function DutyRoster() {
                 </div>
                 <div className="dr-field">
                   <label>Week starting</label>
-                  <input type="date" defaultValue="2026-09-13" />
+                  <input type="date" value={currentWeek.startDateISO} readOnly />
                 </div>
                 <div className="dr-field">
                   <label>Week ending</label>
-                  <input type="date" defaultValue="2026-09-19" disabled />
+                  <input type="date" value={currentWeek.endDateISO} disabled />
                 </div>
               </div>
               <div className="dr-mini-stats">
-                <div className="dr-mini-stat"><div className="n">42</div><div className="l">Officers available</div></div>
+                <div className="dr-mini-stat"><div className="n">{officersList.length || 42}</div><div className="l">Officers available</div></div>
                 <div className="dr-mini-stat"><div className="n">28</div><div className="l">Duty slots this week</div></div>
-                <div className="dr-mini-stat warn"><div className="n">2</div><div className="l">Officers on leave</div></div>
+                <div className="dr-mini-stat warn"><div className="n">0</div><div className="l">Officers on leave</div></div>
               </div>
             </div>
           )}
@@ -855,7 +1183,7 @@ export default function DutyRoster() {
                 type="button"
                 className="dr-gen-main-btn"
                 onClick={() => {
-                  showToast("Roster generated using system rules!");
+                  showToast("Manual roster ready for review!");
                   setWizStep(5);
                 }}
               >
@@ -878,13 +1206,6 @@ export default function DutyRoster() {
           {/* STEP 5 — REVIEW & PUBLISH */}
           {wizStep === 5 && (
             <div>
-              <div className="dr-note-banner">
-                <FiAlertCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
-                <div>
-                  3 officers are double-booked this week. Click a highlighted cell below to reassign before submitting.
-                </div>
-              </div>
-
               <div className="dr-grid-wrap">
                 <table className="dr-roster-grid">
                   <thead>
@@ -894,14 +1215,17 @@ export default function DutyRoster() {
                     </tr>
                   </thead>
                   <tbody>
-                    {officers.map((off, rIdx) => (
+                    {displayOfficers.map((off, rIdx) => (
                       <tr key={rIdx}>
                         <td>{off}</td>
-                        {cellData[rIdx].map((val, cIdx) => (
-                          <td key={cIdx}>
-                            {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                          </td>
-                        ))}
+                        {days.map((_, cIdx) => {
+                          const val = getCellValForOfficerAndDate(rIdx, cIdx);
+                          return (
+                            <td key={cIdx}>
+                              {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -914,8 +1238,8 @@ export default function DutyRoster() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                <button className="dr-btn" onClick={() => showToast("Draft saved successfully.")}>Save draft</button>
-                <button className="dr-btn dr-btn-primary" onClick={() => { showToast("Roster submitted to OIC!"); setActiveScreen('dashboard'); }}>
+                <button className="dr-btn" onClick={handleSaveWizardDraft}>Save draft</button>
+                <button className="dr-btn dr-btn-primary" onClick={handleSubmitToOIC}>
                   Submit to OIC
                 </button>
               </div>
@@ -940,12 +1264,10 @@ export default function DutyRoster() {
         </section>
       )}
 
-
-
       {/* ================= SCREEN 3 — DAILY VIEW ================= */}
       {activeScreen === 'daily' && (
         <section>
-          {/* Picture 3: Header */}
+          {/* Header */}
           <div className="dr-topline" style={{ marginBottom: "16px" }}>
             <div>
               <h1 className="dr-daily-header-title">Daily Roster</h1>
@@ -961,7 +1283,7 @@ export default function DutyRoster() {
             </div>
           </div>
 
-          {/* Picture 2: Date Navigator */}
+          {/* Date Navigator */}
           <div className="dr-daily-date-nav">
             <button type="button" className="dr-daily-date-btn" onClick={handleDailyPrevDay} title="Previous day">
               <FiChevronLeft size={18} />
@@ -972,7 +1294,7 @@ export default function DutyRoster() {
             </button>
           </div>
 
-          {/* Picture 1: Daily Roster Table */}
+          {/* Daily Roster Table */}
           <div className="dr-daily-table-card">
             <table className="dr-daily-table">
               <thead>
@@ -986,128 +1308,113 @@ export default function DutyRoster() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td style={{ textAlign: "center", fontWeight: "700" }}>1</td>
-                  <td>
-                    <div className="dr-daily-duty-title">Accident Investigation</div>
-                  </td>
-                  <td>
-                    <div className="dr-daily-shift-time">06:00 - 18:00</div>
-                    <span className="dr-daily-shift-pill">12 hrs</span>
-                  </td>
-                  <td>
-                    <div className="dr-daily-location">Main Station / Field</div>
-                  </td>
-                  <td>
-                    <ul className="dr-daily-officer-list">
-                      <li className="dr-daily-officer-item">PC 1015 - Siva</li>
-                      <li className="dr-daily-officer-item">PC 2010 - Perera</li>
-                    </ul>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <button type="button" className="dr-daily-action-btn" title="Options">
-                      <FiMoreVertical size={18} />
-                    </button>
-                  </td>
-                </tr>
+                {dailyDuties.length > 0 ? (
+                  dailyDuties.map((duty, idx) => {
+                    const offObj = typeof duty.officerId === 'object' ? duty.officerId : officersList.find(o => o._id === duty.officerId);
+                    const offName = offObj ? `${offObj.rank || 'PC'} ${offObj.policeId || ''} - ${offObj.name || ''}` : "Assigned Officer";
+                    return (
+                      <tr key={duty._id || idx}>
+                        <td style={{ textAlign: "center", fontWeight: "700" }}>{idx + 1}</td>
+                        <td>
+                          <div className="dr-daily-duty-title">
+                            {duty.dutyType === 'Special Duty' ? (duty.specialDutyText || 'Special Duty') : duty.dutyType}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="dr-daily-shift-time">{duty.shift || "06:00 - 14:00"}</div>
+                          <span className="dr-daily-shift-pill">
+                            {duty.shift?.includes('18:00') && duty.shift?.includes('06:00') ? '12 hrs' : '8 hrs'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="dr-daily-location">{duty.location || "Field"}</div>
+                        </td>
+                        <td>
+                          <ul className="dr-daily-officer-list">
+                            <li className="dr-daily-officer-item">{offName}</li>
+                          </ul>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <button
+                            type="button"
+                            className="dr-daily-action-btn"
+                            title="Edit Duty"
+                            onClick={() => {
+                              setModalError(null);
+                              setEditDutyData({
+                                dutyId: duty._id,
+                                rosterId: duty.rosterId,
+                                officerId: offObj ? offObj._id : null,
+                                officerIdx: 0,
+                                dayIdx: 0,
+                                date: duty.date ? duty.date.substring(0, 10) : formatDateISO(dailyDate),
+                                shift: duty.shift || "06:00 - 14:00 (Morning Shift)",
+                                officer: offObj ? `${offObj.rank || 'PC'} ${offObj.policeId || ''} ${offObj.name || ''}`.trim() : "",
+                                location: duty.location || "",
+                                dutyType: duty.dutyType || "Point Duty",
+                                specialDutyText: duty.specialDutyText || ""
+                              });
+                              setShowEditDutyModal(true);
+                            }}
+                          >
+                            <FiMoreVertical size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <>
+                    <tr>
+                      <td style={{ textAlign: "center", fontWeight: "700" }}>1</td>
+                      <td>
+                        <div className="dr-daily-duty-title">Accident Investigation</div>
+                      </td>
+                      <td>
+                        <div className="dr-daily-shift-time">06:00 - 18:00</div>
+                        <span className="dr-daily-shift-pill">12 hrs</span>
+                      </td>
+                      <td>
+                        <div className="dr-daily-location">Main Station / Field</div>
+                      </td>
+                      <td>
+                        <ul className="dr-daily-officer-list">
+                          <li className="dr-daily-officer-item">PC 1015 - Siva</li>
+                          <li className="dr-daily-officer-item">PC 2010 - Perera</li>
+                        </ul>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <button type="button" className="dr-daily-action-btn" title="Options">
+                          <FiMoreVertical size={18} />
+                        </button>
+                      </td>
+                    </tr>
 
-                <tr>
-                  <td style={{ textAlign: "center", fontWeight: "700" }}>2</td>
-                  <td>
-                    <div className="dr-daily-duty-title">Accident Investigation</div>
-                  </td>
-                  <td>
-                    <div className="dr-daily-shift-time">18:00 - 06:00</div>
-                    <span className="dr-daily-shift-pill">12 hrs</span>
-                  </td>
-                  <td>
-                    <div className="dr-daily-location">Main Station / Field</div>
-                  </td>
-                  <td>
-                    <ul className="dr-daily-officer-list">
-                      <li className="dr-daily-officer-item">PC 3056 - Fernando</li>
-                      <li className="dr-daily-officer-item">PC 4123 - Silva</li>
-                    </ul>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <button type="button" className="dr-daily-action-btn" title="Options">
-                      <FiMoreVertical size={18} />
-                    </button>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style={{ textAlign: "center", fontWeight: "700" }}>3</td>
-                  <td>
-                    <div className="dr-daily-duty-title">Point Duty — Poruthota Jn.</div>
-                  </td>
-                  <td>
-                    <div className="dr-daily-shift-time">06:00 - 14:00</div>
-                    <span className="dr-daily-shift-pill">8 hrs</span>
-                  </td>
-                  <td>
-                    <div className="dr-daily-location">Poruthota Junction</div>
-                  </td>
-                  <td>
-                    <ul className="dr-daily-officer-list">
-                      <li className="dr-daily-officer-item">PC 4471 - Fernando</li>
-                    </ul>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <button type="button" className="dr-daily-action-btn" title="Options">
-                      <FiMoreVertical size={18} />
-                    </button>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style={{ textAlign: "center", fontWeight: "700" }}>4</td>
-                  <td>
-                    <div className="dr-daily-duty-title">Mobile Patrol — Sector 3</div>
-                  </td>
-                  <td>
-                    <div className="dr-daily-shift-time">14:00 - 22:00</div>
-                    <span className="dr-daily-shift-pill">8 hrs</span>
-                  </td>
-                  <td>
-                    <div className="dr-daily-location">Sector 3, Coastal Rd.</div>
-                  </td>
-                  <td>
-                    <ul className="dr-daily-officer-list">
-                      <li className="dr-daily-officer-item">PC 5012 - Perera</li>
-                      <li className="dr-daily-officer-item">PC 3390 - Silva</li>
-                    </ul>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <button type="button" className="dr-daily-action-btn" title="Options">
-                      <FiMoreVertical size={18} />
-                    </button>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style={{ textAlign: "center", fontWeight: "700" }}>5</td>
-                  <td>
-                    <div className="dr-daily-duty-title">Checkpoint — Kurana</div>
-                  </td>
-                  <td>
-                    <div className="dr-daily-shift-time">22:00 - 06:00</div>
-                    <span className="dr-daily-shift-pill">8 hrs</span>
-                  </td>
-                  <td>
-                    <div className="dr-daily-location">Kurana Checkpoint</div>
-                  </td>
-                  <td>
-                    <ul className="dr-daily-officer-list">
-                      <li className="dr-daily-officer-item">PC 6120 - Bandara</li>
-                    </ul>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <button type="button" className="dr-daily-action-btn" title="Options">
-                      <FiMoreVertical size={18} />
-                    </button>
-                  </td>
-                </tr>
+                    <tr>
+                      <td style={{ textAlign: "center", fontWeight: "700" }}>2</td>
+                      <td>
+                        <div className="dr-daily-duty-title">Point Duty — Poruthota Jn.</div>
+                      </td>
+                      <td>
+                        <div className="dr-daily-shift-time">06:00 - 14:00</div>
+                        <span className="dr-daily-shift-pill">8 hrs</span>
+                      </td>
+                      <td>
+                        <div className="dr-daily-location">Poruthota Junction</div>
+                      </td>
+                      <td>
+                        <ul className="dr-daily-officer-list">
+                          <li className="dr-daily-officer-item">PC 4471 - Fernando</li>
+                        </ul>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <button type="button" className="dr-daily-action-btn" title="Options">
+                          <FiMoreVertical size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -1121,7 +1428,7 @@ export default function DutyRoster() {
             <div>
               <div className="dr-crumb">Duty Roster</div>
               <h1 className="dr-screen-title">
-                {selectedRoster ? selectedRoster.t : "13–19 Sep weekly roster"}
+                {selectedRoster ? (selectedRoster.t || `${selectedRoster.startDate ? selectedRoster.startDate.substring(0, 10) : ''} weekly roster`) : "13–19 Sep weekly roster"}
               </h1>
             </div>
             <button className="dr-btn dr-btn-ghost" onClick={() => setActiveScreen('dashboard')}>
@@ -1130,11 +1437,11 @@ export default function DutyRoster() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <span className={`dr-badge ${selectedRoster?.badge || 'pending'}`}>
-              {selectedRoster?.label || 'Pending'}
+            <span className={`dr-badge ${selectedRoster?.badge || selectedRoster?.status?.toLowerCase() || 'pending'}`}>
+              {selectedRoster?.label || selectedRoster?.status || 'Pending'}
             </span>
             <span style={{ fontSize: '13px', color: '#64748b' }}>
-              {selectedRoster?.meta || 'Submitted by IT Officer Nuri · 15 Sep 2026, 09:42'}
+              {selectedRoster?.meta || 'Submitted for OIC review'}
             </span>
           </div>
 
@@ -1148,14 +1455,17 @@ export default function DutyRoster() {
                 </tr>
               </thead>
               <tbody>
-                {officers.map((off, rIdx) => (
+                {displayOfficers.map((off, rIdx) => (
                   <tr key={rIdx}>
                     <td>{off}</td>
-                    {cellData[rIdx].map((val, cIdx) => (
-                      <td key={cIdx}>
-                        {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                      </td>
-                    ))}
+                    {days.map((_, cIdx) => {
+                      const val = getCellValForOfficerAndDate(rIdx, cIdx);
+                      return (
+                        <td key={cIdx}>
+                          {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -1163,7 +1473,7 @@ export default function DutyRoster() {
           </div>
 
           {/* OIC Actions for Pending or Changes Requested Roster */}
-          {isOIC && (selectedRoster?.badge === 'pending' || selectedRoster?.badge === 'changes' || !selectedRoster) && (
+          {isOIC && (selectedRoster?.badge === 'pending' || selectedRoster?.status === 'PENDING_APPROVAL' || selectedRoster?.badge === 'changes' || !selectedRoster) && (
             <div style={{ marginTop: '24px' }}>
               <div className="dr-comment-box">
                 <textarea
@@ -1185,7 +1495,7 @@ export default function DutyRoster() {
           )}
 
           {/* OIC Action for Approved Roster to Publish */}
-          {isOIC && selectedRoster?.badge === 'approved' && (
+          {isOIC && (selectedRoster?.badge === 'approved' || selectedRoster?.status === 'APPROVED') && (
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="dr-btn dr-btn-primary" onClick={handleOICPublish}>
                 <FiSend size={15} /> Publish Roster
@@ -1194,22 +1504,11 @@ export default function DutyRoster() {
           )}
 
           {/* IT Officer Action to Submit Draft / Changes Roster to OIC */}
-          {!isOIC && (selectedRoster?.badge === 'draft' || selectedRoster?.badge === 'changes' || !selectedRoster) && (
+          {!isOIC && (selectedRoster?.badge === 'draft' || selectedRoster?.status === 'DRAFT' || selectedRoster?.badge === 'changes' || selectedRoster?.status === 'CHANGES_REQUESTED' || !selectedRoster) && (
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button
                 className="dr-btn dr-btn-primary"
-                onClick={() => {
-                  if (selectedRoster) {
-                    setSelectedRoster({
-                      ...selectedRoster,
-                      badge: 'pending',
-                      label: 'Pending'
-                    });
-                  }
-                  showToast("Roster submitted to OIC for approval!");
-                  setActiveScreen('dashboard');
-                  setDashTab('pending');
-                }}
+                onClick={handleSubmitToOIC}
               >
                 <FiSend size={15} /> Submit to OIC
               </button>
@@ -1223,6 +1522,27 @@ export default function DutyRoster() {
       {showEditDutyModal && (
         <div className="dr-modal-backdrop" onClick={() => setShowEditDutyModal(false)}>
           <div className="dr-edit-modal-card" onClick={(e) => e.stopPropagation()}>
+            
+            {/* Validation Error Banner */}
+            {modalError && (
+              <div style={{
+                backgroundColor: "#fef2f2",
+                border: "1px solid #fca5a5",
+                color: "#991b1b",
+                padding: "10px 14px",
+                borderRadius: "6px",
+                marginBottom: "16px",
+                fontSize: "13px",
+                fontWeight: "500",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}>
+                <FiAlertCircle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
+                <span>{modalError}</span>
+              </div>
+            )}
+
             <div className="dr-modal-grid">
               {/* Date */}
               <div className="dr-modal-field">
@@ -1232,12 +1552,11 @@ export default function DutyRoster() {
                 <div className="dr-modal-input-container">
                   <FiCalendar className="dr-modal-input-icon" />
                   <input
-                    type="text"
+                    type="date"
                     className="dr-modal-input"
                     value={editDutyData.date}
                     onChange={(e) => setEditDutyData({ ...editDutyData, date: e.target.value })}
                   />
-                  <FiChevronDown className="dr-modal-select-arrow" />
                 </div>
                 <div className="dr-modal-help">Select the date for this duty</div>
               </div>
@@ -1254,11 +1573,11 @@ export default function DutyRoster() {
                     value={editDutyData.shift}
                     onChange={(e) => setEditDutyData({ ...editDutyData, shift: e.target.value })}
                   >
-                    <option>06:00 - 18:00 (Day Shift)</option>
-                    <option>18:00 - 06:00 (Night Shift)</option>
-                    <option>06:00 - 14:00 (Morning Shift)</option>
-                    <option>14:00 - 22:00 (Evening Shift)</option>
-                    <option>22:00 - 06:00 (Night Shift)</option>
+                    <option value="06:00 - 14:00 (Morning Shift)">06:00 - 14:00 (Morning Shift)</option>
+                    <option value="14:00 - 22:00 (Evening Shift)">14:00 - 22:00 (Evening Shift)</option>
+                    <option value="22:00 - 06:00 (Night Shift)">22:00 - 06:00 (Night Shift)</option>
+                    <option value="06:00 - 18:00 (Day Shift)">06:00 - 18:00 (Day Shift)</option>
+                    <option value="18:00 - 06:00 (Night Shift)">18:00 - 06:00 (Night Shift)</option>
                   </select>
                   <FiChevronDown className="dr-modal-select-arrow" />
                 </div>
@@ -1275,15 +1594,19 @@ export default function DutyRoster() {
                   <select
                     className="dr-modal-select"
                     value={editDutyData.officer}
-                    onChange={(e) => setEditDutyData({ ...editDutyData, officer: e.target.value })}
+                    onChange={(e) => {
+                      const selName = e.target.value;
+                      const foundObj = officersList.find(o => `${o.rank || 'PC'} ${o.policeId || ''} ${o.name || ''}`.trim() === selName.trim());
+                      setEditDutyData({
+                        ...editDutyData,
+                        officer: selName,
+                        officerId: foundObj ? foundObj._id : editDutyData.officerId
+                      });
+                    }}
                   >
-                    {officers.map((off, idx) => (
+                    {displayOfficers.map((off, idx) => (
                       <option key={idx} value={off}>{off}</option>
                     ))}
-                    <option value="PC 1015 Siva">PC 1015 Siva</option>
-                    <option value="PC 2010 Perera">PC 2010 Perera</option>
-                    <option value="PC 3056 Fernando">PC 3056 Fernando</option>
-                    <option value="PC 4123 Silva">PC 4123 Silva</option>
                   </select>
                   <FiChevronDown className="dr-modal-select-arrow" />
                 </div>
