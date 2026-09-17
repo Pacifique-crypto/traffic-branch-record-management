@@ -19,7 +19,15 @@ import {
   FiShare2,
   FiUsers,
   FiLayers,
-  FiMoreVertical
+  FiMoreVertical,
+  FiUser,
+  FiMapPin,
+  FiBriefcase,
+  FiSave,
+  FiChevronDown,
+  FiSettings,
+  FiPlay,
+  FiInfo
 } from "react-icons/fi";
 import "./DutyRoster.css";
 
@@ -221,15 +229,85 @@ export default function DutyRoster() {
     published: dashRows.published
   };
 
+  // Edit Duty Modal State
+  const [showEditDutyModal, setShowEditDutyModal] = useState(false);
+  const [editDutyData, setEditDutyData] = useState({
+    officerIdx: 0,
+    dayIdx: 0,
+    date: "Mon, 14 Sep 2026",
+    shift: "06:00 - 18:00 (Day Shift)",
+    officer: "PC 4471 Fernando",
+    location: "Poruthota Junction",
+    dutyType: "Point Duty",
+    specialDutyText: "VIP Escort"
+  });
+
   const handleCellClick = (officerIdx, dayIdx, currentVal) => {
-    if (currentVal === 'OFF') return;
-    const newVal = prompt(`Reassign duty for ${officers[officerIdx]} on ${days[dayIdx]}:`, currentVal.replace(' · ', ', '));
-    if (newVal !== null && newVal.trim() !== '') {
-      const updated = [...cellData];
-      updated[officerIdx][dayIdx] = newVal.trim();
-      setCellData(updated);
-      showToast(`Updated duty assignment for ${officers[officerIdx]}`);
+    const officerName = officers[officerIdx] || `PC ${officerIdx + 1}`;
+    const dayLabel = days[dayIdx] || `Day ${dayIdx + 1}`;
+
+    let dutyType = "Point Duty";
+    let shift = "06:00 - 14:00 (Morning Shift)";
+    let location = "Poruthota Junction";
+    let specialDutyText = "VIP Escort";
+
+    if (currentVal === 'PD-06') {
+      dutyType = "Point Duty";
+      shift = "06:00 - 14:00 (Morning Shift)";
+      location = "Poruthota Junction";
+    } else if (currentVal === 'MP-14') {
+      dutyType = "Mobile Patrol";
+      shift = "14:00 - 22:00 (Evening Shift)";
+      location = "Sector 3, Coastal Rd.";
+    } else if (currentVal === 'CP-22') {
+      dutyType = "Checkpoint";
+      shift = "22:00 - 06:00 (Night Shift)";
+      location = "Kurana Checkpoint";
+    } else if (currentVal && (currentVal.includes('VIP') || currentVal.includes('Special'))) {
+      dutyType = "Special Duty";
+      shift = "06:00 - 14:00 (Morning Shift)";
+      location = "Katunayake Rd.";
+      specialDutyText = currentVal.includes('·') ? currentVal.split('·')[0].trim() : (currentVal.includes('VIP') ? 'VIP Escort' : currentVal);
+    } else if (currentVal === 'OFF') {
+      dutyType = "OFF";
+      shift = "Off Day";
+      location = "N/A";
+    } else {
+      dutyType = currentVal || "Point Duty";
+      location = "Main Station / Field";
     }
+
+    setEditDutyData({
+      officerIdx,
+      dayIdx,
+      date: `${dayLabel}, Sep 2026`,
+      shift,
+      officer: officerName,
+      location,
+      dutyType,
+      specialDutyText
+    });
+
+    setShowEditDutyModal(true);
+  };
+
+  const handleSaveDutyAssignment = () => {
+    const { officerIdx, dayIdx, dutyType, specialDutyText, officer } = editDutyData;
+    let code = "PD-06";
+    if (dutyType === "Mobile Patrol") code = "MP-14";
+    else if (dutyType === "Checkpoint") code = "CP-22";
+    else if (dutyType === "Special Duty") code = specialDutyText.trim() ? specialDutyText.trim() : "Special Duty";
+    else if (dutyType === "Accident Investigation") code = "AI-06";
+    else if (dutyType === "OFF") code = "OFF";
+    else code = dutyType;
+
+    const updated = [...cellData];
+    if (updated[officerIdx]) {
+      updated[officerIdx][dayIdx] = code;
+      setCellData(updated);
+    }
+    setShowEditDutyModal(false);
+    showToast(`Saved duty assignment for ${officer}!`);
   };
 
   const handleOICApprove = () => {
@@ -274,7 +352,8 @@ export default function DutyRoster() {
     1: "Select week",
     2: "Regular duties setup",
     3: "Special duties",
-    4: "Review & publish"
+    4: "Generate weekly roster",
+    5: "Review & publish"
   };
 
   const parseDutyCell = (code) => {
@@ -512,8 +591,11 @@ export default function DutyRoster() {
             <div className={`dr-wstep ${wizStep === 3 ? 'current' : ''} ${wizStep > 3 ? 'done' : ''}`}>
               <div className="num">3</div><div className="wlabel">Special duties</div>
             </div>
-            <div className={`dr-wstep ${wizStep === 4 ? 'current' : ''}`}>
-              <div className="num">4</div><div className="wlabel">Review &amp; publish</div>
+            <div className={`dr-wstep ${wizStep === 4 ? 'current' : ''} ${wizStep > 4 ? 'done' : ''}`}>
+              <div className="num">4</div><div className="wlabel">Generate roster</div>
+            </div>
+            <div className={`dr-wstep ${wizStep === 5 ? 'current' : ''}`}>
+              <div className="num">5</div><div className="wlabel">Review &amp; publish</div>
             </div>
           </div>
 
@@ -720,8 +802,81 @@ export default function DutyRoster() {
             </div>
           )}
 
-          {/* STEP 4 */}
+          {/* STEP 4 — GENERATE ROSTER */}
           {wizStep === 4 && (
+            <div className="dr-gen-container">
+              {/* Illustration Header */}
+              <div className="dr-gen-header-icon">
+                <div className="dr-gen-icon-circle">
+                  <FiCalendar size={38} color="#2563eb" />
+                  <FiSettings size={22} color="#1d4ed8" className="dr-gen-gear-sub" />
+                </div>
+              </div>
+
+              <h2 className="dr-gen-title">Generate Weekly Roster</h2>
+              <p className="dr-gen-sub">
+                The system will assign officers to all duties for the selected week, considering:
+              </p>
+
+              {/* Checklist Card */}
+              <div className="dr-gen-checklist-card">
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>Officer availability and approved leaves</span>
+                </div>
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>Minimum rest period between duties</span>
+                </div>
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>No overlapping shifts</span>
+                </div>
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>Maximum consecutive same duty limit</span>
+                </div>
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>Fair distribution of duties</span>
+                </div>
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>Required number of officers for each duty</span>
+                </div>
+                <div className="dr-gen-check-item">
+                  <FiCheck size={18} className="dr-gen-check-icon" />
+                  <span>Special duty requirements</span>
+                </div>
+              </div>
+
+              {/* Big Generate Roster Button */}
+              <button
+                type="button"
+                className="dr-gen-main-btn"
+                onClick={() => {
+                  showToast("Roster generated using system rules!");
+                  setWizStep(5);
+                }}
+              >
+                <FiPlay size={18} style={{ transform: "scaleX(1.2)" }} /> Generate Roster
+              </button>
+
+              {/* Info Note Box */}
+              <div className="dr-gen-note-box">
+                <FiInfo size={22} color="#1d4ed8" style={{ flexShrink: 0, marginTop: "2px" }} />
+                <div>
+                  <div className="dr-gen-note-title">Note</div>
+                  <div className="dr-gen-note-body">
+                    You can review, edit and adjust the roster after generation before saving or submitting to OIC.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5 — REVIEW & PUBLISH */}
+          {wizStep === 5 && (
             <div>
               <div className="dr-note-banner">
                 <FiAlertCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />
@@ -759,7 +914,6 @@ export default function DutyRoster() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                <button className="dr-btn" onClick={() => showToast("Auto-generated updated roster.")}>Auto-generate again</button>
                 <button className="dr-btn" onClick={() => showToast("Draft saved successfully.")}>Save draft</button>
                 <button className="dr-btn dr-btn-primary" onClick={() => { showToast("Roster submitted to OIC!"); setActiveScreen('dashboard'); }}>
                   Submit to OIC
@@ -777,7 +931,7 @@ export default function DutyRoster() {
             >
               ← Back
             </button>
-            {wizStep < 4 && (
+            {wizStep < 5 && (
               <button className="dr-btn dr-btn-primary" onClick={() => setWizStep(wizStep + 1)}>
                 Continue →
               </button>
@@ -1064,6 +1218,162 @@ export default function DutyRoster() {
         </section>
       )}
     </div>
+
+      {/* ================= EDIT DUTY ASSIGNMENT MODAL ================= */}
+      {showEditDutyModal && (
+        <div className="dr-modal-backdrop" onClick={() => setShowEditDutyModal(false)}>
+          <div className="dr-edit-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="dr-modal-grid">
+              {/* Date */}
+              <div className="dr-modal-field">
+                <label className="dr-modal-label">
+                  Date <span className="req">*</span>
+                </label>
+                <div className="dr-modal-input-container">
+                  <FiCalendar className="dr-modal-input-icon" />
+                  <input
+                    type="text"
+                    className="dr-modal-input"
+                    value={editDutyData.date}
+                    onChange={(e) => setEditDutyData({ ...editDutyData, date: e.target.value })}
+                  />
+                  <FiChevronDown className="dr-modal-select-arrow" />
+                </div>
+                <div className="dr-modal-help">Select the date for this duty</div>
+              </div>
+
+              {/* Shift */}
+              <div className="dr-modal-field">
+                <label className="dr-modal-label">
+                  Shift <span className="req">*</span>
+                </label>
+                <div className="dr-modal-input-container">
+                  <FiClock className="dr-modal-input-icon" />
+                  <select
+                    className="dr-modal-select"
+                    value={editDutyData.shift}
+                    onChange={(e) => setEditDutyData({ ...editDutyData, shift: e.target.value })}
+                  >
+                    <option>06:00 - 18:00 (Day Shift)</option>
+                    <option>18:00 - 06:00 (Night Shift)</option>
+                    <option>06:00 - 14:00 (Morning Shift)</option>
+                    <option>14:00 - 22:00 (Evening Shift)</option>
+                    <option>22:00 - 06:00 (Night Shift)</option>
+                  </select>
+                  <FiChevronDown className="dr-modal-select-arrow" />
+                </div>
+                <div className="dr-modal-help">Select the shift time</div>
+              </div>
+
+              {/* Officer */}
+              <div className="dr-modal-field">
+                <label className="dr-modal-label">
+                  Officer <span className="req">*</span>
+                </label>
+                <div className="dr-modal-input-container">
+                  <FiUser className="dr-modal-input-icon" />
+                  <select
+                    className="dr-modal-select"
+                    value={editDutyData.officer}
+                    onChange={(e) => setEditDutyData({ ...editDutyData, officer: e.target.value })}
+                  >
+                    {officers.map((off, idx) => (
+                      <option key={idx} value={off}>{off}</option>
+                    ))}
+                    <option value="PC 1015 Siva">PC 1015 Siva</option>
+                    <option value="PC 2010 Perera">PC 2010 Perera</option>
+                    <option value="PC 3056 Fernando">PC 3056 Fernando</option>
+                    <option value="PC 4123 Silva">PC 4123 Silva</option>
+                  </select>
+                  <FiChevronDown className="dr-modal-select-arrow" />
+                </div>
+                <div className="dr-modal-help">Choose an officer to assign</div>
+              </div>
+
+              {/* Location */}
+              <div className="dr-modal-field">
+                <label className="dr-modal-label">
+                  Location <span className="req">*</span>
+                </label>
+                <div className="dr-modal-input-container">
+                  <FiMapPin className="dr-modal-input-icon" />
+                  <input
+                    type="text"
+                    className="dr-modal-input"
+                    value={editDutyData.location}
+                    onChange={(e) => setEditDutyData({ ...editDutyData, location: e.target.value })}
+                    placeholder="Enter location"
+                  />
+                </div>
+                <div className="dr-modal-help">Enter the duty location (e.g. Main Station, Junction, Field)</div>
+              </div>
+
+              {/* Type of Duty */}
+              <div className="dr-modal-field" style={{ gridColumn: "span 2" }}>
+                <label className="dr-modal-label">
+                  Type of Duty <span className="req">*</span>
+                </label>
+                <div className="dr-modal-input-container">
+                  <FiBriefcase className="dr-modal-input-icon" />
+                  <select
+                    className="dr-modal-select"
+                    value={editDutyData.dutyType}
+                    onChange={(e) => setEditDutyData({ ...editDutyData, dutyType: e.target.value })}
+                  >
+                    <option value="Point Duty">Point Duty</option>
+                    <option value="Mobile Patrol">Mobile Patrol</option>
+                    <option value="Checkpoint">Checkpoint</option>
+                    <option value="Special Duty">Special Duty</option>
+                    <option value="Accident Investigation">Accident Investigation</option>
+                    <option value="OFF">OFF</option>
+                  </select>
+                  <FiChevronDown className="dr-modal-select-arrow" />
+                </div>
+                <div className="dr-modal-help">Choose the type of duty</div>
+
+                {/* Custom Input when Special Duty is selected */}
+                {editDutyData.dutyType === "Special Duty" && (
+                  <div style={{ marginTop: "14px" }}>
+                    <label className="dr-modal-label" style={{ fontSize: "13px" }}>
+                      Specify Special Duty Title / Details <span className="req">*</span>
+                    </label>
+                    <div className="dr-modal-input-container">
+                      <FiBriefcase className="dr-modal-input-icon" />
+                      <input
+                        type="text"
+                        className="dr-modal-input"
+                        value={editDutyData.specialDutyText}
+                        onChange={(e) => setEditDutyData({ ...editDutyData, specialDutyText: e.target.value })}
+                        placeholder="Enter special duty details (e.g. VIP Escort, Convoy, Festival Security)"
+                      />
+                    </div>
+                    <div className="dr-modal-help">Type the specific title or description for this special duty</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="dr-modal-actions">
+              <button
+                type="button"
+                className="dr-modal-btn-cancel"
+                onClick={() => setShowEditDutyModal(false)}
+              >
+                <FiX size={16} /> Cancel
+              </button>
+
+              <button
+                type="button"
+                className="dr-modal-btn-save"
+                onClick={handleSaveDutyAssignment}
+              >
+                <FiSave size={16} /> Save Duty
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </LayoutComponent>
   );
 }
