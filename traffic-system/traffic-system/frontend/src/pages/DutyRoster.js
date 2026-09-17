@@ -291,19 +291,27 @@ export default function DutyRoster() {
   const formatDutyCode = (d) => {
     if (d.dutyType === 'OFF') return 'OFF';
     if (d.dutyType === 'Point Duty') return 'PD-06';
+    if (d.dutyType === 'Accident Investigation Duty' || d.dutyType === 'Accident Investigation') return 'AI-06';
+    if (d.dutyType === 'Motorcycle Patrol') return 'MP-06';
+    if (d.dutyType === '119 Motorcycle Patrol') return '119-MP';
+    if (d.dutyType === 'Traffic Branch Duty') return 'TB-06';
+    if (d.dutyType === 'Court Duty') return 'CD-08';
     if (d.dutyType === 'Mobile Patrol') return 'MP-14';
     if (d.dutyType === 'Checkpoint') return 'CP-22';
-    if (d.dutyType === 'Accident Investigation') return 'AI-06';
     if (d.dutyType === 'Special Duty') {
       return d.specialDutyText ? d.specialDutyText : 'Special Duty';
     }
     return d.dutyType || 'PD-06';
   };
 
-  // Regular Duty Rows State (Wizard)
+  // Regular Duty Rows State (Wizard) - Pre-filled with standard regular duties
   const [regDuties, setRegDuties] = useState([
-    { id: 1, name: "Point Duty — Poruthota Jn.", shift: "06:00–14:00", count: 2, location: "Poruthota Junction", vehicle: true },
-    { id: 2, name: "Mobile Patrol — Sector 3", shift: "14:00–22:00", count: 3, location: "Sector 3, Coastal Rd.", vehicle: true }
+    { id: 1, name: "Accident Investigation Duty", shift: "06:00–18:00", count: 2, location: "Main Station / Field", vehicle: true },
+    { id: 2, name: "Motorcycle Patrol", shift: "06:00–18:00", count: 3, location: "Sector Patrol Area", vehicle: true },
+    { id: 3, name: "119 Motorcycle Patrol", shift: "06:00–18:00", count: 2, location: "Emergency Response Patrol", vehicle: true },
+    { id: 4, name: "Point Duty", shift: "06:00–14:00", count: 4, location: "Poruthota & Main Junctions", vehicle: false },
+    { id: 5, name: "Traffic Branch Duty", shift: "06:00–18:00", count: 2, location: "Traffic Branch HQ", vehicle: false },
+    { id: 6, name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court", vehicle: false }
   ]);
 
   // Special Duty Rows State (Wizard)
@@ -689,9 +697,13 @@ export default function DutyRoster() {
 
     const lookup = {
       'PD-06': { name: 'Point Duty', shift: '06:00 – 14:00', loc: 'Poruthota Jn.' },
+      'AI-06': { name: 'Accident Investigation Duty', shift: '06:00 – 18:00', loc: 'Main Station' },
+      'MP-06': { name: 'Motorcycle Patrol', shift: '06:00 – 18:00', loc: 'Sector Area' },
+      '119-MP': { name: '119 Motorcycle Patrol', shift: '06:00 – 18:00', loc: 'Emergency Patrol' },
+      'TB-06': { name: 'Traffic Branch Duty', shift: '06:00 – 18:00', loc: 'Traffic HQ' },
+      'CD-08': { name: 'Court Duty', shift: '08:00 – 16:00', loc: 'Magistrate Court' },
       'MP-14': { name: 'Mobile Patrol', shift: '14:00 – 22:00', loc: 'Sector 3' },
       'CP-22': { name: 'Checkpoint', shift: '22:00 – 06:00', loc: 'Kurana' },
-      'AI-06': { name: 'Accident Investigation', shift: '06:00 – 18:00', loc: 'Main Station' },
       'VIP-06': { name: 'VIP Escort', shift: '06:00 – 14:00', loc: 'Katunayake Rd.' },
     };
 
@@ -991,9 +1003,12 @@ export default function DutyRoster() {
                             setRegDuties(updated);
                           }}
                         >
-                          <option>06:00–14:00</option>
-                          <option>14:00–22:00</option>
-                          <option>22:00–06:00</option>
+                          <option value="06:00–18:00">06:00–18:00 (Day)</option>
+                          <option value="18:00–06:00">18:00–06:00 (Night)</option>
+                          <option value="06:00–14:00">06:00–14:00 (Day)</option>
+                          <option value="14:00–22:00">14:00–22:00 (Day/Eve)</option>
+                          <option value="22:00–06:00">22:00–06:00 (Night)</option>
+                          <option value="08:00–16:00">08:00–16:00 (Court)</option>
                         </select>
                       </td>
                       <td>
@@ -1643,11 +1658,15 @@ export default function DutyRoster() {
                     value={editDutyData.dutyType}
                     onChange={(e) => setEditDutyData({ ...editDutyData, dutyType: e.target.value })}
                   >
+                    <option value="Accident Investigation Duty">Accident Investigation Duty</option>
+                    <option value="Motorcycle Patrol">Motorcycle Patrol</option>
+                    <option value="119 Motorcycle Patrol">119 Motorcycle Patrol</option>
                     <option value="Point Duty">Point Duty</option>
+                    <option value="Traffic Branch Duty">Traffic Branch Duty</option>
+                    <option value="Court Duty">Court Duty</option>
                     <option value="Mobile Patrol">Mobile Patrol</option>
                     <option value="Checkpoint">Checkpoint</option>
                     <option value="Special Duty">Special Duty</option>
-                    <option value="Accident Investigation">Accident Investigation</option>
                     <option value="OFF">OFF</option>
                   </select>
                   <FiChevronDown className="dr-modal-select-arrow" />
