@@ -50,6 +50,46 @@ router.get("/demo-driver-licences/verify/:licenceNumber", async (req, res) => {
 // ==========================================
 
 /**
+ * @route   GET /api/duties/my
+ * @desc    Get authenticated officer's own assigned duties from PUBLISHED rosters ONLY
+ * @access  Private (Officer authenticated via JWT)
+ */
+router.get("/my", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized user identity." });
+    }
+
+    // Query published rosters ONLY
+    const publishedRosters = await DutyRoster.find({ status: "PUBLISHED" }).select("_id");
+    const publishedRosterIds = publishedRosters.map((r) => r._id);
+
+    const duties = await DutyAssignment.find({
+      officer: userId,
+      roster: { $in: publishedRosterIds },
+      dutyType: { $ne: "OFF" }
+    })
+      .populate("officer", "fullName username policeId rank contactNo station")
+      .populate("roster", "rosterReference weekStart weekEnd status")
+      .sort({ date: 1, startTime: 1 });
+
+    return res.json({
+      success: true,
+      count: duties.length,
+      duties
+    });
+  } catch (error) {
+    console.error("Error fetching my duties:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error fetching officer duties",
+      error: error.message
+    });
+  }
+});
+
+/**
  * @route   GET /api/duties
  * @desc    Get duties for specific date or date range (e.g. ?date=YYYY-MM-DD or ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD)
  * @access  Private

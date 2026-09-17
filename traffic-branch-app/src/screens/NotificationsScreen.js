@@ -166,10 +166,11 @@ export default function NotificationsScreen({ navigation }) {
             </View>
           ) : (
             notifications.map((item) => {
+              const isDuty = item.type === "DUTY_ASSIGNED";
               const isApproved = item.type === "LEAVE_APPROVED";
               const isRejected = item.type === "LEAVE_REJECTED";
-              const iconName = isApproved ? "checkmark-circle" : isRejected ? "close-circle" : "information-circle";
-              const iconColor = isApproved ? "#16a34a" : isRejected ? "#dc2626" : "#2563eb";
+              const iconName = isDuty ? "calendar" : isApproved ? "checkmark-circle" : isRejected ? "close-circle" : "information-circle";
+              const iconColor = isDuty ? "#2563eb" : isApproved ? "#16a34a" : isRejected ? "#dc2626" : "#2563eb";
               const formattedTime = new Date(item.createdAt || Date.now()).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: 'short',
@@ -178,15 +179,27 @@ export default function NotificationsScreen({ navigation }) {
                 minute: '2-digit'
               });
 
+              const handleItemPress = () => {
+                handleMarkAsRead(item._id, item.isRead);
+                if (isDuty) {
+                  try {
+                    navigation.navigate('Main', { screen: 'Duty', params: { dutyId: item.relatedDuty } });
+                  } catch (e) {
+                    navigation.navigate('Duty');
+                  }
+                }
+              };
+
               return (
                 <TouchableOpacity
                   key={item._id}
                   style={[
                     styles.card,
                     !item.isRead && styles.cardUnread,
-                    isRejected && styles.cardRejectedBorder
+                    isRejected && styles.cardRejectedBorder,
+                    isDuty && !item.isRead && styles.cardDutyBorder
                   ]}
-                  onPress={() => handleMarkAsRead(item._id, item.isRead)}
+                  onPress={handleItemPress}
                   activeOpacity={0.8}
                 >
                   <View style={styles.cardHeader}>
@@ -207,6 +220,13 @@ export default function NotificationsScreen({ navigation }) {
                       <Text style={styles.rejectionBody}>"{item.rejectionRemarks}"</Text>
                     </View>
                   ) : null}
+
+                  {isDuty && (
+                    <View style={styles.dutyCallout}>
+                      <Ionicons name="location-outline" size={13} color="#1d4ed8" style={{ marginRight: 4 }} />
+                      <Text style={styles.dutyCalloutText}>Tap to view duty in Roster</Text>
+                    </View>
+                  )}
 
                   <Text style={styles.timeText}>{formattedTime}</Text>
                 </TouchableOpacity>
@@ -312,6 +332,28 @@ const styles = StyleSheet.create({
 
   cardRejectedBorder: {
     borderColor: '#fca5a5'
+  },
+
+  cardDutyBorder: {
+    borderColor: '#93c5fd',
+    backgroundColor: '#f0f9ff'
+  },
+
+  dutyCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dbeafe',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start'
+  },
+
+  dutyCalloutText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1d4ed8'
   },
 
   cardHeader: {
