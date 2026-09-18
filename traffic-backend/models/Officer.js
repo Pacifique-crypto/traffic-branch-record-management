@@ -102,8 +102,12 @@ const officerSchema = new mongoose.Schema({
   mustChangePassword: {
     type: Boolean,
     default: false
-  }
+  },
 
+  isCourtDutyOfficer: {
+    type: Boolean,
+    default: false
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Officer", officerSchema);

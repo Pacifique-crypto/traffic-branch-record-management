@@ -34,6 +34,7 @@ import {
   getDutyRosters,
   getDutyRosterByWeek,
   createDutyRoster,
+  createDutyRosterGenerate,
   updateDutyRoster,
   getDuties,
   createDuty,
@@ -62,6 +63,8 @@ export default function DutyRoster() {
   const [dailyDuties, setDailyDuties] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [modalError, setModalError] = useState(null);
+  const [generationConflicts, setGenerationConflicts] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Rejection & Comment State
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -663,7 +666,36 @@ export default function DutyRoster() {
     setDashTab('pending');
   };
 
-  // Wizard Roster Creation
+  // Wizard Roster Generator & Creation
+  const handleGenerateRoster = async () => {
+    setIsGenerating(true);
+    setGenerationConflicts([]);
+    try {
+      const res = await createDutyRosterGenerate({
+        startDate: currentWeek.startDateISO,
+        endDate: currentWeek.endDateISO,
+        regularDuties: regDuties,
+        specialDuties: specDuties
+      });
+      if (res && res.ok && res.data && res.data.roster) {
+        setCurrentWeekRoster(res.data.roster);
+        setGenerationConflicts(res.data.conflicts || []);
+        showToast("Weekly roster generated successfully!");
+        fetchWeeklyData();
+        fetchRostersList();
+        setWizStep(5);
+      } else {
+        const msg = res?.data?.error || res?.data?.message || "Failed to generate weekly roster";
+        showToast(`Error: ${msg}`);
+      }
+    } catch (err) {
+      console.error("Error generating roster:", err);
+      showToast("Error generating roster");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSaveWizardDraft = async () => {
     const res = await createDutyRoster({
       startDate: currentWeek.startDateISO,
@@ -1197,12 +1229,11 @@ export default function DutyRoster() {
               <button
                 type="button"
                 className="dr-gen-main-btn"
-                onClick={() => {
-                  showToast("Manual roster ready for review!");
-                  setWizStep(5);
-                }}
+                disabled={isGenerating}
+                onClick={handleGenerateRoster}
               >
-                <FiPlay size={18} style={{ transform: "scaleX(1.2)" }} /> Generate Roster
+                <FiPlay size={18} style={{ transform: "scaleX(1.2)" }} />
+                {isGenerating ? "Generating Roster..." : "Generate Roster"}
               </button>
 
               {/* Info Note Box */}
@@ -1221,6 +1252,28 @@ export default function DutyRoster() {
           {/* STEP 5 — REVIEW & PUBLISH */}
           {wizStep === 5 && (
             <div>
+              {/* Generation Conflicts / Warnings Banner */}
+              {generationConflicts && generationConflicts.length > 0 && (
+                <div style={{
+                  backgroundColor: "#fffbebf0",
+                  border: "1px solid #fde68a",
+                  borderRadius: "8px",
+                  padding: "14px 18px",
+                  marginBottom: "20px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#b45309", fontWeight: "700", fontSize: "14px", marginBottom: "8px" }}>
+                    <FiAlertCircle size={18} color="#d97706" />
+                    <span>Roster Generation Conflicts / Warnings ({generationConflicts.length})</span>
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: "20px", color: "#92400e", fontSize: "13px", lineHeight: "1.6" }}>
+                    {generationConflicts.map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="dr-grid-wrap">
                 <table className="dr-roster-grid">
                   <thead>

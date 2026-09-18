@@ -52,7 +52,26 @@ const dutyRosterSchema = new mongoose.Schema(
     notes: {
       type: String,
       default: ""
-    }
+    },
+    conflicts: [
+      {
+        type: String
+      }
+    ],
+    regularDuties: {
+      type: mongoose.Schema.Types.Mixed,
+      default: []
+    },
+    specialDuties: {
+      type: mongoose.Schema.Types.Mixed,
+      default: []
+    },
+    courtDutyOfficers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Officer"
+      }
+    ]
   },
   {
     timestamps: true,

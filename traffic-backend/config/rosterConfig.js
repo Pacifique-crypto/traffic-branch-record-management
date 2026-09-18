@@ -7,7 +7,7 @@ module.exports = {
   MIN_REST_HOURS: 8,
 
   // Maximum consecutive days an officer can be assigned the exact same duty type
-  MAX_CONSECUTIVE_SAME_DUTY: 3,
+  MAX_CONSECUTIVE_SAME_DUTY: 2,
 
   // Roster Status Lifecycle
   ROSTER_STATUSES: {
@@ -21,6 +21,11 @@ module.exports = {
   // Allowed Duty Types
   DUTY_TYPES: [
     "Point Duty",
+    "Accident Investigation Duty",
+    "Motorcycle Patrol",
+    "119 Motorcycle Patrol",
+    "Traffic Branch Duty",
+    "Court Duty",
     "Mobile Patrol",
     "Checkpoint",
     "Special Duty",
@@ -35,8 +40,12 @@ module.exports = {
     "22:00 - 06:00 (Night Shift)":   { startTime: "22:00", endTime: "06:00", durationHours: 8 },
     "06:00 - 18:00 (Day Shift)":     { startTime: "06:00", endTime: "18:00", durationHours: 12 },
     "18:00 - 06:00 (Night Shift)":   { startTime: "18:00", endTime: "06:00", durationHours: 12 },
+    "08:00 - 16:00 (Court Shift)":   { startTime: "08:00", endTime: "16:00", durationHours: 8 },
     "06:00–14:00":                   { startTime: "06:00", endTime: "14:00", durationHours: 8 },
     "14:00–22:00":                   { startTime: "14:00", endTime: "22:00", durationHours: 8 },
-    "22:00–06:00":                   { startTime: "22:00", endTime: "06:00", durationHours: 8 }
+    "22:00–06:00":                   { startTime: "22:00", endTime: "06:00", durationHours: 8 },
+    "06:00–18:00":                   { startTime: "06:00", endTime: "18:00", durationHours: 12 },
+    "18:00–06:00":                   { startTime: "18:00", endTime: "06:00", durationHours: 12 },
+    "08:00–16:00":                   { startTime: "08:00", endTime: "16:00", durationHours: 8 }
   }
 };

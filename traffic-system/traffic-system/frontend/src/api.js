@@ -406,6 +406,16 @@ export const createDutyRoster = async (data) => {
   return { ok: res.ok, data: resData };
 };
 
+export const createDutyRosterGenerate = async (data) => {
+  const res = await fetch(`${BASE_URL}/duty-rosters/generate`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  const resData = await res.json();
+  return { ok: res.ok, data: resData };
+};
+
 export const updateDutyRoster = async (id, data) => {
   const res = await fetch(`${BASE_URL}/duty-rosters/${id}`, {
     method: "PUT",
