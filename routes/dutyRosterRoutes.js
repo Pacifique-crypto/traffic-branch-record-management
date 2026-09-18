@@ -140,7 +140,8 @@ router.get("/week", verifyToken, async (req, res) => {
 
     return res.json({
       success: true,
-      roster
+      roster,
+      duties: roster ? roster.assignments : []
     });
   } catch (error) {
     console.error("Error fetching week roster:", error);
@@ -427,6 +428,15 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
       const todaySpecial = specialDuties.filter((sd) => sd.date === dateISOStr || sd.date === formatDateStr(currentDate));
       const todaySlots = [...standardRegDuties, ...todaySpecial];
 
+      // Sort todaySlots so restricted duties (like Court Duty) are evaluated first before general duties
+      todaySlots.sort((a, b) => {
+        const nameA = (a.name || a.type || "").toLowerCase();
+        const nameB = (b.name || b.type || "").toLowerCase();
+        if (nameA.includes("court") && !nameB.includes("court")) return -1;
+        if (!nameA.includes("court") && nameB.includes("court")) return 1;
+        return 0;
+      });
+
       for (const slot of todaySlots) {
         const dutyName = slot.name || slot.type || "Point Duty";
         const shiftStr = slot.shift || "06:00–14:00";
@@ -515,7 +525,8 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
       success: true,
       message: `Weekly draft roster generated successfully with ${generatedAssignments.length} duty assignments.`,
       conflicts,
-      roster: populatedRoster
+      roster: populatedRoster,
+      duties: populatedRoster ? populatedRoster.assignments : []
     });
   } catch (error) {
     console.error("Error generating duty roster:", error);
