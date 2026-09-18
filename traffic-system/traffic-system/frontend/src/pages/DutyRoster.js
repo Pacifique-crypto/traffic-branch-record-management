@@ -691,6 +691,7 @@ export default function DutyRoster() {
     setGenerationConflicts([]);
     try {
       const res = await createDutyRosterGenerate({
+        weekStart: currentWeek.startDateISO,
         startDate: currentWeek.startDateISO,
         endDate: currentWeek.endDateISO,
         regularDuties: regDuties,
@@ -717,6 +718,7 @@ export default function DutyRoster() {
 
   const handleSaveWizardDraft = async () => {
     const res = await createDutyRoster({
+      weekStart: currentWeek.startDateISO,
       startDate: currentWeek.startDateISO,
       endDate: currentWeek.endDateISO,
       regularDuties: regDuties,
