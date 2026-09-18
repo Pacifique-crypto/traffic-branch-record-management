@@ -81,6 +81,7 @@ export default function DutyRoster() {
 
   // Week Navigation State & Helper
   const [weekOffset, setWeekOffset] = useState(0);
+  const [customStartDate, setCustomStartDate] = useState("2026-09-13");
 
   // Daily View Date State & Helper
   const [dailyDate, setDailyDate] = useState(new Date(2026, 8, 14)); // Mon, 14 Sep 2026
@@ -124,8 +125,14 @@ export default function DutyRoster() {
     });
   };
 
-  const getWeekData = (offset) => {
-    const baseSun = getWeekSunday(offset);
+  const getWeekData = (offset, customStartStr = null) => {
+    let baseSun;
+    if (customStartStr) {
+      const parts = customStartStr.split('-').map(Number);
+      baseSun = new Date(parts[0], parts[1] - 1, parts[2]);
+    } else {
+      baseSun = getWeekSunday(offset);
+    }
     const baseSat = new Date(baseSun);
     baseSat.setDate(baseSat.getDate() + 6);
 
@@ -149,14 +156,14 @@ export default function DutyRoster() {
     for (let i = 0; i < 7; i++) {
       const d = new Date(baseSun);
       d.setDate(d.getDate() + i);
-      calculatedDays.push(`${daysName[i]} ${String(d.getDate()).padStart(2, '0')}`);
+      calculatedDays.push(`${daysName[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}`);
       calculatedDatesISO.push(formatDateISO(d));
     }
 
     return { titleLabel, calculatedDays, calculatedDatesISO, startDateISO: formatDateISO(baseSun), endDateISO: formatDateISO(baseSat) };
   };
 
-  const currentWeek = getWeekData(weekOffset);
+  const currentWeek = getWeekData(weekOffset, customStartDate);
   const days = currentWeek.calculatedDays;
 
   // Data Fetching Effects
@@ -225,12 +232,24 @@ export default function DutyRoster() {
     fetchDailyData();
   }, [dailyDate]);
 
+  const handlePrevWeek = () => {
+    const newOff = weekOffset - 1;
+    setWeekOffset(newOff);
+    setCustomStartDate(formatDateISO(getWeekSunday(newOff)));
+  };
+
+  const handleNextWeek = () => {
+    const newOff = weekOffset + 1;
+    setWeekOffset(newOff);
+    setCustomStartDate(formatDateISO(getWeekSunday(newOff)));
+  };
+
   const renderWeekNavigator = () => (
     <div className="dr-week-nav">
       <button
         type="button"
         className="dr-week-arrow-btn"
-        onClick={() => setWeekOffset(prev => prev - 1)}
+        onClick={handlePrevWeek}
         title="Previous week"
       >
         <FiChevronLeft size={18} />
@@ -241,7 +260,7 @@ export default function DutyRoster() {
       <button
         type="button"
         className="dr-week-arrow-btn"
-        onClick={() => setWeekOffset(prev => prev + 1)}
+        onClick={handleNextWeek}
         title="Next week"
       >
         <FiChevronRight size={18} />
@@ -981,11 +1000,24 @@ export default function DutyRoster() {
                 </div>
                 <div className="dr-field">
                   <label>Week starting</label>
-                  <input type="date" value={currentWeek.startDateISO} readOnly />
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setCustomStartDate(e.target.value);
+                      }
+                    }}
+                  />
                 </div>
                 <div className="dr-field">
                   <label>Week ending</label>
-                  <input type="date" value={currentWeek.endDateISO} disabled />
+                  <input
+                    type="date"
+                    value={currentWeek.endDateISO}
+                    disabled
+                    style={{ backgroundColor: "#f1f5f9", cursor: "not-allowed" }}
+                  />
                 </div>
               </div>
               <div className="dr-mini-stats">
