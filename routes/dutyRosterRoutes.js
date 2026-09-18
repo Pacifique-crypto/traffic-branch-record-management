@@ -15,7 +15,8 @@ const { ROSTER_STATUSES, SHIFT_PRESETS } = require("../config/rosterConfig");
  */
 router.post("/", verifyToken, authorizeRoles("it officer", "admin"), async (req, res) => {
   try {
-    const { weekStart, title, notes } = req.body;
+    const weekStart = req.body.weekStart || req.body.startDate || req.body.startDateISO;
+    const { title, notes } = req.body;
 
     if (!weekStart || isNaN(new Date(weekStart).getTime())) {
       return res.status(400).json({
@@ -334,7 +335,8 @@ router.delete("/:id", verifyToken, authorizeRoles("it officer", "admin"), async 
  */
 router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), async (req, res) => {
   try {
-    const { weekStart, regularDuties = [], specialDuties = [], courtDutyOfficerIds = [] } = req.body;
+    const weekStart = req.body.weekStart || req.body.startDate || req.body.startDateISO;
+    const { regularDuties = [], specialDuties = [], courtDutyOfficerIds = [] } = req.body;
 
     if (!weekStart || isNaN(new Date(weekStart).getTime())) {
       return res.status(400).json({
