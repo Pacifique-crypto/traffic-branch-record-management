@@ -329,12 +329,12 @@ router.delete("/:id", verifyToken, authorizeRoles("it officer", "admin"), async 
 
 /**
  * @route   POST /api/duty-rosters/generate
- * @desc    Generate Endpoint Foundation - Accepts weekly requirements and generates a draft roster following backend validation rules
+ * @desc    Generate Weekly Roster Backend Engine - Validates rules, court duty restriction, max 2 consecutive same duty, workload balancing, and returns DRAFT roster with conflicts/warnings
  * @access  Private (IT Officer / Admin)
  */
 router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), async (req, res) => {
   try {
-    const { weekStart, regularDuties = [], specialDuties = [] } = req.body;
+    const { weekStart, regularDuties = [], specialDuties = [], courtDutyOfficerIds = [] } = req.body;
 
     if (!weekStart || isNaN(new Date(weekStart).getTime())) {
       return res.status(400).json({
@@ -358,8 +358,17 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
         weekStart: start,
         weekEnd: end,
         status: ROSTER_STATUSES.DRAFT,
-        createdBy: req.user?.id || req.user?._id || null
+        createdBy: req.user?.id || req.user?._id || null,
+        regularDuties,
+        specialDuties
       });
+    } else {
+      // Clear existing draft assignments for fresh generation if in DRAFT status
+      if (roster.status === ROSTER_STATUSES.DRAFT) {
+        await DutyAssignment.deleteMany({ roster: roster._id });
+        roster.regularDuties = regularDuties;
+        roster.specialDuties = specialDuties;
+      }
     }
 
     // Fetch active officers
@@ -371,70 +380,130 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
       });
     }
 
-    const generatedAssignments = [];
-    const validationErrors = [];
+    // Determine designated Court Duty Officers
+    let courtOfficers = activeOfficers.filter(
+      (o) => o.isCourtDutyOfficer || (o.rank || "").toLowerCase().includes("court")
+    );
+    if (courtDutyOfficerIds && courtDutyOfficerIds.length > 0) {
+      courtOfficers = activeOfficers.filter((o) =>
+        courtDutyOfficerIds.some((id) => String(id) === String(o._id))
+      );
+    }
+    // Fallback: If no court duty officers designated yet, designate first 2 active officers
+    if (courtOfficers.length < 2) {
+      courtOfficers = activeOfficers.slice(0, 2);
+    }
+    const designatedCourtOfficerIds = courtOfficers.map((o) => String(o._id));
+    roster.courtDutyOfficers = designatedCourtOfficerIds;
 
-    // Algorithmic foundation: Loop days 0 to 6 and assign available officers using validation rules
+    // Track workload (number of assigned duty slots in current roster period)
+    const workloadMap = {};
+    activeOfficers.forEach((o) => {
+      workloadMap[String(o._id)] = 0;
+    });
+
+    const generatedAssignments = [];
+    const conflicts = [];
+
+    // Standard default duties if none provided in request
+    const standardRegDuties = regularDuties.length > 0 ? regularDuties : [
+      { name: "Accident Investigation Duty", shift: "06:00–18:00", location: "Main Station / Field", count: 2 },
+      { name: "Motorcycle Patrol", shift: "06:00–18:00", location: "Sector Patrol Area", count: 2 },
+      { name: "119 Motorcycle Patrol", shift: "06:00–18:00", location: "Emergency Patrol", count: 2 },
+      { name: "Point Duty", shift: "06:00–14:00", location: "Poruthota Junction", count: 3 },
+      { name: "Traffic Branch Duty", shift: "06:00–18:00", location: "Traffic Branch HQ", count: 2 },
+      { name: "Court Duty", shift: "08:00–16:00", location: "Magistrate Court", count: 1 }
+    ];
+
+    // Loop through days 0 to 6 (Sunday to Saturday)
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const currentDate = new Date(start);
       currentDate.setDate(currentDate.getDate() + dayOffset);
+      const dateISOStr = formatDateStr(currentDate);
 
-      // Default duties if none provided
-      const dutiesToAssign = regularDuties.length > 0 ? regularDuties : [
-        { name: "Point Duty", shift: "06:00 - 14:00 (Morning Shift)", location: "Poruthota Junction", count: 2 },
-        { name: "Mobile Patrol", shift: "14:00 - 22:00 (Evening Shift)", location: "Sector 3, Coastal Rd.", count: 2 },
-        { name: "Checkpoint", shift: "22:00 - 06:00 (Night Shift)", location: "Kurana Checkpoint", count: 1 }
-      ];
+      // Collect duties for today: regular duties + special duties for today
+      const todaySpecial = specialDuties.filter((sd) => sd.date === dateISOStr || sd.date === formatDateStr(currentDate));
+      const todaySlots = [...standardRegDuties, ...todaySpecial];
 
-      let officerIdx = dayOffset % activeOfficers.length;
+      for (const slot of todaySlots) {
+        const dutyName = slot.name || slot.type || "Point Duty";
+        const shiftStr = slot.shift || "06:00–14:00";
+        const locStr = slot.location || "Main Station / Field";
+        const reqCount = slot.count || 1;
+        const specText = slot.type || slot.specialDutyText || "";
 
-      for (const duty of dutiesToAssign) {
-        let assignedCount = 0;
-        let attempts = 0;
+        let assignedForThisSlot = 0;
+        const eligibleCandidates = [];
 
-        while (assignedCount < (duty.count || 1) && attempts < activeOfficers.length) {
-          const candidateOfficer = activeOfficers[officerIdx];
-          officerIdx = (officerIdx + 1) % activeOfficers.length;
-          attempts++;
+        // Evaluate all active officers for this duty slot
+        for (const candidate of activeOfficers) {
+          const candIdStr = String(candidate._id);
 
-          // Run backend validation rules
-          const validation = await validateAssignment({
-            officer: candidateOfficer._id,
-            date: currentDate,
-            dutyType: duty.name || duty.type || "Point Duty",
-            shift: duty.shift || "06:00 - 14:00 (Morning Shift)",
-            location: duty.location || "Main Station / Field",
-            roster: roster._id
-          });
+          const validation = await validateAssignment(
+            {
+              officer: candidate._id,
+              date: currentDate,
+              dutyType: dutyName,
+              shift: shiftStr,
+              location: locStr,
+              roster: roster._id
+            },
+            { courtDutyOfficerIds: designatedCourtOfficerIds }
+          );
 
           if (validation.valid) {
-            // Create assignment
-            const assignment = await DutyAssignment.create({
-              roster: roster._id,
-              officer: candidateOfficer._id,
-              date: currentDate,
-              dutyType: duty.name || duty.type || "Point Duty",
-              shift: duty.shift || "06:00 - 14:00 (Morning Shift)",
-              location: duty.location || "Main Station / Field",
-              requiredOfficerCount: duty.count || 1
+            eligibleCandidates.push({
+              officer: candidate,
+              workload: workloadMap[candIdStr] || 0
             });
+          }
+        }
 
-            generatedAssignments.push(assignment);
-            assignedCount++;
+        // WORKLOAD BALANCING: Sort eligible candidates by workload ascending (fewest assigned duties first)
+        eligibleCandidates.sort((a, b) => a.workload - b.workload);
+
+        // Assign up to required officer count
+        for (let i = 0; i < eligibleCandidates.length && assignedForThisSlot < reqCount; i++) {
+          const selectedObj = eligibleCandidates[i].officer;
+          const selIdStr = String(selectedObj._id);
+
+          const { startTime: pStart, endTime: pEnd } = parseShiftTimes(shiftStr);
+
+          const assignment = await DutyAssignment.create({
+            roster: roster._id,
+            officer: selectedObj._id,
+            date: currentDate,
+            dutyType: dutyName,
+            specialDutyText: specText,
+            shift: shiftStr,
+            startTime: pStart,
+            endTime: pEnd,
+            location: locStr,
+            requiredOfficerCount: reqCount
+          });
+
+          generatedAssignments.push(assignment);
+          workloadMap[selIdStr] = (workloadMap[selIdStr] || 0) + 1;
+          assignedForThisSlot++;
+        }
+
+        // Handle Unfilled or Partially Filled Slots
+        if (assignedForThisSlot < reqCount) {
+          if (dutyName === "Court Duty" && assignedForThisSlot === 0) {
+            conflicts.push(`⚠ Court Duty on ${dateISOStr} requires ${reqCount} officer(s), but neither designated Court Duty officer is available.`);
           } else {
-            validationErrors.push({
-              officer: candidateOfficer.fullName,
-              date: formatDateStr(currentDate),
-              duty: duty.name,
-              reason: validation.message
-            });
+            conflicts.push(`⚠ ${dutyName} on ${dateISOStr} requires ${reqCount} officer(s), but only ${assignedForThisSlot} eligible officer(s) could be assigned due to rule constraints.`);
           }
         }
       }
     }
 
+    roster.conflicts = conflicts;
+    await roster.save();
+
     const populatedRoster = await DutyRoster.findById(roster._id)
       .populate("createdBy", "fullName username policeId rank")
+      .populate("courtDutyOfficers", "fullName username policeId rank")
       .populate({
         path: "assignments",
         populate: { path: "officer", select: "fullName username policeId rank" }
@@ -443,15 +512,11 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
     return res.status(200).json({
       success: true,
       message: `Weekly draft roster generated successfully with ${generatedAssignments.length} duty assignments.`,
-      summary: {
-        totalAssignmentsGenerated: generatedAssignments.length,
-        validationRuleBypassesOrConflicts: validationErrors.length,
-        conflictsReported: validationErrors.slice(0, 5)
-      },
+      conflicts,
       roster: populatedRoster
     });
   } catch (error) {
-    console.error("Error generating duty roster foundation:", error);
+    console.error("Error generating duty roster:", error);
     return res.status(500).json({
       success: false,
       message: "Server error generating duty roster",

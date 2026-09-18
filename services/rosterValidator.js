@@ -22,32 +22,31 @@ const toMidnight = (d) => {
 
 // Format Date YYYY-MM-DD
 const formatDateStr = (d) => {
+  if (!d) return "";
   const date = new Date(d);
+  if (isNaN(date.getTime())) return "";
   return date.toISOString().split("T")[0];
 };
 
 // Extract Start & End times from Shift String or Preset
 const parseShiftTimes = (shiftStr, customStart, customEnd) => {
+  if (shiftStr) {
+    const preset = SHIFT_PRESETS[shiftStr];
+    if (preset) {
+      return { startTime: preset.startTime, endTime: preset.endTime };
+    }
+    if (shiftStr.includes("-")) {
+      const parts = shiftStr.split("-").map((s) => s.trim());
+      return { startTime: parts[0].slice(0, 5), endTime: parts[1].slice(0, 5) };
+    }
+    if (shiftStr.includes("–")) {
+      const parts = shiftStr.split("–").map((s) => s.trim());
+      return { startTime: parts[0].slice(0, 5), endTime: parts[1].slice(0, 5) };
+    }
+  }
+
   if (customStart && customEnd) {
     return { startTime: customStart, endTime: customEnd };
-  }
-
-  const preset = SHIFT_PRESETS[shiftStr];
-  if (preset) {
-    return { startTime: preset.startTime, endTime: preset.endTime };
-  }
-
-  // Parse time format like "06:00 - 14:00" or "06:00–14:00"
-  if (shiftStr && shiftStr.includes("-")) {
-    const parts = shiftStr.split("-").map((s) => s.trim());
-    const start = parts[0].slice(0, 5);
-    const end = parts[1].slice(0, 5);
-    return { startTime: start, endTime: end };
-  } else if (shiftStr && shiftStr.includes("–")) {
-    const parts = shiftStr.split("–").map((s) => s.trim());
-    const start = parts[0].slice(0, 5);
-    const end = parts[1].slice(0, 5);
-    return { startTime: start, endTime: end };
   }
 
   return { startTime: "06:00", endTime: "14:00" };
@@ -259,7 +258,7 @@ const validateMinimumRest = async (officerId, dutyDate, shiftStr, excludeAssignm
  * 6. Validate Maximum Consecutive Same Duty (<= 3 Consecutive Assignments)
  */
 const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, excludeAssignmentId = null, officerName = "Officer") => {
-  if (dutyType === "OFF") return { valid: true };
+  if (!dutyType || dutyType === "OFF") return { valid: true };
 
   const targetDate = toMidnight(dutyDate);
 
@@ -294,17 +293,21 @@ const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, exclude
   let curr = new Date(targetDate);
 
   // Count backwards
-  while (dutyByDate[formatDateStr(curr)] === dutyType) {
+  let dateKey = formatDateStr(curr);
+  while (dateKey && dutyByDate[dateKey] === dutyType) {
     consecutiveCount++;
     curr.setDate(curr.getDate() - 1);
+    dateKey = formatDateStr(curr);
   }
 
   // Count forwards
   curr = new Date(targetDate);
   curr.setDate(curr.getDate() + 1);
-  while (dutyByDate[formatDateStr(curr)] === dutyType) {
+  dateKey = formatDateStr(curr);
+  while (dateKey && dutyByDate[dateKey] === dutyType) {
     consecutiveCount++;
     curr.setDate(curr.getDate() + 1);
+    dateKey = formatDateStr(curr);
   }
 
   if (consecutiveCount > MAX_CONSECUTIVE_SAME_DUTY) {
@@ -319,10 +322,44 @@ const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, exclude
 };
 
 /**
+ * Validate Special Court Duty Restriction
+ * Rule: Only designated Court Duty officers can perform Court Duty.
+ * No other officer can ever be assigned to Court Duty.
+ */
+const validateCourtDutyRestriction = async (officerId, dutyType, courtDutyOfficerIds = [], officerObj = null, officerName = "Officer") => {
+  if (dutyType !== "Court Duty") return { valid: true };
+
+  let isDesignated = false;
+
+  if (courtDutyOfficerIds && courtDutyOfficerIds.length > 0) {
+    isDesignated = courtDutyOfficerIds.some((id) => String(id) === String(officerId));
+  }
+
+  if (!isDesignated) {
+    const off = officerObj || (await Officer.findById(officerId));
+    if (off && (off.isCourtDutyOfficer || (off.rank || "").toLowerCase().includes("court"))) {
+      isDesignated = true;
+    }
+  }
+
+  if (!isDesignated) {
+    return {
+      valid: false,
+      code: "COURT_DUTY_RESTRICTION",
+      message: `Officer ${officerName} is not a designated Court Duty officer. Only designated Court Duty officers can perform Court Duty.`
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
  * Comprehensive Single Function Validation Service
  */
 const validateAssignment = async (data, options = {}) => {
-  const { officer, date, dutyType, shift, roster, _id } = data;
+  const officer = data.officer || data.officerId;
+  const roster = data.roster || data.rosterId;
+  const { date, dutyType, shift, _id } = data;
   const excludeAssignmentId = _id || options.excludeAssignmentId || null;
 
   // 1. Officer Validation
@@ -339,20 +376,24 @@ const validateAssignment = async (data, options = {}) => {
   const leaveCheck = await validateLeaveConflict(officer, date, officerName);
   if (!leaveCheck.valid) return leaveCheck;
 
+  // 4. Special Court Duty Restriction
+  const courtCheck = await validateCourtDutyRestriction(officer, dutyType, options.courtDutyOfficerIds, officerObj, officerName);
+  if (!courtCheck.valid) return courtCheck;
+
   // If duty is OFF, skip rest/shift/consecutive validations
   if (dutyType === "OFF") {
     return { valid: true, officer: officerObj };
   }
 
-  // 4. Shift Overlap Conflict
+  // 5. Shift Overlap Conflict
   const overlapCheck = await validateShiftOverlap(officer, date, shift, excludeAssignmentId, officerName);
   if (!overlapCheck.valid) return overlapCheck;
 
-  // 5. Minimum Rest Conflict
+  // 6. Minimum Rest Conflict
   const restCheck = await validateMinimumRest(officer, date, shift, excludeAssignmentId, officerName);
   if (!restCheck.valid) return restCheck;
 
-  // 6. Max Consecutive Duty Conflict
+  // 7. Max Consecutive Duty Conflict (Enforces max 2 consecutive days)
   const consecutiveCheck = await validateMaxConsecutiveDuty(officer, date, dutyType, excludeAssignmentId, officerName);
   if (!consecutiveCheck.valid) return consecutiveCheck;
 
@@ -366,6 +407,7 @@ module.exports = {
   validateShiftOverlap,
   validateMinimumRest,
   validateMaxConsecutiveDuty,
+  validateCourtDutyRestriction,
   validateAssignment,
   parseShiftTimes,
   formatDateStr,
