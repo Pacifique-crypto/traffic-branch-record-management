@@ -268,16 +268,8 @@ export default function DutyRoster() {
     </div>
   );
 
-  // Officers helper list for UI
-  const displayOfficers = officersList.length > 0
-    ? officersList.map(o => `${o.rank || 'PC'} ${o.policeId || ''} ${o.name || ''}`.trim())
-    : [
-        'PC 4471 Fernando',
-        'PC 5012 Perera',
-        'PC 3390 Silva',
-        'PC 6120 Bandara',
-        'PC 2287 Jayasuriya'
-      ];
+  // Officers list for UI grid
+  const displayOfficers = officersList.map(o => `${o.rank || 'PC'} ${o.policeId || ''} ${o.fullName || o.name || ''}`.trim());
 
   // Grid Cell Data & Mapping
   const getCellValForOfficerAndDate = (officerIdx, dayIdx) => {
@@ -285,14 +277,7 @@ export default function DutyRoster() {
     const dateISO = currentWeek.calculatedDatesISO[dayIdx];
 
     if (!officerObj) {
-      const fallbackCellData = [
-        ['PD-06', 'PD-06', 'PD-06', 'OFF', 'MP-14', 'MP-14', 'PD-06'],
-        ['MP-14', 'MP-14', 'MP-14', 'MP-14', 'OFF', 'PD-06', 'PD-06'],
-        ['CP-22', 'CP-22', 'CP-22', 'OFF', 'OFF', 'CP-22', 'CP-22'],
-        ['OFF', 'VIP-06 · PD-06', 'MP-14', 'MP-14', 'PD-06', 'OFF', 'MP-14'],
-        ['PD-06', 'OFF', 'CP-22', 'CP-22', 'MP-14', 'MP-14', 'OFF'],
-      ];
-      return fallbackCellData[officerIdx]?.[dayIdx] || 'OFF';
+      return 'OFF';
     }
 
     const matchedDuties = weeklyDuties.filter(d => {
@@ -378,54 +363,41 @@ export default function DutyRoster() {
     };
 
     const targetStatus = statusMap[statusKey] || statusKey.toUpperCase();
-    const filtered = rostersList.filter(r => r.status === targetStatus);
+    const filtered = rostersList.filter(r => (r.status || "").toUpperCase() === targetStatus);
 
-    if (filtered.length > 0) {
-      return filtered.map(r => {
-        const sDate = new Date(r.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-        const eDate = new Date(r.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-        const badgeMap = {
-          DRAFT: { badge: 'draft', label: 'Draft' },
-          PENDING_APPROVAL: { badge: 'pending', label: 'Pending' },
-          CHANGES_REQUESTED: { badge: 'changes', label: 'Changes requested' },
-          APPROVED: { badge: 'approved', label: 'Approved' },
-          PUBLISHED: { badge: 'published', label: 'Published' }
-        };
-        const bInfo = badgeMap[r.status] || { badge: 'draft', label: r.status };
-        return {
-          _id: r._id,
-          t: `${sDate}–${eDate} weekly roster`,
-          badge: bInfo.badge,
-          label: bInfo.label,
-          meta: r.oicComment ? `OIC comment: "${r.oicComment}"` : `Created ${new Date(r.createdAt).toLocaleDateString()}`,
-          d1: "Start Date",
-          v1: sDate,
-          d2: "Status",
-          v2: r.status,
-          raw: r
-        };
-      });
-    }
+    return filtered.map(r => {
+      const sRaw = r.weekStart || r.startDate;
+      const eRaw = r.weekEnd || r.endDate;
+      const sDateObj = sRaw ? new Date(sRaw) : null;
+      const eDateObj = eRaw ? new Date(eRaw) : null;
+      const sDate = sDateObj && !isNaN(sDateObj.getTime()) ? sDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : "";
+      const eDate = eDateObj && !isNaN(eDateObj.getTime()) ? eDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : "";
+      
+      const badgeMap = {
+        DRAFT: { badge: 'draft', label: 'Draft' },
+        PENDING_APPROVAL: { badge: 'pending', label: 'Pending' },
+        CHANGES_REQUESTED: { badge: 'changes', label: 'Changes requested' },
+        APPROVED: { badge: 'approved', label: 'Approved' },
+        PUBLISHED: { badge: 'published', label: 'Published' }
+      };
+      const bInfo = badgeMap[r.status] || { badge: 'draft', label: r.status };
+      const dutyCount = r.assignments?.length || 0;
 
-    // Fallback sample rows if database has no rosters for this status tab yet
-    const fallbackRows = {
-      draft: [
-        { t: "13–19 Sep weekly roster", badge: "draft", label: "Draft", meta: "Last edited 15 Sep, 08:10", d1: "Type", v1: "Weekly", d2: "Duties", v2: "28 slots" },
-      ],
-      pending: [
-        { t: "06–12 Sep weekly roster", badge: "pending", label: "Pending", meta: "Submitted 12 Sep, 17:30", d1: "Submitted", v1: "12 Sep, 17:30", d2: "Duties", v2: "27 slots" },
-      ],
-      changes: [
-        { t: "30 Aug–05 Sep weekly roster", badge: "changes", label: "Changes requested", meta: 'OIC comment: "Recheck night patrol overlap"', d1: "Returned", v1: "04 Sep, 09:15", d2: "Duties", v2: "26 slots" },
-      ],
-      approved: [
-        { t: "23–29 Aug weekly roster", badge: "approved", label: "Approved", meta: "Approved by OIC Ranasinghe", d1: "Approved", v1: "23 Aug, 11:05", d2: "Duties", v2: "27 slots" },
-      ],
-      published: [
-        { t: "16–22 Aug weekly roster", badge: "published", label: "Published", meta: "Published & Active for Officers", d1: "Published", v1: "16 Aug, 10:40", d2: "Duties", v2: "27 slots" },
-      ]
-    };
-    return fallbackRows[statusKey] || [];
+      return {
+        _id: r._id,
+        t: r.title || (sDate && eDate ? `${sDate}–${eDate} weekly roster` : `${r.rosterReference || 'Weekly Duty Roster'}`),
+        badge: bInfo.badge,
+        label: bInfo.label,
+        meta: r.oicComment 
+          ? `OIC comment: "${r.oicComment}"` 
+          : (r.rejectionReason ? `Reason: "${r.rejectionReason}"` : `Created ${new Date(r.createdAt || Date.now()).toLocaleDateString('en-GB')}`),
+        d1: "Period",
+        v1: sDate && eDate ? `${sDate}–${eDate}` : "Weekly",
+        d2: "Duties",
+        v2: `${dutyCount} slots`,
+        raw: r
+      };
+    });
   };
 
   // Edit Duty Modal State
@@ -849,7 +821,7 @@ export default function DutyRoster() {
           <div className="dr-stat-row">
             <div className="dr-stat-card">
               <div className="label">Total officers</div>
-              <div className="value">{officersList.length || 42}</div>
+              <div className="value">{officersList.length}</div>
               <div className="sub">Across 3 shifts</div>
             </div>
             {!isOIC ? (
@@ -872,7 +844,7 @@ export default function DutyRoster() {
             </div>
             <div className="dr-stat-card flag">
               <div className="label">{isOIC ? "Published" : "Conflicts this week"}</div>
-              <div className="value">{isOIC ? getRostersByStatus('published').length : "0"}</div>
+              <div className="value">{isOIC ? getRostersByStatus('published').length : (currentWeekRoster?.conflicts?.length || 0)}</div>
               <div className="sub">{isOIC ? "Active in system" : "Need manual fix"}</div>
             </div>
           </div>
@@ -914,28 +886,34 @@ export default function DutyRoster() {
           </div>
 
           <div className="dr-panel">
-            {getRostersByStatus(dashTab).map((r, idx) => (
-              <div key={r._id || idx} className="dr-roster-row">
-                <div>
-                  <div className="dr-roster-title">{r.t}</div>
-                  <div className="dr-roster-meta">{r.meta}</div>
+            {getRostersByStatus(dashTab).length > 0 ? (
+              getRostersByStatus(dashTab).map((r, idx) => (
+                <div key={r._id || idx} className="dr-roster-row">
+                  <div>
+                    <div className="dr-roster-title">{r.t}</div>
+                    <div className="dr-roster-meta">{r.meta}</div>
+                  </div>
+                  <div><div className="dr-col-label">{r.d1}</div><div className="dr-col-val">{r.v1}</div></div>
+                  <div><div className="dr-col-label">{r.d2}</div><div className="dr-col-val">{r.v2}</div></div>
+                  <div className="dr-row-actions">
+                    <span className={`dr-badge ${r.badge}`} style={{ marginRight: '10px' }}>{r.label}</span>
+                    <button
+                      className="dr-btn dr-btn-sm dr-btn-ghost"
+                      onClick={() => {
+                        setSelectedRoster(r.raw || r);
+                        setActiveScreen('viewRoster');
+                      }}
+                    >
+                      View
+                    </button>
+                  </div>
                 </div>
-                <div><div className="dr-col-label">{r.d1}</div><div className="dr-col-val">{r.v1}</div></div>
-                <div><div className="dr-col-label">{r.d2}</div><div className="dr-col-val">{r.v2}</div></div>
-                <div className="dr-row-actions">
-                  <span className={`dr-badge ${r.badge}`} style={{ marginRight: '10px' }}>{r.label}</span>
-                  <button
-                    className="dr-btn dr-btn-sm dr-btn-ghost"
-                    onClick={() => {
-                      setSelectedRoster(r.raw || r);
-                      setActiveScreen('viewRoster');
-                    }}
-                  >
-                    View
-                  </button>
-                </div>
+              ))
+            ) : (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+                No {dashTab.replace('_', ' ')} rosters found in database.
               </div>
-            ))}
+            )}
           </div>
 
           {dashMode === 'weekly' && (isOIC ? dashTab === 'pending' : dashTab === 'draft') && (
@@ -1474,56 +1452,11 @@ export default function DutyRoster() {
                     );
                   })
                 ) : (
-                  <>
-                    <tr>
-                      <td style={{ textAlign: "center", fontWeight: "700" }}>1</td>
-                      <td>
-                        <div className="dr-daily-duty-title">Accident Investigation</div>
-                      </td>
-                      <td>
-                        <div className="dr-daily-shift-time">06:00 - 18:00</div>
-                        <span className="dr-daily-shift-pill">12 hrs</span>
-                      </td>
-                      <td>
-                        <div className="dr-daily-location">Main Station / Field</div>
-                      </td>
-                      <td>
-                        <ul className="dr-daily-officer-list">
-                          <li className="dr-daily-officer-item">PC 1015 - Siva</li>
-                          <li className="dr-daily-officer-item">PC 2010 - Perera</li>
-                        </ul>
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <button type="button" className="dr-daily-action-btn" title="Options">
-                          <FiMoreVertical size={18} />
-                        </button>
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td style={{ textAlign: "center", fontWeight: "700" }}>2</td>
-                      <td>
-                        <div className="dr-daily-duty-title">Point Duty — Poruthota Jn.</div>
-                      </td>
-                      <td>
-                        <div className="dr-daily-shift-time">06:00 - 14:00</div>
-                        <span className="dr-daily-shift-pill">8 hrs</span>
-                      </td>
-                      <td>
-                        <div className="dr-daily-location">Poruthota Junction</div>
-                      </td>
-                      <td>
-                        <ul className="dr-daily-officer-list">
-                          <li className="dr-daily-officer-item">PC 4471 - Fernando</li>
-                        </ul>
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <button type="button" className="dr-daily-action-btn" title="Options">
-                          <FiMoreVertical size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  </>
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "#64748b", fontSize: "14px" }}>
+                      No duties scheduled for this date in the database.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
