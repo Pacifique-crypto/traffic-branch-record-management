@@ -5,7 +5,7 @@ const DutyAssignment = require("../models/DutyAssignment");
 const Officer = require("../models/Officer");
 const Notification = require("../models/Notification");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
-const { validateAssignment, formatDateStr, toMidnight } = require("../services/rosterValidator");
+const { validateAssignment, formatDateStr, toMidnight, parseShiftTimes } = require("../services/rosterValidator");
 const { ROSTER_STATUSES, SHIFT_PRESETS } = require("../config/rosterConfig");
 
 /**
