@@ -195,7 +195,7 @@ export default function DutyRoster() {
       const res = await getDutyRosterByWeek(currentWeek.startDateISO);
       if (res && res.roster) {
         setCurrentWeekRoster(res.roster);
-        setWeeklyDuties(res.duties || []);
+        setWeeklyDuties(res.duties || res.roster.assignments || []);
       } else {
         setCurrentWeekRoster(null);
         setWeeklyDuties([]);
@@ -296,9 +296,13 @@ export default function DutyRoster() {
     }
 
     const matchedDuties = weeklyDuties.filter(d => {
-      const dutyOffId = typeof d.officerId === 'object' ? d.officerId?._id : d.officerId;
-      const dutyDateStr = d.date ? d.date.substring(0, 10) : '';
-      return dutyOffId === officerObj._id && dutyDateStr === dateISO;
+      const offVal = d.officer || d.officerId;
+      const dutyOffId = typeof offVal === 'object' && offVal !== null ? (offVal._id || offVal.id) : offVal;
+      let dutyDateStr = '';
+      if (d.date) {
+        dutyDateStr = typeof d.date === 'string' ? d.date.substring(0, 10) : new Date(d.date).toISOString().substring(0, 10);
+      }
+      return String(dutyOffId) === String(officerObj._id) && dutyDateStr === dateISO;
     });
 
     if (matchedDuties.length === 0) return 'OFF';
@@ -453,9 +457,13 @@ export default function DutyRoster() {
     let existingDuty = null;
     if (officerObj && weeklyDuties.length > 0) {
       existingDuty = weeklyDuties.find(d => {
-        const dOffId = typeof d.officerId === 'object' ? d.officerId?._id : d.officerId;
-        const dDateStr = d.date ? d.date.substring(0, 10) : '';
-        return dOffId === officerObj._id && dDateStr === dateISO;
+        const offVal = d.officer || d.officerId;
+        const dOffId = typeof offVal === 'object' && offVal !== null ? (offVal._id || offVal.id) : offVal;
+        let dDateStr = '';
+        if (d.date) {
+          dDateStr = typeof d.date === 'string' ? d.date.substring(0, 10) : new Date(d.date).toISOString().substring(0, 10);
+        }
+        return String(dOffId) === String(officerObj._id) && dDateStr === dateISO;
       });
     }
 
@@ -699,9 +707,9 @@ export default function DutyRoster() {
       });
       if (res && res.ok && res.data && res.data.roster) {
         setCurrentWeekRoster(res.data.roster);
-        setGenerationConflicts(res.data.conflicts || []);
+        setWeeklyDuties(res.data.duties || res.data.roster.assignments || []);
+        setGenerationConflicts(res.data.conflicts || res.data.roster.conflicts || []);
         showToast("Weekly roster generated successfully!");
-        fetchWeeklyData();
         fetchRostersList();
         setWizStep(5);
       } else {
