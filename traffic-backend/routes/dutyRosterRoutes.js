@@ -458,6 +458,7 @@ const generateDutyRosterHandler = async (req, res) => {
 
     const generatedAssignments = [];
     const conflicts = [];
+    let courtRotationIndex = 0;
 
     const dayNamesFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -533,8 +534,23 @@ const generateDutyRosterHandler = async (req, res) => {
           }
         }
 
-        // WORKLOAD BALANCING: Sort eligible candidates by workload ascending (fewest assigned duties first)
-        eligibleCandidates.sort((a, b) => a.workload - b.workload);
+        // WORKLOAD BALANCING & ROTATION LOGIC:
+        if (dutyName === "Court Duty" && reqCount === 1 && designatedCourtOfficerIds.length === 2 && eligibleCandidates.length > 1) {
+          const off1Id = String(designatedCourtOfficerIds[0]);
+          const off2Id = String(designatedCourtOfficerIds[1]);
+          const preferredId = (courtRotationIndex % 2 === 0) ? off1Id : off2Id;
+
+          eligibleCandidates.sort((a, b) => {
+            const idA = String(a.officer._id);
+            const idB = String(b.officer._id);
+            if (idA === preferredId) return -1;
+            if (idB === preferredId) return 1;
+            return a.workload - b.workload;
+          });
+        } else {
+          // WORKLOAD BALANCING: Sort eligible candidates by workload ascending (fewest assigned duties first)
+          eligibleCandidates.sort((a, b) => a.workload - b.workload);
+        }
 
         // Assign up to required officer count
         for (let i = 0; i < eligibleCandidates.length && assignedForThisSlot < reqCount; i++) {
@@ -559,6 +575,10 @@ const generateDutyRosterHandler = async (req, res) => {
           generatedAssignments.push(assignment);
           workloadMap[selIdStr] = (workloadMap[selIdStr] || 0) + 1;
           assignedForThisSlot++;
+        }
+
+        if (dutyName === "Court Duty" && reqCount === 1 && assignedForThisSlot > 0) {
+          courtRotationIndex++;
         }
 
         // Handle Unfilled or Partially Filled Slots
