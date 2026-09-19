@@ -340,7 +340,7 @@ router.delete("/:id", verifyToken, authorizeRoles("it officer", "admin"), async 
  * @desc    Generate Weekly Roster Backend Engine - Validates rules, court duty restriction, max 2 consecutive same duty, workload balancing, and returns DRAFT roster with conflicts/warnings
  * @access  Private (IT Officer / Admin)
  */
-router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), async (req, res) => {
+const generateDutyRosterHandler = async (req, res) => {
   try {
     const weekStart = req.body.weekStart || req.body.startDate || req.body.startDateISO;
     const { regularDuties = [], specialDuties = [], courtDutyOfficerIds = [] } = req.body;
@@ -372,6 +372,13 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
         specialDuties
       });
     } else {
+      if (roster.status === ROSTER_STATUSES.APPROVED || roster.status === ROSTER_STATUSES.PUBLISHED) {
+        return res.status(400).json({
+          success: false,
+          code: "ROSTER_ALREADY_APPROVED",
+          message: `Constraint violation: An ${roster.status.toLowerCase()} roster cannot be re-generated.`
+        });
+      }
       // Clear existing draft assignments for fresh generation if in DRAFT status
       if (roster.status === ROSTER_STATUSES.DRAFT) {
         await DutyAssignment.deleteMany({ roster: roster._id });
@@ -389,21 +396,59 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
       });
     }
 
-    // Determine designated Court Duty Officers
-    let courtOfficers = activeOfficers.filter(
-      (o) => o.isCourtDutyOfficer || (o.rank || "").toLowerCase().includes("court")
+    // Standard default duties if none provided in request
+    const standardRegDuties = regularDuties.length > 0 ? regularDuties : [
+      { name: "Accident Investigation Duty", shift: "06:00–18:00", location: "Main Station / Field", count: 2, frequency: "everyday" },
+      { name: "Motorcycle Patrol", shift: "06:00–18:00", location: "Sector Patrol Area", count: 2, frequency: "everyday" },
+      { name: "119 Motorcycle Patrol", shift: "06:00–18:00", location: "Emergency Patrol", count: 2, frequency: "everyday" },
+      { name: "Point Duty", shift: "06:00–14:00", location: "Poruthota Junction", count: 3, frequency: "everyday" },
+      { name: "Traffic Branch Duty", shift: "06:00–18:00", location: "Traffic Branch HQ", count: 2, frequency: "everyday" },
+      { name: "Court Duty", shift: "08:00–16:00", location: "Magistrate Court", count: 1, frequency: "selected", selectedDays: ["Mon", "Wed", "Fri"] }
+    ];
+
+    // Check if Court Duty is included in regularDuties or specialDuties
+    const hasCourtDuty = standardRegDuties.some(d => (d.name || "").toLowerCase().includes("court")) ||
+                         specialDuties.some(s => (s.type || s.name || "").toLowerCase().includes("court"));
+
+    // Extract unique Court Duty Officer IDs passed from request
+    const uniqueCourtOfficerIds = Array.from(
+      new Set((courtDutyOfficerIds || []).map((id) => String(id)).filter(Boolean))
     );
-    if (courtDutyOfficerIds && courtDutyOfficerIds.length > 0) {
-      courtOfficers = activeOfficers.filter((o) =>
-        courtDutyOfficerIds.some((id) => String(id) === String(o._id))
-      );
+
+    if (hasCourtDuty) {
+      // CASE 4: Duplicate officer selected twice
+      if ((courtDutyOfficerIds || []).length !== uniqueCourtOfficerIds.length) {
+        return res.status(400).json({
+          success: false,
+          code: "DUPLICATE_COURT_OFFICERS",
+          message: "Invalid Court Duty configuration: The same officer cannot be selected twice as a Court Duty officer."
+        });
+      }
+
+      // CASE 1, CASE 2, CASE 5: Exactly 2 designated officers required
+      if (uniqueCourtOfficerIds.length !== 2) {
+        return res.status(400).json({
+          success: false,
+          code: "INVALID_COURT_OFFICERS_COUNT",
+          message: `Invalid Court Duty configuration: Exactly 2 designated Court Duty officers are required (found ${uniqueCourtOfficerIds.length}).`
+        });
+      }
+
+      // Check if designated court officers exist in active officers list
+      const activeOfficerIds = activeOfficers.map(o => String(o._id));
+      const validActiveCourtOfficers = uniqueCourtOfficerIds.filter(id => activeOfficerIds.includes(id));
+      if (validActiveCourtOfficers.length !== 2) {
+        return res.status(400).json({
+          success: false,
+          code: "INVALID_COURT_OFFICERS",
+          message: "Invalid Court Duty configuration: Specified Court Duty officers must be active officers in database."
+        });
+      }
     }
-    // Fallback: If no court duty officers designated yet, designate first 2 active officers
-    if (courtOfficers.length < 2) {
-      courtOfficers = activeOfficers.slice(0, 2);
-    }
-    const designatedCourtOfficerIds = courtOfficers.map((o) => String(o._id));
+
+    const designatedCourtOfficerIds = uniqueCourtOfficerIds;
     roster.courtDutyOfficers = designatedCourtOfficerIds;
+    await roster.save();
 
     // Track workload (number of assigned duty slots in current roster period)
     const workloadMap = {};
@@ -414,15 +459,8 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
     const generatedAssignments = [];
     const conflicts = [];
 
-    // Standard default duties if none provided in request
-    const standardRegDuties = regularDuties.length > 0 ? regularDuties : [
-      { name: "Accident Investigation Duty", shift: "06:00–18:00", location: "Main Station / Field", count: 2 },
-      { name: "Motorcycle Patrol", shift: "06:00–18:00", location: "Sector Patrol Area", count: 2 },
-      { name: "119 Motorcycle Patrol", shift: "06:00–18:00", location: "Emergency Patrol", count: 2 },
-      { name: "Point Duty", shift: "06:00–14:00", location: "Poruthota Junction", count: 3 },
-      { name: "Traffic Branch Duty", shift: "06:00–18:00", location: "Traffic Branch HQ", count: 2 },
-      { name: "Court Duty", shift: "08:00–16:00", location: "Magistrate Court", count: 1 }
-    ];
+    const dayNamesFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     // Loop through days 0 to 6 (Sunday to Saturday)
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
@@ -430,9 +468,27 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
       currentDate.setDate(currentDate.getDate() + dayOffset);
       const dateISOStr = formatDateStr(currentDate);
 
-      // Collect duties for today: regular duties + special duties for today
+      const todayNameFull = dayNamesFull[currentDate.getDay()];
+      const todayNameShort = dayNamesShort[currentDate.getDay()];
+
+      // Filter regular duties based on frequency and selectedDays
+      const todayRegDuties = standardRegDuties.filter((slot) => {
+        if (!slot) return false;
+        if (slot.frequency === "selected" || (Array.isArray(slot.selectedDays) && slot.selectedDays.length > 0)) {
+          const daysList = (slot.selectedDays || []).map((d) => String(d).trim().toLowerCase());
+          const isTodaySelected = daysList.some(d => 
+            d === todayNameFull.toLowerCase() ||
+            d === todayNameShort.toLowerCase() ||
+            d === String(currentDate.getDay())
+          );
+          return isTodaySelected;
+        }
+        return true;
+      });
+
+      // Collect duties for today: filtered regular duties + special duties for today
       const todaySpecial = specialDuties.filter((sd) => sd.date === dateISOStr || sd.date === formatDateStr(currentDate));
-      const todaySlots = [...standardRegDuties, ...todaySpecial];
+      const todaySlots = [...todayRegDuties, ...todaySpecial];
 
       // Sort todaySlots so restricted duties (like Court Duty) are evaluated first before general duties
       todaySlots.sort((a, b) => {
@@ -542,6 +598,9 @@ router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), asy
       error: error.message
     });
   }
-});
+};
+
+router.post("/generate", verifyToken, authorizeRoles("it officer", "admin"), generateDutyRosterHandler);
 
 module.exports = router;
+module.exports.generateDutyRosterHandler = generateDutyRosterHandler;
