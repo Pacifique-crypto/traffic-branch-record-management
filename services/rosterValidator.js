@@ -155,7 +155,7 @@ const validateRosterDate = async (rosterId, dutyDate) => {
 /**
  * 4. Validate Shift Overlap Conflict
  */
-const validateShiftOverlap = async (officerId, dutyDate, shiftStr, excludeAssignmentId = null, officerName = "Officer") => {
+const validateShiftOverlap = async (officerId, dutyDate, shiftStr, excludeAssignmentId = null, officerName = "Officer", rosterId = null) => {
   const targetDate = toMidnight(dutyDate);
   const { startTime, endTime } = parseShiftTimes(shiftStr);
 
@@ -169,6 +169,20 @@ const validateShiftOverlap = async (officerId, dutyDate, shiftStr, excludeAssign
 
   if (excludeAssignmentId) {
     query._id = { $ne: excludeAssignmentId };
+  }
+
+  // Scope to target roster and active APPROVED/PUBLISHED rosters
+  const activeApprovedPublished = await DutyRoster.find({
+    status: { $in: ["APPROVED", "PUBLISHED"] }
+  }).select("_id");
+
+  const validRosterIds = activeApprovedPublished.map(r => r._id);
+  if (rosterId) {
+    validRosterIds.push(rosterId);
+  }
+
+  if (validRosterIds.length > 0) {
+    query.roster = { $in: validRosterIds };
   }
 
   const existingAssignments = await DutyAssignment.find(query);
@@ -201,7 +215,7 @@ const validateShiftOverlap = async (officerId, dutyDate, shiftStr, excludeAssign
 /**
  * 5. Validate Minimum Rest Period (>= 8 Hours Rest)
  */
-const validateMinimumRest = async (officerId, dutyDate, shiftStr, excludeAssignmentId = null, officerName = "Officer") => {
+const validateMinimumRest = async (officerId, dutyDate, shiftStr, excludeAssignmentId = null, officerName = "Officer", rosterId = null) => {
   const targetDate = toMidnight(dutyDate);
   const prevDate = new Date(targetDate);
   prevDate.setDate(prevDate.getDate() - 1);
@@ -218,6 +232,20 @@ const validateMinimumRest = async (officerId, dutyDate, shiftStr, excludeAssignm
 
   if (excludeAssignmentId) {
     query._id = { $ne: excludeAssignmentId };
+  }
+
+  // Scope to target roster and active APPROVED/PUBLISHED rosters
+  const activeApprovedPublished = await DutyRoster.find({
+    status: { $in: ["APPROVED", "PUBLISHED"] }
+  }).select("_id");
+
+  const validRosterIds = activeApprovedPublished.map(r => r._id);
+  if (rosterId) {
+    validRosterIds.push(rosterId);
+  }
+
+  if (validRosterIds.length > 0) {
+    query.roster = { $in: validRosterIds };
   }
 
   const nearbyAssignments = await DutyAssignment.find(query);
@@ -265,7 +293,7 @@ const validateMinimumRest = async (officerId, dutyDate, shiftStr, excludeAssignm
 /**
  * 6. Validate Maximum Consecutive Same Duty (<= 3 Consecutive Assignments)
  */
-const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, excludeAssignmentId = null, officerName = "Officer") => {
+const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, excludeAssignmentId = null, officerName = "Officer", rosterId = null) => {
   if (!dutyType || dutyType === "OFF") return { valid: true };
 
   const targetDate = toMidnight(dutyDate);
@@ -283,6 +311,20 @@ const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, exclude
 
   if (excludeAssignmentId) {
     query._id = { $ne: excludeAssignmentId };
+  }
+
+  // Scope to target roster and active APPROVED/PUBLISHED rosters
+  const activeApprovedPublished = await DutyRoster.find({
+    status: { $in: ["APPROVED", "PUBLISHED"] }
+  }).select("_id");
+
+  const validRosterIds = activeApprovedPublished.map(r => r._id);
+  if (rosterId) {
+    validRosterIds.push(rosterId);
+  }
+
+  if (validRosterIds.length > 0) {
+    query.roster = { $in: validRosterIds };
   }
 
   const assignments = await DutyAssignment.find(query).sort({ date: 1 });
@@ -374,7 +416,7 @@ const validateCourtDutyRestriction = async (officerId, dutyType, courtDutyOffice
  */
 const validateAssignment = async (data, options = {}) => {
   const officer = data.officer || data.officerId;
-  const roster = data.roster || data.rosterId;
+  const roster = data.roster || data.rosterId || options.rosterId || null;
   const { date, dutyType, shift, _id } = data;
   const excludeAssignmentId = _id || options.excludeAssignmentId || null;
 
@@ -402,15 +444,15 @@ const validateAssignment = async (data, options = {}) => {
   }
 
   // 5. Shift Overlap Conflict
-  const overlapCheck = await validateShiftOverlap(officer, date, shift, excludeAssignmentId, officerName);
+  const overlapCheck = await validateShiftOverlap(officer, date, shift, excludeAssignmentId, officerName, roster);
   if (!overlapCheck.valid) return overlapCheck;
 
   // 6. Minimum Rest Conflict
-  const restCheck = await validateMinimumRest(officer, date, shift, excludeAssignmentId, officerName);
+  const restCheck = await validateMinimumRest(officer, date, shift, excludeAssignmentId, officerName, roster);
   if (!restCheck.valid) return restCheck;
 
   // 7. Max Consecutive Duty Conflict (Enforces max 2 consecutive days)
-  const consecutiveCheck = await validateMaxConsecutiveDuty(officer, date, dutyType, excludeAssignmentId, officerName);
+  const consecutiveCheck = await validateMaxConsecutiveDuty(officer, date, dutyType, excludeAssignmentId, officerName, roster);
   if (!consecutiveCheck.valid) return consecutiveCheck;
 
   return { valid: true, officer: officerObj };
