@@ -1,0 +1,341 @@
+import React from "react";
+import { FiPrinter, FiDownload, FiX, FiShield } from "react-icons/fi";
+import { mockAccidentMatrix, mockViolationMatrix } from "./mockData";
+
+function ReportDocumentModal({
+  isModalOpen, setIsModalOpen,
+  activeModalReport, modalTab, setModalTab,
+  handlePrint, handleExportPDF,
+  officerName, badgeNo,
+  fallbackFromDate, fallbackToDate // in case activeModalReport has no period
+}) {
+  if (!isModalOpen) return null;
+
+  const report = activeModalReport || {};
+  const filterData = report.filterData || {};
+  
+  // Default to all vehicles if not specified
+  const vehicles = filterData.vehicles && filterData.vehicles.length > 0 
+    ? filterData.vehicles 
+    : ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"];
+
+  // Filter matrix rows based on filterData
+  const accidentRows = mockAccidentMatrix.filter(row => {
+    if (!filterData.severities || filterData.severities.length === 0) return true; // if empty, show all (or could show none? let's show all for auto reports)
+    return filterData.severities.includes(row.type);
+  });
+
+  const violationRows = mockViolationMatrix.filter(row => {
+    if (!filterData.actions || filterData.actions.length === 0) return true; 
+    return filterData.actions.includes(row.type);
+  });
+
+  // Calculate Column Totals for Accidents
+  const accColTotals = {};
+  vehicles.forEach(v => accColTotals[v] = 0);
+  let accGrandTotal = 0;
+  accidentRows.forEach(row => {
+    vehicles.forEach(v => {
+      accColTotals[v] += (row[v] || 0);
+      accGrandTotal += (row[v] || 0);
+    });
+  });
+
+  // Calculate Column Totals for Violations
+  const vioColTotals = {};
+  vehicles.forEach(v => vioColTotals[v] = 0);
+  let vioGrandTotal = 0;
+  violationRows.forEach(row => {
+    vehicles.forEach(v => {
+      vioColTotals[v] += (row[v] || 0);
+      vioGrandTotal += (row[v] || 0);
+    });
+  });
+
+  return (
+    <div
+      onClick={() => setIsModalOpen(false)}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(15, 23, 42, 0.75)",
+        backdropFilter: "blur(6px)",
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        overflowY: "auto"
+      }}
+    >
+      {/* MODAL TOP FIXED TOOLBAR */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          backgroundColor: "#1E2A3B",
+          color: "#ffffff",
+          padding: "14px 28px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "sticky",
+          top: 0,
+          zIndex: 10000,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 34, height: 34, borderRadius: "8px", backgroundColor: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: 800 }}>
+            <FiShield size={18} style={{ margin: "auto" }} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>
+              {report.title || "Summary Report"}
+            </h3>
+            <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0 0" }}>
+              Ref: {report.id || "RPT-NB-726306"} · {report.generated || "02 September 2026"} · Negombo Division
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={handlePrint}
+            style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #475569", backgroundColor: "transparent", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <FiPrinter size={14} /> Print
+          </button>
+          <button
+            onClick={handleExportPDF}
+            style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #475569", backgroundColor: "transparent", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <FiDownload size={14} /> Export PDF
+          </button>
+          <button
+            onClick={() => setIsModalOpen(false)}
+            style={{ padding: "8px 16px", borderRadius: "6px", border: "none", backgroundColor: "#ef4444", color: "#ffffff", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <FiX size={16} /> Close
+          </button>
+        </div>
+      </div>
+
+      {/* MODAL PRINTABLE DOCUMENT CARD */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          maxWidth: 960,
+          width: "92%",
+          margin: "30px auto 50px auto",
+          backgroundColor: "#ffffff",
+          borderRadius: "16px",
+          padding: "40px 44px",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+          color: "#0f172a"
+        }}
+      >
+        {/* DOCUMENT HEADER */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, borderBottom: "2px solid #0f172a", paddingBottom: 20 }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", letterSpacing: "1px" }}>
+              SRI LANKA POLICE — TRAFFIC BRANCH, NEGOMBO DIVISION
+            </span>
+            <h1 style={{ fontSize: 26, fontWeight: 900, color: "#0f172a", margin: "4px 0" }}>
+              {report.title || "Summary Report"}
+            </h1>
+            <p style={{ fontSize: 13, color: "#475569", margin: 0, fontWeight: 600 }}>
+              Period: {report.period || `${fallbackFromDate} — ${fallbackToDate}`}
+            </p>
+          </div>
+
+          <div style={{ textAlign: "right" }}>
+            <div style={{
+              display: "inline-block",
+              padding: "4px 12px",
+              borderRadius: "6px",
+              border: "1.5px solid #10b981",
+              backgroundColor: "#ecfdf5",
+              color: "#047857",
+              fontSize: "11px",
+              fontWeight: 800,
+              letterSpacing: "0.5px",
+              marginBottom: 8
+            }}>
+              OFFICIAL DOCUMENT
+            </div>
+            <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0" }}>Generated: {report.generated || "02 September 2026"}</p>
+            <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0" }}>Officer: {officerName} · {badgeNo}</p>
+            <p style={{ fontSize: 11, color: "#64748b", margin: "2px 0", fontFamily: "monospace", fontWeight: 700 }}>Ref: {report.id || "RPT-NB-726306"}</p>
+          </div>
+        </div>
+
+        {/* MODAL TABS / INDICATORS */}
+        <div style={{ display: "flex", gap: 16, borderBottom: "1px solid #e2e8f0", paddingBottom: 12, marginBottom: 20 }}>
+          {(!report.category || report.category === "Accidents" || report.category === "Both" || report.category === "accidents" || report.category === "both") && (
+            <button
+              onClick={() => setModalTab("accidents")}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "14px",
+                fontWeight: 800,
+                color: modalTab === "accidents" ? "#ef4444" : "#94a3b8",
+                cursor: "pointer",
+                borderBottom: modalTab === "accidents" ? "3px solid #ef4444" : "none",
+                paddingBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#ef4444" }} /> Accidents
+            </button>
+          )}
+          {(!report.category || report.category === "Violations" || report.category === "Both" || report.category === "violations" || report.category === "both") && (
+            <button
+              onClick={() => setModalTab("violations")}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "14px",
+                fontWeight: 800,
+                color: modalTab === "violations" ? "#2563eb" : "#94a3b8",
+                cursor: "pointer",
+                borderBottom: modalTab === "violations" ? "3px solid #2563eb" : "none",
+                paddingBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#2563eb" }} /> Violations
+            </button>
+          )}
+        </div>
+
+        {/* VEHICLE FILTER BANNER */}
+        <div style={{ backgroundColor: "#f8fafc", padding: "10px 16px", borderRadius: "8px", fontSize: 12, color: "#475569", marginBottom: 20, border: "1px solid #f1f5f9" }}>
+          <strong>VEHICLES INCLUDED:</strong> {vehicles.join(" · ")}
+        </div>
+
+        {/* MATRIX TABLE: ACCIDENTS */}
+        {modalTab === "accidents" && (
+          <div>
+            <h4 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 12px 0" }}>
+              ACCIDENT SUMMARY — BY TYPE & VEHICLE
+            </h4>
+            {accidentRows.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", backgroundColor: "#f8fafc", borderRadius: 8, color: "#64748b" }}>
+                No accident types selected for this report.
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0", textTransform: "uppercase" }}>
+                    <th style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, color: "#64748b" }}>OFFENCE / ACCIDENT TYPE</th>
+                    {vehicles.map(v => (
+                      <th key={v} style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>{v.toUpperCase()}</th>
+                    ))}
+                    <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#ffffff", backgroundColor: "#1E2A3B" }}>TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accidentRows.map((row, idx) => {
+                    const rowTotal = vehicles.reduce((sum, v) => sum + (row[v] || 0), 0);
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 14px", fontWeight: 700, color: "#1e293b", borderLeft: `3.5px solid ${row.color}` }}>
+                          <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: row.color, display: "inline-block", marginRight: 8 }} />
+                          {row.type}
+                        </td>
+                        {vehicles.map(v => (
+                          <td key={v} style={{ padding: "12px", textAlign: "center" }}>{row[v] || "—"}</td>
+                        ))}
+                        <td style={{ padding: "12px", textAlign: "center", fontWeight: 800, backgroundColor: "#f8fafc" }}>{rowTotal}</td>
+                      </tr>
+                    );
+                  })}
+                  {/* GRAND TOTAL ROW */}
+                  <tr style={{ backgroundColor: "#1E2A3B", color: "#ffffff", fontWeight: 800 }}>
+                    <td style={{ padding: "14px", letterSpacing: "0.5px" }}>GRAND TOTAL</td>
+                    {vehicles.map(v => (
+                      <td key={v} style={{ padding: "14px", textAlign: "center" }}>{accColTotals[v]}</td>
+                    ))}
+                    <td style={{ padding: "14px", textAlign: "center", fontSize: 15 }}>{accGrandTotal}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* MATRIX TABLE: VIOLATIONS */}
+        {modalTab === "violations" && (
+          <div>
+            <h4 style={{ fontSize: 12, fontWeight: 800, color: "#475569", letterSpacing: "0.5px", margin: "0 0 12px 0" }}>
+              VIOLATION SUMMARY — BY TYPE & VEHICLE
+            </h4>
+            {violationRows.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", backgroundColor: "#f8fafc", borderRadius: 8, color: "#64748b" }}>
+                No violation actions selected for this report.
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#f8fafc", borderBottom: "2px solid #e2e8f0", textTransform: "uppercase" }}>
+                    <th style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, color: "#64748b" }}>ACTION / OFFENCE TYPE</th>
+                    {vehicles.map(v => (
+                      <th key={v} style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#64748b" }}>{v.toUpperCase()}</th>
+                    ))}
+                    <th style={{ padding: "12px", textAlign: "center", fontSize: 11, color: "#ffffff", backgroundColor: "#1E2A3B" }}>TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {violationRows.map((row, idx) => {
+                    const rowTotal = vehicles.reduce((sum, v) => sum + (row[v] || 0), 0);
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 14px", fontWeight: 700, color: "#1e293b", borderLeft: `3.5px solid ${row.color}` }}>
+                          <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: row.color, display: "inline-block", marginRight: 8 }} />
+                          {row.type}
+                        </td>
+                        {vehicles.map(v => (
+                          <td key={v} style={{ padding: "12px", textAlign: "center" }}>{row[v] || "—"}</td>
+                        ))}
+                        <td style={{ padding: "12px", textAlign: "center", fontWeight: 800, backgroundColor: "#f8fafc" }}>{rowTotal}</td>
+                      </tr>
+                    );
+                  })}
+                  {/* GRAND TOTAL ROW */}
+                  <tr style={{ backgroundColor: "#1E2A3B", color: "#ffffff", fontWeight: 800 }}>
+                    <td style={{ padding: "14px", letterSpacing: "0.5px" }}>GRAND TOTAL</td>
+                    {vehicles.map(v => (
+                      <td key={v} style={{ padding: "14px", textAlign: "center" }}>{vioColTotals[v]}</td>
+                    ))}
+                    <td style={{ padding: "14px", textAlign: "center", fontSize: 15 }}>{vioGrandTotal}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* DOCUMENT FOOTER SIGNATURES */}
+        <div style={{ marginTop: 50, paddingTop: 20, borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+          <div>
+            <p style={{ margin: "0 0 35px 0", color: "#64748b" }}>Prepared by: <strong>{officerName}</strong>, Traffic Officer</p>
+            <div style={{ width: 220, borderBottom: "1.5px solid #0f172a" }} />
+            <p style={{ fontSize: 11, color: "#64748b", margin: "4px 0 0 0" }}>Officer Signature & Date</p>
+          </div>
+
+          <div style={{ textAlign: "right" }}>
+            <p style={{ margin: "0 0 35px 0", color: "#64748b" }}>Officer in Charge (OIC) Approval & Seal</p>
+            <div style={{ width: 220, borderBottom: "1.5px solid #0f172a", marginLeft: "auto" }} />
+            <p style={{ fontSize: 11, color: "#64748b", margin: "4px 0 0 0" }}>Authorized Signature</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default ReportDocumentModal;
