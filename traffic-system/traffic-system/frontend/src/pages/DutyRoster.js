@@ -172,6 +172,8 @@ export default function DutyRoster() {
       const res = await getOfficers();
       if (Array.isArray(res)) {
         setOfficersList(res);
+      } else if (res && Array.isArray(res.officers)) {
+        setOfficersList(res.officers);
       }
     } catch (err) {
       console.error("Error fetching officers:", err);
@@ -183,6 +185,8 @@ export default function DutyRoster() {
       const res = await getDutyRosters();
       if (Array.isArray(res)) {
         setRostersList(res);
+      } else if (res && Array.isArray(res.rosters)) {
+        setRostersList(res.rosters);
       }
     } catch (err) {
       console.error("Error fetching rosters:", err);
@@ -634,35 +638,41 @@ export default function DutyRoster() {
   };
 
   const handleSubmitToOIC = async () => {
-    const targetId = selectedRoster?._id || currentWeekRoster?._id;
+    const targetId = currentWeekRoster?._id || selectedRoster?._id;
     if (targetId) {
       const res = await updateDutyRoster(targetId, { status: "PENDING_APPROVAL" });
       if (res && res.ok) {
-        if (selectedRoster) {
-          setSelectedRoster({
-            ...selectedRoster,
-            badge: 'pending',
-            label: 'Pending'
-          });
-        }
         showToast("Roster submitted to OIC for approval!");
+        await fetchWeeklyData();
+        await fetchRostersList();
         setActiveScreen('dashboard');
         setDashTab('pending');
-        fetchWeeklyData();
-        fetchRostersList();
+        return;
+      } else {
+        const msg = res?.data?.message || res?.data?.error || "Failed to submit roster to OIC";
+        showToast(`Error: ${msg}`);
         return;
       }
     }
-    if (selectedRoster) {
-      setSelectedRoster({
-        ...selectedRoster,
-        badge: 'pending',
-        label: 'Pending'
-      });
+
+    const res = await createDutyRoster({
+      weekStart: currentWeek.startDateISO,
+      startDate: currentWeek.startDateISO,
+      endDate: currentWeek.endDateISO,
+      regularDuties: regDuties,
+      specialDuties: specDuties,
+      status: "PENDING_APPROVAL"
+    });
+    if (res && res.ok) {
+      showToast("Roster submitted to OIC for approval!");
+      await fetchWeeklyData();
+      await fetchRostersList();
+      setActiveScreen('dashboard');
+      setDashTab('pending');
+    } else {
+      const msg = res?.data?.message || res?.data?.error || "Failed to submit roster to OIC";
+      showToast(`Error: ${msg}`);
     }
-    showToast("Roster submitted to OIC for approval!");
-    setActiveScreen('dashboard');
-    setDashTab('pending');
   };
 
   // Wizard Roster Generator & Creation
@@ -682,7 +692,7 @@ export default function DutyRoster() {
         setWeeklyDuties(res.data.duties || res.data.roster.assignments || []);
         setGenerationConflicts(res.data.conflicts || res.data.roster.conflicts || []);
         showToast("Weekly roster generated successfully!");
-        fetchRostersList();
+        await fetchRostersList();
         setWizStep(5);
       } else {
         const msg = res?.data?.error || res?.data?.message || "Failed to generate weekly roster";
@@ -697,21 +707,30 @@ export default function DutyRoster() {
   };
 
   const handleSaveWizardDraft = async () => {
-    const res = await createDutyRoster({
-      weekStart: currentWeek.startDateISO,
-      startDate: currentWeek.startDateISO,
-      endDate: currentWeek.endDateISO,
-      regularDuties: regDuties,
-      specialDuties: specDuties
-    });
+    const targetId = currentWeekRoster?._id || selectedRoster?._id;
+    let res;
+    if (targetId) {
+      res = await updateDutyRoster(targetId, { status: "DRAFT" });
+    } else {
+      res = await createDutyRoster({
+        weekStart: currentWeek.startDateISO,
+        startDate: currentWeek.startDateISO,
+        endDate: currentWeek.endDateISO,
+        regularDuties: regDuties,
+        specialDuties: specDuties,
+        status: "DRAFT"
+      });
+    }
+
     if (res && res.ok) {
       showToast("Roster draft saved to database!");
-      fetchWeeklyData();
-      fetchRostersList();
+      await fetchWeeklyData();
+      await fetchRostersList();
       setActiveScreen('dashboard');
+      setDashTab('draft');
     } else {
-      showToast("Draft saved successfully.");
-      setActiveScreen('dashboard');
+      const msg = res?.data?.message || res?.data?.error || "Failed to save roster draft";
+      showToast(`Error: ${msg}`);
     }
   };
 
