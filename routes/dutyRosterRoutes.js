@@ -47,9 +47,13 @@ router.post("/", verifyToken, authorizeRoles("it officer", "admin"), async (req,
       title: title || `${formatDateStr(start)} to ${formatDateStr(end)} Weekly Roster`,
       weekStart: start,
       weekEnd: end,
-      status: ROSTER_STATUSES.DRAFT,
+      status: req.body.status && Object.values(ROSTER_STATUSES).includes(req.body.status.toUpperCase())
+        ? req.body.status.toUpperCase()
+        : ROSTER_STATUSES.DRAFT,
       createdBy: req.user?.id || req.user?._id || null,
-      notes: notes || ""
+      notes: notes || "",
+      regularDuties: req.body.regularDuties || [],
+      specialDuties: req.body.specialDuties || []
     });
 
     return res.status(201).json({
@@ -262,6 +266,8 @@ router.put("/:id", verifyToken, async (req, res) => {
     if (oicComment !== undefined) roster.oicComment = oicComment;
     if (rejectionReason !== undefined) roster.rejectionReason = rejectionReason;
     if (notes !== undefined) roster.notes = notes;
+    if (req.body.regularDuties) roster.regularDuties = req.body.regularDuties;
+    if (req.body.specialDuties) roster.specialDuties = req.body.specialDuties;
 
     await roster.save();
 
