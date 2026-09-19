@@ -275,6 +275,22 @@ export default function DutyRoster() {
   // Officers list for UI grid
   const displayOfficers = officersList.map(o => `${o.rank || 'PC'} ${o.policeId || ''} ${o.fullName || o.name || ''}`.trim());
 
+  const getLocalDateISO = (dVal) => {
+    if (!dVal) return '';
+    if (typeof dVal === 'string' && dVal.length >= 10 && dVal.includes('-')) {
+      const parts = dVal.substring(0, 10).split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return dVal.substring(0, 10);
+      }
+    }
+    const date = new Date(dVal);
+    if (isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Grid Cell Data & Mapping
   const getCellValForOfficerAndDate = (officerIdx, dayIdx) => {
     const officerObj = officersList[officerIdx];
@@ -287,10 +303,7 @@ export default function DutyRoster() {
     const matchedDuties = weeklyDuties.filter(d => {
       const offVal = d.officer || d.officerId;
       const dutyOffId = typeof offVal === 'object' && offVal !== null ? (offVal._id || offVal.id) : offVal;
-      let dutyDateStr = '';
-      if (d.date) {
-        dutyDateStr = typeof d.date === 'string' ? d.date.substring(0, 10) : new Date(d.date).toISOString().substring(0, 10);
-      }
+      const dutyDateStr = getLocalDateISO(d.date);
       return String(dutyOffId) === String(officerObj._id) && dutyDateStr === dateISO;
     });
 
@@ -424,7 +437,7 @@ export default function DutyRoster() {
     setModalError(null);
     const officerObj = officersList[officerIdx];
     const officerName = officerObj
-      ? `${officerObj.rank || 'PC'} ${officerObj.policeId || ''} ${officerObj.name || ''}`.trim()
+      ? `${officerObj.rank || 'PC'} ${officerObj.policeId || ''} ${officerObj.fullName || officerObj.name || ''}`.trim()
       : displayOfficers[officerIdx] || `PC ${officerIdx + 1}`;
     
     const dateISO = currentWeek.calculatedDatesISO[dayIdx];
@@ -435,10 +448,7 @@ export default function DutyRoster() {
       existingDuty = weeklyDuties.find(d => {
         const offVal = d.officer || d.officerId;
         const dOffId = typeof offVal === 'object' && offVal !== null ? (offVal._id || offVal.id) : offVal;
-        let dDateStr = '';
-        if (d.date) {
-          dDateStr = typeof d.date === 'string' ? d.date.substring(0, 10) : new Date(d.date).toISOString().substring(0, 10);
-        }
+        const dDateStr = getLocalDateISO(d.date);
         return String(dOffId) === String(officerObj._id) && dDateStr === dateISO;
       });
     }
@@ -501,9 +511,10 @@ export default function DutyRoster() {
     // Resolve target officer ID
     let targetOfficerId = editDutyData.officerId;
     const foundOfficer = officersList.find(o => 
-      `${o.rank || 'PC'} ${o.policeId || ''} ${o.name || ''}`.trim() === editDutyData.officer.trim() ||
+      `${o.rank || 'PC'} ${o.policeId || ''} ${o.fullName || o.name || ''}`.trim() === editDutyData.officer.trim() ||
+      o.fullName === editDutyData.officer ||
       o.name === editDutyData.officer ||
-      o._id === editDutyData.officerId
+      String(o._id) === String(editDutyData.officerId)
     );
     if (foundOfficer) {
       targetOfficerId = foundOfficer._id;

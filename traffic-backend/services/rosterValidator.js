@@ -13,11 +13,19 @@ const {
   SHIFT_PRESETS
 } = require("../config/rosterConfig");
 
-// Normalize Date to Midnight (00:00:00.000)
+// Normalize Date to Midnight (00:00:00.000 UTC)
 const toMidnight = (d) => {
+  if (!d) return new Date();
+  if (typeof d === "string" && d.length >= 10 && d.includes("-")) {
+    const datePart = d.substring(0, 10);
+    return new Date(`${datePart}T00:00:00.000Z`);
+  }
   const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  if (isNaN(date.getTime())) return new Date();
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return new Date(`${year}-${month}-${day}T00:00:00.000Z`);
 };
 
 // Format Date YYYY-MM-DD
