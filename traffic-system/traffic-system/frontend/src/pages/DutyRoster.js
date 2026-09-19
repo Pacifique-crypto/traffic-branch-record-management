@@ -170,10 +170,16 @@ export default function DutyRoster() {
   const fetchOfficersList = async () => {
     try {
       const res = await getOfficers();
+      let list = [];
       if (Array.isArray(res)) {
-        setOfficersList(res);
+        list = res;
       } else if (res && Array.isArray(res.officers)) {
-        setOfficersList(res.officers);
+        list = res.officers;
+      }
+      setOfficersList(list);
+      if (list.length >= 2) {
+        setCourtOfficer1(prev => prev || list[0]._id);
+        setCourtOfficer2(prev => prev || list[1]._id);
       }
     } catch (err) {
       console.error("Error fetching officers:", err);
@@ -332,14 +338,18 @@ export default function DutyRoster() {
     return d.dutyType || 'PD-06';
   };
 
+  // Court Duty designated officers state
+  const [courtOfficer1, setCourtOfficer1] = useState("");
+  const [courtOfficer2, setCourtOfficer2] = useState("");
+
   // Regular Duty Rows State (Wizard) - Pre-filled with standard regular duties
   const [regDuties, setRegDuties] = useState([
-    { id: 1, name: "Accident Investigation Duty", shift: "06:00–18:00", count: 2, location: "Main Station / Field", vehicle: true },
-    { id: 2, name: "Motorcycle Patrol", shift: "06:00–18:00", count: 3, location: "Sector Patrol Area", vehicle: true },
-    { id: 3, name: "119 Motorcycle Patrol", shift: "06:00–18:00", count: 2, location: "Emergency Response Patrol", vehicle: true },
-    { id: 4, name: "Point Duty", shift: "06:00–14:00", count: 4, location: "Poruthota & Main Junctions", vehicle: false },
-    { id: 5, name: "Traffic Branch Duty", shift: "06:00–18:00", count: 2, location: "Traffic Branch HQ", vehicle: false },
-    { id: 6, name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court", vehicle: false }
+    { id: 1, name: "Accident Investigation Duty", shift: "06:00–18:00", count: 2, location: "Main Station / Field", vehicle: true, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+    { id: 2, name: "Motorcycle Patrol", shift: "06:00–18:00", count: 3, location: "Sector Patrol Area", vehicle: true, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+    { id: 3, name: "119 Motorcycle Patrol", shift: "06:00–18:00", count: 2, location: "Emergency Response Patrol", vehicle: true, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+    { id: 4, name: "Point Duty", shift: "06:00–14:00", count: 4, location: "Poruthota & Main Junctions", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+    { id: 5, name: "Traffic Branch Duty", shift: "06:00–18:00", count: 2, location: "Traffic Branch HQ", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+    { id: 6, name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
   ]);
 
   // Special Duty Rows State (Wizard)
@@ -350,7 +360,7 @@ export default function DutyRoster() {
   const addRegDuty = () => {
     setRegDuties([
       ...regDuties,
-      { id: Date.now(), name: "", shift: "06:00–14:00", count: 1, location: "", vehicle: false }
+      { id: Date.now(), name: "", shift: "06:00–14:00", count: 1, location: "", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
     ]);
   };
 
@@ -688,6 +698,15 @@ export default function DutyRoster() {
 
   // Wizard Roster Generator & Creation
   const handleGenerateRoster = async () => {
+    if (!courtOfficer1 || !courtOfficer2) {
+      showToast("Error: You must designate exactly two Court Duty officers in Step 2.");
+      return;
+    }
+    if (courtOfficer1 === courtOfficer2) {
+      showToast("Error: Court Officer 1 and Officer 2 must be different officers.");
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationConflicts([]);
     try {
@@ -695,6 +714,7 @@ export default function DutyRoster() {
         weekStart: currentWeek.startDateISO,
         startDate: currentWeek.startDateISO,
         endDate: currentWeek.endDateISO,
+        courtDutyOfficerIds: [courtOfficer1, courtOfficer2],
         regularDuties: regDuties,
         specialDuties: specDuties
       });
@@ -1049,14 +1069,63 @@ export default function DutyRoster() {
           {/* STEP 2 */}
           {wizStep === 2 && (
             <div className="dr-form-card">
+              {/* Designated Court Officers Card */}
+              <div style={{ marginBottom: "24px", padding: "16px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#1e293b", fontSize: "14px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FiBriefcase size={16} color="#2563eb" />
+                  Designated Court Duty Officers (Exactly 2 Officers Required)
+                </h4>
+                <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "12.5px" }}>
+                  Select the exactly two officers designated for Court Duty slots this week. The generator will strictly assign only these officers to Court Duty.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Court Officer 1</label>
+                    <select
+                      value={courtOfficer1}
+                      onChange={(e) => setCourtOfficer1(e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
+                    >
+                      <option value="">-- Select Officer 1 --</option>
+                      {officersList.map(o => (
+                        <option key={o._id} value={o._id}>
+                          {o.rank || 'PC'} {o.policeId || ''} {o.fullName || o.name || ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Court Officer 2</label>
+                    <select
+                      value={courtOfficer2}
+                      onChange={(e) => setCourtOfficer2(e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
+                    >
+                      <option value="">-- Select Officer 2 --</option>
+                      {officersList.map(o => (
+                        <option key={o._id} value={o._id}>
+                          {o.rank || 'PC'} {o.policeId || ''} {o.fullName || o.name || ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Regular Duties Table */}
+              <h4 style={{ margin: "0 0 12px 0", color: "#1e293b", fontSize: "14px", fontWeight: "700" }}>
+                Regular Duties Setup & Frequency
+              </h4>
               <table className="dr-duty-table">
                 <thead>
                   <tr>
                     <th style={{ width: '30px' }}>#</th>
                     <th>Duty Name</th>
                     <th>Shift</th>
-                    <th style={{ width: '110px' }}>Assigned Count</th>
+                    <th style={{ width: '90px' }}>Count</th>
                     <th>Location</th>
+                    <th style={{ width: '130px' }}>Frequency</th>
+                    <th>Schedule Days</th>
                     <th style={{ width: '40px' }}></th>
                   </tr>
                 </thead>
@@ -1115,6 +1184,54 @@ export default function DutyRoster() {
                           }}
                           placeholder="Location"
                         />
+                      </td>
+                      <td>
+                        <select
+                          value={row.frequency || "everyday"}
+                          onChange={(e) => {
+                            const updated = [...regDuties];
+                            updated[idx].frequency = e.target.value;
+                            if (e.target.value === "everyday") {
+                              updated[idx].selectedDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                            } else if (!updated[idx].selectedDays || updated[idx].selectedDays.length === 0) {
+                              updated[idx].selectedDays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+                            }
+                            setRegDuties(updated);
+                          }}
+                        >
+                          <option value="everyday">Every Day</option>
+                          <option value="selected">Selected Days</option>
+                        </select>
+                      </td>
+                      <td>
+                        {row.frequency === "selected" ? (
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => {
+                              const isChecked = (row.selectedDays || []).includes(day);
+                              return (
+                                <label key={day} style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "2px", cursor: "pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const updated = [...regDuties];
+                                      const curDays = updated[idx].selectedDays || [];
+                                      if (e.target.checked) {
+                                        updated[idx].selectedDays = [...curDays, day];
+                                      } else {
+                                        updated[idx].selectedDays = curDays.filter(d => d !== day);
+                                      }
+                                      setRegDuties(updated);
+                                    }}
+                                  />
+                                  {day}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "12px", color: "#64748b" }}>Mon – Sun</span>
+                        )}
                       </td>
 
                       <td>
