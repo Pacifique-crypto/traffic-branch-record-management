@@ -1039,8 +1039,8 @@ export default function DutyRoster() {
                 </div>
               </div>
               <div className="dr-mini-stats">
-                <div className="dr-mini-stat"><div className="n">{officersList.length || 42}</div><div className="l">Officers available</div></div>
-                <div className="dr-mini-stat"><div className="n">28</div><div className="l">Duty slots this week</div></div>
+                <div className="dr-mini-stat"><div className="n">{officersList.length}</div><div className="l">Officers available</div></div>
+                <div className="dr-mini-stat"><div className="n">{regDuties.reduce((acc, r) => acc + (Number(r.count) || 0), 0) * 7 + specDuties.reduce((acc, s) => acc + (Number(s.count) || 0), 0)}</div><div className="l">Duty slots this week</div></div>
                 <div className="dr-mini-stat warn"><div className="n">0</div><div className="l">Officers on leave</div></div>
               </div>
             </div>
