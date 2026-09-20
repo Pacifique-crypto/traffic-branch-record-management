@@ -1,15 +1,15 @@
 /**
  * Comprehensive Test Suite for Duty Roster Phase 4 Corrections
- * Covers 18 targeted scenarios:
- *  1. Reject 0 designated Court Duty officers
- *  2. Reject 1 designated Court Duty officer
- *  3. Reject duplicate designated Court Duty officers
- *  4. Reject invalid/non-existent officer ID in Court Duty designation
- *  5. Accept EXACTLY 2 distinct active Court Duty officers
- *  6. Verify generator strictly assigns ONLY the 2 designated officers to Court Duty
- *  7. Validate manual edit Court Duty ALLOWED for Designated Officer 1
- *  8. Validate manual edit Court Duty ALLOWED for Designated Officer 2
- *  9. Validate manual edit Court Duty REJECTED for non-designated Officer 3
+ * Covers 18 targeted scenarios verifying Court Duty as a NORMAL DUTY:
+ *  1. Court Duty generation succeeds without requiring courtDutyOfficerIds payload
+ *  2. Court Duty can be assigned to any eligible active officer
+ *  3. Officer on approved leave cannot receive Court Duty assignment
+ *  4. Overlapping Court Duty shift is rejected (SHIFT_OVERLAP_CONFLICT)
+ *  5. Minimum 8-hour rest rule applies to Court Duty (MIN_REST_CONFLICT)
+ *  6. Maximum 2 consecutive same-duty rule applies to Court Duty (MAX_CONSECUTIVE_DUTY_CONFLICT)
+ *  7. Workload balancing considers Court Duty assignments
+ *  8. Court Duty required officer count is strictly respected
+ *  9. Manual edit allows assigning Court Duty to any eligible officer
  * 10. Verify Regular Duty frequency "everyday" schedules across all 7 days
  * 11. Verify Regular Duty frequency "selected" ["Mon", "Wed", "Fri"] schedules ONLY on Mon, Wed, Fri
  * 12. Verify Regular Duty frequency "selected" ["Sat", "Sun"] schedules ONLY on Sat, Sun
@@ -28,8 +28,9 @@ dotenv.config();
 const DutyRoster = require("./models/DutyRoster");
 const DutyAssignment = require("./models/DutyAssignment");
 const Officer = require("./models/Officer");
+const OfficerAvailability = require("./models/OfficerAvailability");
 const Notification = require("./models/Notification");
-const { validateAssignment, validateCourtDutyRestriction } = require("./services/rosterValidator");
+const { validateAssignment } = require("./services/rosterValidator");
 const dutyRosterRoutes = require("./routes/dutyRosterRoutes");
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/traffic_db";
@@ -64,15 +65,16 @@ async function runPhase4Tests() {
     // Clean test artifacts
     await DutyRoster.deleteMany({ weekStart: { $gte: new Date("2026-09-01") } });
     await DutyAssignment.deleteMany({});
+    await OfficerAvailability.deleteMany({ remarks: "Phase4 Test Leave" });
     await Notification.deleteMany({ title: "New Duty Assigned" });
 
     // Seed test officers
     const testOfficerData = [
-      { username: "p4_off1", policeId: "P4-001", fullName: "Court Designated Off 1", isCourtDutyOfficer: true, nic: "980000001V", contactNo: "0771110001", rank: "PC", status: "Active", gender: "Male" },
-      { username: "p4_off2", policeId: "P4-002", fullName: "Court Designated Off 2", isCourtDutyOfficer: true, nic: "980000002V", contactNo: "0771110002", rank: "PC", status: "Active", gender: "Male" },
-      { username: "p4_off3", policeId: "P4-003", fullName: "Regular Off 3", isCourtDutyOfficer: false, nic: "980000003V", contactNo: "0771110003", rank: "PC", status: "Active", gender: "Male" },
-      { username: "p4_off4", policeId: "P4-004", fullName: "Regular Off 4", isCourtDutyOfficer: false, nic: "980000004V", contactNo: "0771110004", rank: "PC", status: "Active", gender: "Male" },
-      { username: "p4_off5", policeId: "P4-005", fullName: "Regular Off 5", isCourtDutyOfficer: false, nic: "980000005V", contactNo: "0771110005", rank: "PC", status: "Active", gender: "Male" },
+      { username: "p4_off1", policeId: "P4-001", fullName: "Officer One", nic: "980000001V", contactNo: "0771110001", rank: "PC", status: "Active", gender: "Male" },
+      { username: "p4_off2", policeId: "P4-002", fullName: "Officer Two", nic: "980000002V", contactNo: "0771110002", rank: "PC", status: "Active", gender: "Male" },
+      { username: "p4_off3", policeId: "P4-003", fullName: "Officer Three", nic: "980000003V", contactNo: "0771110003", rank: "PC", status: "Active", gender: "Male" },
+      { username: "p4_off4", policeId: "P4-004", fullName: "Officer Four", nic: "980000004V", contactNo: "0771110004", rank: "PC", status: "Active", gender: "Male" },
+      { username: "p4_off5", policeId: "P4-005", fullName: "Officer Five", nic: "980000005V", contactNo: "0771110005", rank: "PC", status: "Active", gender: "Male" },
     ];
 
     const officers = [];
@@ -81,17 +83,17 @@ async function runPhase4Tests() {
       if (!o) {
         o = await Officer.create({ ...d, password: "password123", role: "Officer" });
       } else {
-        o.isCourtDutyOfficer = d.isCourtDutyOfficer;
         o.status = "Active";
         await o.save();
       }
       officers.push(o);
     }
 
-    const courtOff1 = officers[0];
-    const courtOff2 = officers[1];
-    const regOff3 = officers[2];
-    const regOff4 = officers[3];
+    const off1 = officers[0];
+    const off2 = officers[1];
+    const off3 = officers[2];
+    const off4 = officers[3];
+    const off5 = officers[4];
 
     // Setup req / res mock generator
     async function callGenerateAPI(payload) {
@@ -113,112 +115,145 @@ async function runPhase4Tests() {
     const weekStart = "2026-09-27"; // Sun
     const weekEnd = "2026-10-03";   // Sat
 
-    // TC01: Reject 0 designated Court Duty officers
+    // TC01: Court Duty generation succeeds without requiring courtDutyOfficerIds payload
     const resTC01 = await callGenerateAPI({
       weekStart, startDate: weekStart, endDate: weekEnd,
-      courtDutyOfficerIds: [],
-      regularDuties: [{ name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court Phase4" }]
+      regularDuties: [{ name: "Court Duty", shift: "08:00–16:00", count: 1, location: "Magistrate Court Phase4", frequency: "everyday" }]
     });
-    const err1 = resTC01.data.message || resTC01.data.error || "";
-    assertTest(resTC01.statusCode === 400 && err1.includes("required"), "TC01: Reject 0 designated Court Duty officers", err1);
+    assertTest(resTC01.statusCode === 200 && resTC01.data?.roster, "TC01: Court Duty generation succeeds without courtDutyOfficerIds payload");
 
-    // TC02: Reject 1 designated Court Duty officer
-    const resTC02 = await callGenerateAPI({
-      weekStart, startDate: weekStart, endDate: weekEnd,
-      courtDutyOfficerIds: [courtOff1._id.toString()],
-      regularDuties: [{ name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court Phase4" }]
-    });
-    const err2 = resTC02.data.message || resTC02.data.error || "";
-    assertTest(resTC02.statusCode === 400 && err2.includes("required"), "TC02: Reject 1 designated Court Duty officer", err2);
+    const createdRoster = resTC01.data.roster;
 
-    // TC03: Reject duplicate designated Court Duty officers
-    const resTC03 = await callGenerateAPI({
-      weekStart, startDate: weekStart, endDate: weekEnd,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff1._id.toString()],
-      regularDuties: [{ name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court Phase4" }]
-    });
-    const err3 = resTC03.data.message || resTC03.data.error || "";
-    assertTest(resTC03.statusCode === 400 && err3.includes("twice"), "TC03: Reject duplicate designated Court Duty officers", err3);
-
-    // TC04: Reject invalid/non-existent officer ID in Court Duty designation
-    const fakeId = new mongoose.Types.ObjectId().toString();
-    const resTC04 = await callGenerateAPI({
-      weekStart, startDate: weekStart, endDate: weekEnd,
-      courtDutyOfficerIds: [courtOff1._id.toString(), fakeId],
-      regularDuties: [{ name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court Phase4" }]
-    });
-    const err4 = resTC04.data.message || resTC04.data.error || "";
-    assertTest(resTC04.statusCode === 400 && err4.includes("active officers"), "TC04: Reject invalid officer ID in Court Duty designation", err4);
-
-    // TC05: Accept EXACTLY 2 distinct active Court Duty officers
-    const resTC05 = await callGenerateAPI({
-      weekStart, startDate: weekStart, endDate: weekEnd,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff2._id.toString()],
-      regularDuties: [
-        { name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court Phase4", frequency: "everyday" },
-        { name: "Point Duty", shift: "06:00–14:00", count: 2, location: "Poruthota Phase4", frequency: "everyday" }
-      ]
-    });
-    assertTest(resTC05.statusCode === 200 && resTC05.data.roster, "TC05: Accept EXACTLY 2 distinct active Court Duty officers");
-
-    const createdRoster = resTC05.data.roster;
-
-    // TC06: Verify generator strictly assigns ONLY the 2 designated officers to Court Duty
+    // TC02: Court Duty can be assigned to any eligible active officer
     const courtAssignments = await DutyAssignment.find({
       roster: createdRoster._id,
       dutyType: "Court Duty"
     });
-    const assignedCourtOfficerIds = Array.from(new Set(courtAssignments.map(a => a.officer.toString())));
-    const validDesignatedIds = [courtOff1._id.toString(), courtOff2._id.toString()];
-    const unexpectedCourtAssignees = assignedCourtOfficerIds.filter(id => !validDesignatedIds.includes(id));
+    const assignedOfficerIds = Array.from(new Set(courtAssignments.map(a => a.officer.toString())));
+    assertTest(courtAssignments.length === 7 && assignedOfficerIds.length > 0,
+      "TC02: Court Duty assigned to eligible active officers",
+      `Assigned count: ${courtAssignments.length} | Unique officers: ${assignedOfficerIds.length}`);
 
-    assertTest(courtAssignments.length > 0 && unexpectedCourtAssignees.length === 0,
-      "TC06: Generator strictly assigns ONLY designated officers to Court Duty",
-      `Assigned IDs: ${assignedCourtOfficerIds.join(", ")} | Unexpected: ${unexpectedCourtAssignees.length}`);
-
-    // TC07: Manual edit Court Duty ALLOWED for Designated Officer 1
-    const targetDate28 = new Date("2026-09-28T00:00:00.000Z");
-    const existingAssign1 = await DutyAssignment.findOne({ roster: createdRoster._id, officer: courtOff1._id, date: targetDate28 });
-    const courtVal1 = await validateAssignment({
-      rosterId: createdRoster._id,
-      officerId: courtOff1._id,
-      date: "2026-09-28",
-      shift: "08:00–16:00",
-      location: "Magistrate Court Phase4",
-      dutyType: "Court Duty",
-      _id: existingAssign1?._id
+    // TC03: Officer on approved leave cannot receive Court Duty assignment
+    await OfficerAvailability.create({
+      officer: off1._id,
+      startDate: new Date("2026-09-28T00:00:00.000Z"),
+      endDate: new Date("2026-09-28T23:59:59.999Z"),
+      leaveType: "Casual Leave",
+      status: "Approved",
+      remarks: "Phase4 Test Leave"
     });
-    assertTest(courtVal1.valid === true, "TC07: Manual edit Court Duty ALLOWED for Designated Officer 1", courtVal1.message);
 
-    // TC08: Manual edit Court Duty ALLOWED for Designated Officer 2
-    const existingAssign2 = await DutyAssignment.findOne({ roster: createdRoster._id, officer: courtOff2._id, date: targetDate28 });
-    const courtVal2 = await validateAssignment({
+    const leaveVal = await validateAssignment({
       rosterId: createdRoster._id,
-      officerId: courtOff2._id,
+      officerId: off1._id,
       date: "2026-09-28",
       shift: "08:00–16:00",
-      location: "Magistrate Court Phase4",
-      dutyType: "Court Duty",
-      _id: existingAssign2?._id
-    });
-    assertTest(courtVal2.valid === true, "TC08: Manual edit Court Duty ALLOWED for Designated Officer 2", courtVal2.message);
-
-    // TC09: Manual edit Court Duty REJECTED for non-designated Officer 3
-    const courtVal3 = await validateAssignment({
-      rosterId: createdRoster._id,
-      officerId: regOff3._id,
-      date: "2026-09-28",
-      shift: "08:00–16:00",
-      location: "Magistrate Court Phase4",
       dutyType: "Court Duty"
     });
-    assertTest(courtVal3.valid === false && (courtVal3.code === "COURT_DUTY_RESTRICTION" || courtVal3.reason === "COURT_DUTY_RESTRICTION"),
-      "TC09: Manual edit Court Duty REJECTED for non-designated Officer 3", courtVal3.message);
+    assertTest(leaveVal.valid === false && leaveVal.code === "APPROVED_LEAVE_CONFLICT",
+      "TC03: Officer on approved leave cannot receive Court Duty assignment", leaveVal.message);
+
+    // TC04: Overlapping Court Duty shift is rejected
+    await DutyAssignment.create({
+      roster: createdRoster._id,
+      officer: off2._id,
+      date: new Date("2026-09-28T00:00:00.000Z"),
+      dutyType: "Point Duty",
+      shift: "06:00–14:00",
+      location: "Poruthota"
+    });
+
+    const overlapVal = await validateAssignment({
+      rosterId: createdRoster._id,
+      officerId: off2._id,
+      date: "2026-09-28",
+      shift: "08:00–16:00", // overlaps 08:00 to 14:00
+      dutyType: "Court Duty"
+    });
+    assertTest(overlapVal.valid === false && overlapVal.code === "SHIFT_OVERLAP_CONFLICT",
+      "TC04: Overlapping Court Duty shift is rejected", overlapVal.message);
+
+    // TC05: Minimum 8-hour rest rule applies to Court Duty
+    await DutyAssignment.create({
+      roster: createdRoster._id,
+      officer: off3._id,
+      date: new Date("2026-09-27T00:00:00.000Z"),
+      dutyType: "Checkpoint",
+      shift: "22:00–06:00", // Ends at 06:00 on 2026-09-28
+      location: "HQ Spot"
+    });
+
+    const restVal = await validateAssignment({
+      rosterId: createdRoster._id,
+      officerId: off3._id,
+      date: "2026-09-28",
+      shift: "08:00–16:00", // Starts at 08:00 -> 2 hrs rest only (< 8 hrs)
+      dutyType: "Court Duty"
+    });
+    assertTest(restVal.valid === false && restVal.code === "MIN_REST_CONFLICT",
+      "TC05: Minimum 8-hour rest rule applies to Court Duty", restVal.message);
+
+    // TC06: Maximum 2 consecutive Court Duty assignments applies
+    await DutyAssignment.create({
+      roster: createdRoster._id,
+      officer: off4._id,
+      date: new Date("2026-09-27T00:00:00.000Z"),
+      dutyType: "Court Duty",
+      shift: "08:00–16:00"
+    });
+    await DutyAssignment.create({
+      roster: createdRoster._id,
+      officer: off4._id,
+      date: new Date("2026-09-28T00:00:00.000Z"),
+      dutyType: "Court Duty",
+      shift: "08:00–16:00"
+    });
+
+    const maxConsecVal = await validateAssignment({
+      rosterId: createdRoster._id,
+      officerId: off4._id,
+      date: "2026-09-29",
+      shift: "08:00–16:00",
+      dutyType: "Court Duty"
+    });
+    assertTest(maxConsecVal.valid === false && maxConsecVal.code === "MAX_CONSECUTIVE_DUTY_CONFLICT",
+      "TC06: Maximum 2 consecutive Court Duty assignments rule applies", maxConsecVal.message);
+
+    // TC07: Workload balancing considers Court Duty
+    const resWorkload = await callGenerateAPI({
+      weekStart, startDate: weekStart, endDate: weekEnd,
+      regularDuties: [
+        { name: "Court Duty", shift: "08:00–16:00", count: 1, location: "Magistrate Court", frequency: "everyday" },
+        { name: "Point Duty", shift: "06:00–14:00", count: 1, location: "Main Junction", frequency: "everyday" }
+      ]
+    });
+    assertTest(resWorkload.statusCode === 200 && resWorkload.data?.roster, "TC07: Workload balancing considers Court Duty alongside other duties");
+
+    // TC08: Court Duty required officer count is respected
+    const resCount2 = await callGenerateAPI({
+      weekStart, startDate: weekStart, endDate: weekEnd,
+      regularDuties: [
+        { name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court", frequency: "everyday" }
+      ]
+    });
+    const c2Assignments = await DutyAssignment.find({ roster: resCount2.data.roster._id, dutyType: "Court Duty", date: new Date("2026-09-27T00:00:00.000Z") });
+    assertTest(c2Assignments.length === 2, "TC08: Court Duty required officer count (2 officers) is strictly respected", `Assigned for day: ${c2Assignments.length}`);
+
+    // TC09: Manual edit allows assigning Court Duty to any eligible officer
+    const editVal = await validateAssignment({
+      rosterId: createdRoster._id,
+      officerId: off5._id,
+      date: "2026-09-30",
+      shift: "08:00–16:00",
+      dutyType: "Court Duty"
+    });
+    assertTest(editVal.valid === true, "TC09: Manual Edit Duty allows assigning Court Duty to any eligible officer", editVal.message);
 
     // TC10: Verify Regular Duty frequency "everyday" schedules across all 7 days
     const everydayPointAssignments = await DutyAssignment.find({
       roster: createdRoster._id,
-      dutyType: "Point Duty"
+      dutyType: "Court Duty"
     });
     const uniqueDatesEveryday = Array.from(new Set(everydayPointAssignments.map(a => new Date(a.date).toISOString().substring(0,10))));
     assertTest(uniqueDatesEveryday.length === 7, "TC10: Regular Duty frequency 'everyday' schedules across all 7 days", `Days count: ${uniqueDatesEveryday.length}`);
@@ -228,14 +263,13 @@ async function runPhase4Tests() {
     const weekEndMWF = "2026-10-10";   // Sat
     const resMWF = await callGenerateAPI({
       weekStart: weekStartMWF, startDate: weekStartMWF, endDate: weekEndMWF,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff2._id.toString()],
       regularDuties: [
-        { name: "Patrol Duty MWF", shift: "06:00–14:00", count: 2, location: "Sector 1 Phase4", frequency: "selected", selectedDays: ["Mon", "Wed", "Fri"] }
+        { name: "Court Duty MWF", shift: "08:00–16:00", count: 1, location: "Magistrate Court", frequency: "selected", selectedDays: ["Mon", "Wed", "Fri"] }
       ]
     });
 
     const mwfRoster = resMWF.data.roster;
-    const mwfAssignments = await DutyAssignment.find({ roster: mwfRoster._id, dutyType: "Patrol Duty MWF" });
+    const mwfAssignments = await DutyAssignment.find({ roster: mwfRoster._id, dutyType: "Court Duty MWF" });
     const mwfDates = Array.from(new Set(mwfAssignments.map(a => new Date(a.date).toISOString().substring(0,10)))).sort();
     
     // Expected dates for Mon, Wed, Fri starting 2026-10-04 (Sun): Mon=10-05, Wed=10-07, Fri=10-09
@@ -247,7 +281,6 @@ async function runPhase4Tests() {
     // TC12: Verify Regular Duty frequency "selected" ["Sat", "Sun"] schedules ONLY on Sat, Sun
     const resSatSun = await callGenerateAPI({
       weekStart: weekStartMWF, startDate: weekStartMWF, endDate: weekEndMWF,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff2._id.toString()],
       regularDuties: [
         { name: "Weekend Patrol", shift: "14:00–22:00", count: 2, location: "Coastal Rd Phase4", frequency: "selected", selectedDays: ["Sat", "Sun"] }
       ]
@@ -267,16 +300,12 @@ async function runPhase4Tests() {
     const weekEndRegen = "2026-10-17";
     const resDraft1 = await callGenerateAPI({
       weekStart: weekStartRegen, startDate: weekStartRegen, endDate: weekEndRegen,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff2._id.toString()],
       regularDuties: [
         { name: "Court Duty", shift: "08:00–16:00", count: 1, location: "Magistrate Court Phase4", frequency: "everyday" },
         { name: "Traffic Duty Draft", shift: "06:00–18:00", count: 2, location: "HQ Phase4", frequency: "everyday" }
       ]
     });
 
-    if (resDraft1.statusCode !== 200 || !resDraft1.data?.roster) {
-      console.log("DEBUG resDraft1:", JSON.stringify(resDraft1));
-    }
     const draft1Roster = resDraft1.data ? resDraft1.data.roster : null;
     const initialAssignmentsCount = draft1Roster ? await DutyAssignment.countDocuments({ roster: draft1Roster._id }) : 0;
     assertTest(resDraft1.statusCode === 200 && draft1Roster && initialAssignmentsCount > 0, "TC13: Initial DRAFT roster generation creates assignments correctly", `Count: ${initialAssignmentsCount}`);
@@ -284,7 +313,6 @@ async function runPhase4Tests() {
     // TC14: Re-generation of DRAFT roster safely replaces existing draft assignments (NO duplicates)
     const resDraft2 = await callGenerateAPI({
       weekStart: weekStartRegen, startDate: weekStartRegen, endDate: weekEndRegen,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff2._id.toString()],
       regularDuties: [
         { name: "Court Duty", shift: "08:00–16:00", count: 1, location: "Magistrate Court Phase4", frequency: "everyday" },
         { name: "Traffic Duty Draft", shift: "06:00–18:00", count: 2, location: "HQ Phase4", frequency: "everyday" }
@@ -305,7 +333,6 @@ async function runPhase4Tests() {
 
     const resApprRegen = await callGenerateAPI({
       weekStart: weekStartRegen, startDate: weekStartRegen, endDate: weekEndRegen,
-      courtDutyOfficerIds: [courtOff1._id.toString(), courtOff2._id.toString()],
       regularDuties: [{ name: "Traffic Duty", shift: "06:00–18:00", count: 2, location: "HQ Phase4", frequency: "everyday" }]
     });
 

@@ -406,50 +406,6 @@ const generateDutyRosterHandler = async (req, res) => {
       { name: "Court Duty", shift: "08:00–16:00", location: "Magistrate Court", count: 1, frequency: "selected", selectedDays: ["Mon", "Wed", "Fri"] }
     ];
 
-    // Check if Court Duty is included in regularDuties or specialDuties
-    const hasCourtDuty = standardRegDuties.some(d => (d.name || "").toLowerCase().includes("court")) ||
-                         specialDuties.some(s => (s.type || s.name || "").toLowerCase().includes("court"));
-
-    // Extract unique Court Duty Officer IDs passed from request
-    const uniqueCourtOfficerIds = Array.from(
-      new Set((courtDutyOfficerIds || []).map((id) => String(id)).filter(Boolean))
-    );
-
-    if (hasCourtDuty) {
-      // CASE 4: Duplicate officer selected twice
-      if ((courtDutyOfficerIds || []).length !== uniqueCourtOfficerIds.length) {
-        return res.status(400).json({
-          success: false,
-          code: "DUPLICATE_COURT_OFFICERS",
-          message: "Invalid Court Duty configuration: The same officer cannot be selected twice as a Court Duty officer."
-        });
-      }
-
-      // CASE 1, CASE 2, CASE 5: Exactly 2 designated officers required
-      if (uniqueCourtOfficerIds.length !== 2) {
-        return res.status(400).json({
-          success: false,
-          code: "INVALID_COURT_OFFICERS_COUNT",
-          message: `Invalid Court Duty configuration: Exactly 2 designated Court Duty officers are required (found ${uniqueCourtOfficerIds.length}).`
-        });
-      }
-
-      // Check if designated court officers exist in active officers list
-      const activeOfficerIds = activeOfficers.map(o => String(o._id));
-      const validActiveCourtOfficers = uniqueCourtOfficerIds.filter(id => activeOfficerIds.includes(id));
-      if (validActiveCourtOfficers.length !== 2) {
-        return res.status(400).json({
-          success: false,
-          code: "INVALID_COURT_OFFICERS",
-          message: "Invalid Court Duty configuration: Specified Court Duty officers must be active officers in database."
-        });
-      }
-    }
-
-    const designatedCourtOfficerIds = uniqueCourtOfficerIds;
-    roster.courtDutyOfficers = designatedCourtOfficerIds;
-    await roster.save();
-
     // Track workload (number of assigned duty slots in current roster period)
     const workloadMap = {};
     activeOfficers.forEach((o) => {
@@ -458,7 +414,6 @@ const generateDutyRosterHandler = async (req, res) => {
 
     const generatedAssignments = [];
     const conflicts = [];
-    let courtRotationIndex = 0;
 
     const dayNamesFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -491,15 +446,6 @@ const generateDutyRosterHandler = async (req, res) => {
       const todaySpecial = specialDuties.filter((sd) => sd.date === dateISOStr || sd.date === formatDateStr(currentDate));
       const todaySlots = [...todayRegDuties, ...todaySpecial];
 
-      // Sort todaySlots so restricted duties (like Court Duty) are evaluated first before general duties
-      todaySlots.sort((a, b) => {
-        const nameA = (a.name || a.type || "").toLowerCase();
-        const nameB = (b.name || b.type || "").toLowerCase();
-        if (nameA.includes("court") && !nameB.includes("court")) return -1;
-        if (!nameA.includes("court") && nameB.includes("court")) return 1;
-        return 0;
-      });
-
       for (const slot of todaySlots) {
         const dutyName = slot.name || slot.type || "Point Duty";
         const shiftStr = slot.shift || "06:00–14:00";
@@ -522,8 +468,7 @@ const generateDutyRosterHandler = async (req, res) => {
               shift: shiftStr,
               location: locStr,
               roster: roster._id
-            },
-            { courtDutyOfficerIds: designatedCourtOfficerIds }
+            }
           );
 
           if (validation.valid) {
@@ -534,23 +479,8 @@ const generateDutyRosterHandler = async (req, res) => {
           }
         }
 
-        // WORKLOAD BALANCING & ROTATION LOGIC:
-        if (dutyName === "Court Duty" && reqCount === 1 && designatedCourtOfficerIds.length === 2 && eligibleCandidates.length > 1) {
-          const off1Id = String(designatedCourtOfficerIds[0]);
-          const off2Id = String(designatedCourtOfficerIds[1]);
-          const preferredId = (courtRotationIndex % 2 === 0) ? off1Id : off2Id;
-
-          eligibleCandidates.sort((a, b) => {
-            const idA = String(a.officer._id);
-            const idB = String(b.officer._id);
-            if (idA === preferredId) return -1;
-            if (idB === preferredId) return 1;
-            return a.workload - b.workload;
-          });
-        } else {
-          // WORKLOAD BALANCING: Sort eligible candidates by workload ascending (fewest assigned duties first)
-          eligibleCandidates.sort((a, b) => a.workload - b.workload);
-        }
+        // WORKLOAD BALANCING: Sort eligible candidates by workload ascending (fewest assigned duties first)
+        eligibleCandidates.sort((a, b) => a.workload - b.workload);
 
         // Assign up to required officer count
         for (let i = 0; i < eligibleCandidates.length && assignedForThisSlot < reqCount; i++) {
@@ -577,17 +507,9 @@ const generateDutyRosterHandler = async (req, res) => {
           assignedForThisSlot++;
         }
 
-        if (dutyName === "Court Duty" && reqCount === 1 && assignedForThisSlot > 0) {
-          courtRotationIndex++;
-        }
-
         // Handle Unfilled or Partially Filled Slots
         if (assignedForThisSlot < reqCount) {
-          if (dutyName === "Court Duty" && assignedForThisSlot === 0) {
-            conflicts.push(`⚠ Court Duty on ${dateISOStr} requires ${reqCount} officer(s), but neither designated Court Duty officer is available.`);
-          } else {
-            conflicts.push(`⚠ ${dutyName} on ${dateISOStr} requires ${reqCount} officer(s), but only ${assignedForThisSlot} eligible officer(s) could be assigned due to rule constraints.`);
-          }
+          conflicts.push(`⚠ ${dutyName} on ${dateISOStr} requires ${reqCount} officer(s), but only ${assignedForThisSlot} eligible officer(s) could be assigned due to rule constraints.`);
         }
       }
     }

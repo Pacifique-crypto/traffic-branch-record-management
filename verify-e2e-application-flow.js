@@ -164,10 +164,10 @@ async function runE2EVerification() {
       return { passed: specDuties.length >= 1, detail: `Configured ${specDuties.length} special duty template` };
     });
 
-    // STEP 6: Configure the two designated Court Duty officers
-    testStep(6, "Configure the two designated Court Duty officers", () => {
-      const courtCount = officers.filter(o => o.isCourtDutyOfficer).length;
-      return { passed: courtCount === 2, detail: `Designated Court Officers: ${court1.fullName}, ${court2.fullName}` };
+    // STEP 6: Verify Court Duty configured as a normal duty
+    testStep(6, "Verify Court Duty configured as a normal duty", () => {
+      const courtDutyConfig = regDuties.find(d => d.name === "Court Duty");
+      return { passed: !!courtDutyConfig, detail: `Court Duty count: ${courtDutyConfig?.count || 1}, Shift: ${courtDutyConfig?.shift || '08:00–16:00'}` };
     });
 
     // STEP 7: Click Generate Weekly Roster
@@ -308,31 +308,31 @@ async function runE2EVerification() {
       };
     });
 
-    // STEP 15: Try assigning non-designated officer to Court Duty -> expect rejection
-    await testStepAsync(15, "Try assigning non-designated officer to Court Duty", async () => {
+    // STEP 15: Verify Court Duty can be assigned to any eligible active officer
+    await testStepAsync(15, "Verify Court Duty can be assigned to any eligible active officer", async () => {
       const validation = await validateAssignment({
-        officerId: off3._id, // isCourtDutyOfficer: false
+        officerId: off3._id,
         date: "2026-12-08",
         shift: "08:00–16:00",
         dutyType: "Court Duty",
         rosterId: e2eRoster._id
       });
       return {
-        passed: !validation.valid && validation.code === "COURT_DUTY_RESTRICTION",
-        detail: `Validation correctly rejected with code: ${validation.code}`
+        passed: validation.valid === true,
+        detail: `Assignment allowed for active officer ${off3.fullName}`
       };
     });
 
-    // STEP 16: Verify only designated Court Duty officers can be assigned Court Duty
-    await testStepAsync(16, "Verify designated Court Duty officer assignment succeeds", async () => {
+    // STEP 16: Verify Court Duty obeys normal rule constraints (e.g. leave conflict)
+    await testStepAsync(16, "Verify Court Duty obeys normal rule constraints", async () => {
       const validation = await validateAssignment({
-        officerId: court2._id, // isCourtDutyOfficer: true
-        date: "2026-12-08",
+        officerId: off5._id, // off5 is on leave on 2026-12-06
+        date: "2026-12-06",
         shift: "08:00–16:00",
         dutyType: "Court Duty",
         rosterId: e2eRoster._id
       });
-      return { passed: validation.valid, detail: `Assignment allowed for designated court officer ${court2.fullName}` };
+      return { passed: !validation.valid && validation.code === "APPROVED_LEAVE_CONFLICT", detail: `Leave rule correctly applied to Court Duty for ${off5.fullName}` };
     });
 
     // STEP 17: Verify maximum 2 consecutive same-duty rule

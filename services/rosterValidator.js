@@ -372,42 +372,10 @@ const validateMaxConsecutiveDuty = async (officerId, dutyDate, dutyType, exclude
 };
 
 /**
- * Validate Special Court Duty Restriction
- * Rule: Only designated Court Duty officers for THIS specific roster can perform Court Duty.
- * No other officer can ever be assigned to Court Duty.
+ * Validate Special Court Duty Restriction (DEPRECATED - Court Duty is now a normal duty)
+ * Any active eligible officer can perform Court Duty.
  */
 const validateCourtDutyRestriction = async (officerId, dutyType, courtDutyOfficerIds = [], officerObj = null, officerName = "Officer", rosterId = null) => {
-  if (dutyType !== "Court Duty") return { valid: true };
-
-  let designatedIds = Array.isArray(courtDutyOfficerIds) ? courtDutyOfficerIds.map(String).filter(Boolean) : [];
-
-  // If courtDutyOfficerIds was not explicitly passed in options, load from DutyRoster if rosterId exists
-  if (designatedIds.length === 0 && rosterId) {
-    const roster = await DutyRoster.findById(rosterId);
-    if (roster && Array.isArray(roster.courtDutyOfficers) && roster.courtDutyOfficers.length > 0) {
-      designatedIds = roster.courtDutyOfficers.map(id => typeof id === 'object' && id !== null ? (id._id || id).toString() : String(id)).filter(Boolean);
-    }
-  }
-
-  let isDesignated = false;
-  if (designatedIds.length > 0) {
-    isDesignated = designatedIds.some((id) => String(id) === String(officerId));
-  } else {
-    // If no roster designation exists, fallback to officer attribute for backwards compatibility
-    const off = officerObj || (await Officer.findById(officerId));
-    if (off && (off.isCourtDutyOfficer || (off.rank || "").toLowerCase().includes("court"))) {
-      isDesignated = true;
-    }
-  }
-
-  if (!isDesignated) {
-    return {
-      valid: false,
-      code: "COURT_DUTY_RESTRICTION",
-      message: `Officer ${officerName} is not a designated Court Duty officer for this roster. Only designated Court Duty officers can perform Court Duty.`
-    };
-  }
-
   return { valid: true };
 };
 
@@ -433,10 +401,6 @@ const validateAssignment = async (data, options = {}) => {
   // 3. Approved Leave Conflict
   const leaveCheck = await validateLeaveConflict(officer, date, officerName);
   if (!leaveCheck.valid) return leaveCheck;
-
-  // 4. Special Court Duty Restriction
-  const courtCheck = await validateCourtDutyRestriction(officer, dutyType, options.courtDutyOfficerIds, officerObj, officerName, roster);
-  if (!courtCheck.valid) return courtCheck;
 
   // If duty is OFF, skip rest/shift/consecutive validations
   if (dutyType === "OFF") {
