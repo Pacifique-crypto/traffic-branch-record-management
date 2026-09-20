@@ -177,10 +177,6 @@ export default function DutyRoster() {
         list = res.officers;
       }
       setOfficersList(list);
-      if (list.length >= 2) {
-        setCourtOfficer1(prev => prev || list[0]._id);
-        setCourtOfficer2(prev => prev || list[1]._id);
-      }
     } catch (err) {
       console.error("Error fetching officers:", err);
     }
@@ -337,10 +333,6 @@ export default function DutyRoster() {
     }
     return d.dutyType || 'PD-06';
   };
-
-  // Court Duty designated officers state
-  const [courtOfficer1, setCourtOfficer1] = useState("");
-  const [courtOfficer2, setCourtOfficer2] = useState("");
 
   // Regular Duty Rows State (Wizard) - Pre-filled with standard regular duties
   const [regDuties, setRegDuties] = useState([
@@ -698,15 +690,6 @@ export default function DutyRoster() {
 
   // Wizard Roster Generator & Creation
   const handleGenerateRoster = async () => {
-    if (!courtOfficer1 || !courtOfficer2) {
-      showToast("Error: You must designate exactly two Court Duty officers in Step 2.");
-      return;
-    }
-    if (courtOfficer1 === courtOfficer2) {
-      showToast("Error: Court Officer 1 and Officer 2 must be different officers.");
-      return;
-    }
-
     setIsGenerating(true);
     setGenerationConflicts([]);
     try {
@@ -714,7 +697,6 @@ export default function DutyRoster() {
         weekStart: currentWeek.startDateISO,
         startDate: currentWeek.startDateISO,
         endDate: currentWeek.endDateISO,
-        courtDutyOfficerIds: [courtOfficer1, courtOfficer2],
         regularDuties: regDuties,
         specialDuties: specDuties
       });
@@ -1069,49 +1051,6 @@ export default function DutyRoster() {
           {/* STEP 2 */}
           {wizStep === 2 && (
             <div className="dr-form-card">
-              {/* Designated Court Officers Card */}
-              <div style={{ marginBottom: "24px", padding: "16px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                <h4 style={{ margin: "0 0 8px 0", color: "#1e293b", fontSize: "14px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <FiBriefcase size={16} color="#2563eb" />
-                  Designated Court Duty Officers (Exactly 2 Officers Required)
-                </h4>
-                <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "12.5px" }}>
-                  Select the exactly two officers designated for Court Duty slots this week. The generator will strictly assign only these officers to Court Duty.
-                </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Court Officer 1</label>
-                    <select
-                      value={courtOfficer1}
-                      onChange={(e) => setCourtOfficer1(e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
-                    >
-                      <option value="">-- Select Officer 1 --</option>
-                      {officersList.map(o => (
-                        <option key={o._id} value={o._id}>
-                          {o.rank || 'PC'} {o.policeId || ''} {o.fullName || o.name || ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#475569", marginBottom: "4px" }}>Court Officer 2</label>
-                    <select
-                      value={courtOfficer2}
-                      onChange={(e) => setCourtOfficer2(e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
-                    >
-                      <option value="">-- Select Officer 2 --</option>
-                      {officersList.map(o => (
-                        <option key={o._id} value={o._id}>
-                          {o.rank || 'PC'} {o.policeId || ''} {o.fullName || o.name || ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
               {/* Regular Duties Table */}
               <h4 style={{ margin: "0 0 12px 0", color: "#1e293b", fontSize: "14px", fontWeight: "700" }}>
                 Regular Duties Setup & Frequency
