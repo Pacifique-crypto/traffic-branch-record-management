@@ -284,9 +284,6 @@ function Reports() {
               }}
             >
               🗓 Scheduled Reports
-              <span style={{ backgroundColor: "#2563eb", color: "#ffffff", fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "12px", letterSpacing: "0.5px" }}>
-                AUTO
-              </span>
             </button>
           </div>
         </div>
