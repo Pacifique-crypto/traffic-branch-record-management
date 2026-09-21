@@ -298,19 +298,6 @@ function Reports() {
             fromDate={fromDate} setFromDate={setFromDate}
             toDate={toDate} setToDate={setToDate}
             analyticsSection={analyticsSection} setAnalyticsSection={setAnalyticsSection}
-            handlePrint={handlePrint} handleExportPDF={handleExportPDF}
-            openGenerateModal={() => {
-              setActiveModalReport({
-                id: "RPT-NB-6512",
-                title: "Custom Last 30 days — Summary",
-                category: "Both",
-                period: `${fromDate} — ${toDate}`,
-                generated: "Aug 26, 2026 22:45",
-                by: officerName,
-                filterData: { category: "both", vehicles: selectedVehicles }
-              });
-              setIsModalOpen(true);
-            }}
           />
         )}
 

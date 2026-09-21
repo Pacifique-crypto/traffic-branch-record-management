@@ -1,5 +1,4 @@
 import React from "react";
-import { FiPrinter, FiDownload } from "react-icons/fi";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, AreaChart, Area, LineChart, Line
@@ -16,9 +15,7 @@ function LiveAnalytics({
   liveDatePreset, handleLivePresetChange,
   fromDate, setFromDate,
   toDate, setToDate,
-  analyticsSection, setAnalyticsSection,
-  handlePrint, handleExportPDF,
-  openGenerateModal
+  analyticsSection, setAnalyticsSection
 }) {
   return (
     <div>
@@ -86,27 +83,6 @@ function LiveAnalytics({
                 />
               </div>
             </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              onClick={handlePrint}
-              style={reportStyles.btnSecondary}
-            >
-              <FiPrinter size={15} /> Print
-            </button>
-            <button
-              onClick={handleExportPDF}
-              style={reportStyles.btnSecondary}
-            >
-              <FiDownload size={15} /> Export
-            </button>
-            <button
-              onClick={openGenerateModal}
-              style={reportStyles.btnPrimary}
-            >
-              Generate Report
-            </button>
           </div>
         </div>
 
