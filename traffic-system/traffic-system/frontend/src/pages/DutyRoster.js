@@ -180,7 +180,12 @@ export default function DutyRoster() {
       } else if (res && Array.isArray(res.officers)) {
         list = res.officers;
       }
-      setOfficersList(list);
+      // Only include Active officers on the duty roster
+      const activeOfficers = list.filter(o => {
+        const st = (o.status || "").trim().toLowerCase();
+        return st === "active" || (!o.status && st !== "inactive" && st !== "deactive" && st !== "disabled");
+      });
+      setOfficersList(activeOfficers);
     } catch (err) {
       console.error("Error fetching officers:", err);
     }
