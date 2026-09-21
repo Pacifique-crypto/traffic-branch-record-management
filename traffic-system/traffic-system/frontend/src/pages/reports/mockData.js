@@ -76,154 +76,272 @@ export const vehicleList = [
   { name: "Bicycle", emoji: "🚲" },
 ];
 
+export const accidentSeverityOptions = ["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"];
+
+export const accidentCauseOptions = [
+  "Excessive Speed",
+  "Illegal Overtaking",
+  "Reckless Driving",
+  "Failure to Keep Left",
+  "Mechanical Failure",
+  "Pedestrian Fault",
+  "Other Cause"
+];
+
+export const violationActionOptions = [
+  "Judicial Cases (Court)",
+  "Fine-based Offences",
+  "Warnings"
+];
+
+export const violationCauseOptions = [
+  "Speeding",
+  "No Helmet",
+  "Signal Jump",
+  "Illegal Parking",
+  "No License",
+  "Drink & Drive",
+  "Overloading"
+];
+
 export const initialArchiveRecords = [
   {
-    id: "RPT-2026-0891",
-    title: "Monthly Accident Matrix Report",
+    id: "RPT-NB-6512",
+    title: "Custom Last 30 days — Accidents",
     category: "Accidents",
     categoryColor: "#ef4444",
-    type: "AUTO",
-    period: "08/01/2026 — 08/31/2026",
-    generated: "01 Sep 2026, 00:00 AM",
-    by: "System (Auto)",
+    type: "MANUAL",
+    period: "07/27/2026 — 08/26/2026",
+    generated: "Aug 26, 2026 22:45",
+    by: "PS Perera",
     status: "Completed",
-    size: "284 KB",
-    filterData: { 
-      category: "accidents", 
-      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
-      severities: ["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"],
+    size: "2.5 MB",
+    filterData: {
+      category: "accidents",
+      vehicles: ["Bus", "Lorry", "Three-Wheeler", "Bicycle"],
+      severities: ["Deaths", "Property Damage"],
+      causes: ["Excessive Speed", "Reckless Driving", "Mechanical Failure", "Illegal Overtaking"],
       actions: []
     }
   },
   {
-    id: "RPT-2026-0890",
-    title: "Monthly Violation Density Report",
+    id: "RPT-NB-5835",
+    title: "Custom Last 30 days — Violations",
     category: "Violations",
-    categoryColor: "#3b82f6",
-    type: "AUTO",
-    period: "08/01/2026 — 08/31/2026",
-    generated: "01 Sep 2026, 00:00 AM",
-    by: "System (Auto)",
+    categoryColor: "#2563eb",
+    type: "MANUAL",
+    period: "07/27/2026 — 08/26/2026",
+    generated: "Aug 26, 2026 22:46",
+    by: "PS Perera",
     status: "Completed",
-    size: "312 KB",
-    filterData: { 
-      category: "violations", 
-      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
+    size: "4.7 MB",
+    filterData: {
+      category: "violations",
+      vehicles: ["Bus", "Lorry", "Three-Wheeler", "Bicycle"],
       severities: [],
+      causes: ["No Helmet", "No License", "Overloading"],
+      actions: ["Judicial Cases (Court)", "Warnings"]
+    }
+  },
+  {
+    id: "RPT-NB-2496",
+    title: "Custom Last 30 days — Accidents",
+    category: "Accidents",
+    categoryColor: "#ef4444",
+    type: "MANUAL",
+    period: "07/07/2026 — 08/26/2026",
+    generated: "Aug 26, 2026 22:43",
+    by: "PS Perera",
+    status: "Completed",
+    size: "2.2 MB",
+    filterData: {
+      category: "accidents",
+      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle"],
+      severities: ["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"],
+      causes: ["Excessive Speed"],
+      actions: []
+    }
+  },
+  {
+    id: "RPT-NB-4685",
+    title: "Custom Last 2 weeks — Violations",
+    category: "Violations",
+    categoryColor: "#2563eb",
+    type: "MANUAL",
+    period: "08/12/2026 — 08/26/2026",
+    generated: "Aug 26, 2026 22:42",
+    by: "PS Perera",
+    status: "Completed",
+    size: "2.9 MB",
+    filterData: {
+      category: "violations",
+      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle"],
+      severities: [],
+      causes: ["Speeding", "No Helmet"],
       actions: ["Judicial Cases (Court)", "Fine-based Offences", "Warnings"]
     }
   },
   {
-    id: "RPT-NB-726306",
-    title: "Executive Summary Division Report",
+    id: "RPT-NB-4988",
+    title: "Custom Last 2 weeks — Accidents",
+    category: "Accidents",
+    categoryColor: "#ef4444",
+    type: "MANUAL",
+    period: "08/12/2026 — 08/26/2026",
+    generated: "Aug 26, 2026 22:41",
+    by: "PS Perera",
+    status: "Completed",
+    size: "2.3 MB",
+    filterData: {
+      category: "accidents",
+      vehicles: ["Motor Car", "Van", "Bus", "Lorry"],
+      severities: ["Deaths", "Major Injuries", "Property Damage"],
+      causes: ["Excessive Speed", "Reckless Driving"],
+      actions: []
+    }
+  },
+  {
+    id: "RPT-NB-081847",
+    title: "Monthly Accident Report",
+    category: "Accidents",
+    categoryColor: "#ef4444",
+    type: "AUTO",
+    period: "Aug 1 — Aug 31, 2026",
+    generated: "Sep 1, 2026 00:05",
+    by: "System (Auto)",
+    status: "Completed",
+    size: "2.4 MB",
+    filterData: {
+      category: "accidents",
+      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
+      severities: ["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"],
+      causes: ["Excessive Speed", "Illegal Overtaking", "Reckless Driving"],
+      actions: []
+    }
+  },
+  {
+    id: "RPT-NB-081832",
+    title: "Monthly Violation Report",
+    category: "Violations",
+    categoryColor: "#2563eb",
+    type: "AUTO",
+    period: "Aug 1 — Aug 31, 2026",
+    generated: "Sep 1, 2026 00:06",
+    by: "System (Auto)",
+    status: "Completed",
+    size: "3.3 MB",
+    filterData: {
+      category: "violations",
+      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
+      severities: [],
+      causes: ["Speeding", "No Helmet", "Signal Jump"],
+      actions: ["Judicial Cases (Court)", "Fine-based Offences", "Warnings"]
+    }
+  },
+  {
+    id: "RPT-NB-081810",
+    title: "Custom Biweekly Report",
     category: "Both",
     categoryColor: "#8b5cf6",
     type: "MANUAL",
-    period: "06/30/2026 — 07/12/2026",
-    generated: "02 Sep 2026, 09:14 AM",
+    period: "Jul 28 — Aug 11, 2026",
+    generated: "Aug 11, 2026 14:22",
     by: "PS Perera",
     status: "Completed",
-    size: "410 KB",
-    filterData: { 
-      category: "both", 
+    size: "5.2 MB",
+    filterData: {
+      category: "both",
       vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
       severities: ["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"],
+      causes: ["Excessive Speed"],
       actions: ["Judicial Cases (Court)", "Fine-based Offences", "Warnings"]
-    }
-  },
-  {
-    id: "RPT-2026-0842",
-    title: "Custom High Speed Corridor Audit",
-    category: "Violations",
-    categoryColor: "#3b82f6",
-    type: "MANUAL",
-    period: "07/01/2026 — 07/15/2026",
-    generated: "16 Jul 2026, 14:30 PM",
-    by: "PS Perera",
-    status: "Completed",
-    size: "195 KB",
-    filterData: { 
-      category: "violations", 
-      vehicles: ["Motor Car", "Motorcycle", "Three-Wheeler"],
-      severities: [],
-      actions: ["Fine-based Offences"]
-    }
-  },
-  {
-    id: "RPT-2026-0799",
-    title: "Night Duty Incident Summary",
-    category: "Accidents",
-    categoryColor: "#ef4444",
-    type: "MANUAL",
-    period: "06/01/2026 — 06/30/2026",
-    generated: "01 Jul 2026, 08:22 AM",
-    by: "PS Perera",
-    status: "Failed",
-    size: "0 KB",
-    filterData: { 
-      category: "accidents", 
-      vehicles: ["Motor Car", "Van", "Lorry"],
-      severities: ["Deaths", "Major Injuries"],
-      actions: []
     }
   }
 ];
 
-// More records to test pagination
 export const olderArchiveRecords = [
   {
-    id: "RPT-2026-0701",
-    title: "Mid-Year Accident Summary",
+    id: "RPT-NB-081799",
+    title: "Monthly Accident Report",
     category: "Accidents",
     categoryColor: "#ef4444",
     type: "AUTO",
-    period: "01/01/2026 — 06/30/2026",
-    generated: "01 Jul 2026, 00:00 AM",
+    period: "Jul 1 — Jul 31, 2026",
+    generated: "Aug 1, 2026 00:05",
     by: "System (Auto)",
     status: "Completed",
-    size: "820 KB",
-    filterData: { 
-      category: "accidents", 
+    size: "2.2 MB",
+    filterData: {
+      category: "accidents",
       vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
       severities: ["Deaths", "Major Injuries", "Minor Injuries", "Property Damage"],
+      causes: [],
       actions: []
     }
   },
   {
-    id: "RPT-2026-0690",
-    title: "June Violation Report",
+    id: "RPT-NB-081798",
+    title: "Monthly Violation Report",
     category: "Violations",
-    categoryColor: "#3b82f6",
+    categoryColor: "#2563eb",
     type: "AUTO",
-    period: "06/01/2026 — 06/30/2026",
-    generated: "01 Jul 2026, 00:00 AM",
+    period: "Jul 1 — Jul 31, 2026",
+    generated: "Aug 1, 2026 00:06",
     by: "System (Auto)",
     status: "Completed",
-    size: "305 KB",
-    filterData: { 
-      category: "violations", 
+    size: "2.9 MB",
+    filterData: {
+      category: "violations",
       vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler", "Motorcycle", "Bicycle"],
       severities: [],
+      causes: [],
       actions: ["Judicial Cases (Court)", "Fine-based Offences", "Warnings"]
     }
   },
   {
-    id: "RPT-NB-720112",
-    title: "Special Holiday Operation",
-    category: "Both",
-    categoryColor: "#8b5cf6",
+    id: "RPT-NB-081776",
+    title: "Custom 30-Day Report",
+    category: "Accidents",
+    categoryColor: "#ef4444",
     type: "MANUAL",
-    period: "04/10/2026 — 04/20/2026",
-    generated: "22 Apr 2026, 11:30 AM",
-    by: "PS Perera",
+    period: "Jun 15 — Jul 14, 2026",
+    generated: "Jul 14, 2026 09:11",
+    by: "SI Bandara",
     status: "Completed",
-    size: "450 KB",
-    filterData: { 
-      category: "both", 
-      vehicles: ["Motor Car", "Van", "Bus", "Motorcycle", "Three-Wheeler"],
+    size: "4.8 MB",
+    filterData: {
+      category: "accidents",
+      vehicles: ["Motor Car", "Van", "Bus", "Lorry", "Three-Wheeler"],
       severities: ["Deaths", "Major Injuries"],
-      actions: ["Fine-based Offences", "Warnings"]
+      causes: [],
+      actions: []
     }
+  },
+  {
+    id: "RPT-NB-081759",
+    title: "Monthly Accident Report",
+    category: "Accidents",
+    categoryColor: "#ef4444",
+    type: "AUTO",
+    period: "Jun 1 — Jun 30, 2026",
+    generated: "Jul 1, 2026 00:05",
+    by: "System (Auto)",
+    status: "Failed",
+    size: "0 KB",
+    filterData: { category: "accidents", vehicles: [], severities: [], causes: [], actions: [] }
+  },
+  {
+    id: "RPT-NB-081758",
+    title: "Monthly Violation Report",
+    category: "Violations",
+    categoryColor: "#2563eb",
+    type: "AUTO",
+    period: "Jun 1 — Jun 30, 2026",
+    generated: "Jul 1, 2026 00:06",
+    by: "System (Auto)",
+    status: "Completed",
+    size: "2.7 MB",
+    filterData: { category: "violations", vehicles: ["Motor Car", "Van", "Bus"], severities: [], causes: [], actions: ["Judicial Cases (Court)", "Fine-based Offences"] }
   }
 ];
 
@@ -235,7 +353,7 @@ export const mockAccidentMatrix = [
 ];
 
 export const mockViolationMatrix = [
-  { type: "Judicial Cases (Court)", color: "#8b5cf6", "Motor Car": 142, "Van": 58, "Bus": 24, "Lorry": 38, "Three-Wheeler": 112, "Motorcycle": 195, "Bicycle": 12 },
-  { type: "Fine-based Offences", color: "#f59e0b", "Motor Car": 310, "Van": 145, "Bus": 62, "Lorry": 88, "Three-Wheeler": 245, "Motorcycle": 410, "Bicycle": 35 },
-  { type: "Warnings", color: "#06b6d4", "Motor Car": 85, "Van": 32, "Bus": 12, "Lorry": 18, "Three-Wheeler": 64, "Motorcycle": 98, "Bicycle": 15 }, // changed "Warnings Issued" to "Warnings" to match the state `violationActions`
+  { type: "Judicial Cases (Court)", color: "#8b5cf6", "Motor Car": 45, "Van": 12, "Bus": 7, "Lorry": 8, "Three-Wheeler": 22, "Motorcycle": 28, "Bicycle": 4 },
+  { type: "Fine-based Offences", color: "#f59e0b", "Motor Car": 120, "Van": 35, "Bus": 18, "Lorry": 25, "Three-Wheeler": 80, "Motorcycle": 180, "Bicycle": 12 },
+  { type: "Warnings", color: "#06b6d4", "Motor Car": 85, "Van": 20, "Bus": 10, "Lorry": 14, "Three-Wheeler": 45, "Motorcycle": 95, "Bicycle": 8 },
 ];
