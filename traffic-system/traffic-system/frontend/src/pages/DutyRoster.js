@@ -25,6 +25,7 @@ import {
   FiBriefcase,
   FiSave,
   FiChevronDown,
+  FiChevronUp,
   FiSettings,
   FiPlay,
   FiInfo
@@ -79,12 +80,28 @@ export default function DutyRoster() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const formatDateISO = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getWeekSunday = (offset = 0) => {
+    const now = new Date();
+    const day = now.getDay(); // 0 is Sunday, 1 is Monday, ... 6 is Saturday
+    const baseSun = new Date(now);
+    baseSun.setDate(now.getDate() - day + offset * 7);
+    baseSun.setHours(0, 0, 0, 0);
+    return baseSun;
+  };
+
   // Week Navigation State & Helper
   const [weekOffset, setWeekOffset] = useState(0);
-  const [customStartDate, setCustomStartDate] = useState("2026-09-13");
+  const [customStartDate, setCustomStartDate] = useState(() => formatDateISO(getWeekSunday(0)));
 
   // Daily View Date State & Helper
-  const [dailyDate, setDailyDate] = useState(new Date(2026, 8, 14)); // Mon, 14 Sep 2026
+  const [dailyDate, setDailyDate] = useState(() => new Date());
 
   const formatDailyDate = (dateObj) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -94,19 +111,6 @@ export default function DutyRoster() {
     const monthName = months[dateObj.getMonth()];
     const year = dateObj.getFullYear();
     return `${dayName}, ${dayNum} ${monthName} ${year}`;
-  };
-
-  const formatDateISO = (d) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const getWeekSunday = (offset = 0) => {
-    const baseSun = new Date(2026, 8, 13); // Sun, 13 Sep 2026
-    baseSun.setDate(baseSun.getDate() + offset * 7);
-    return baseSun;
   };
 
   const handleDailyPrevDay = () => {
@@ -217,9 +221,30 @@ export default function DutyRoster() {
     try {
       const dStr = formatDateISO(dailyDate);
       const res = await getDuties({ date: dStr });
+      
+      let fetchedDuties = [];
       if (Array.isArray(res)) {
-        setDailyDuties(res);
+        fetchedDuties = res;
+      } else if (res && Array.isArray(res.duties)) {
+        fetchedDuties = res.duties;
       }
+
+      // Filter out 'OFF' assignments
+      const activeDuties = fetchedDuties.filter(d => d.dutyType !== 'OFF');
+
+      // Fallback: If weeklyDuties is loaded for the current week, filter duties matching date
+      if (activeDuties.length === 0 && weeklyDuties.length > 0) {
+        const localWeekDuties = weeklyDuties.filter(d => {
+          const dDateStr = getLocalDateISO(d.date);
+          return dDateStr === dStr && d.dutyType !== 'OFF';
+        });
+        if (localWeekDuties.length > 0) {
+          setDailyDuties(localWeekDuties);
+          return;
+        }
+      }
+
+      setDailyDuties(activeDuties);
     } catch (err) {
       console.error("Error fetching daily duties:", err);
     }
@@ -236,7 +261,7 @@ export default function DutyRoster() {
 
   useEffect(() => {
     fetchDailyData();
-  }, [dailyDate]);
+  }, [dailyDate, weeklyDuties]);
 
   const handlePrevWeek = () => {
     const newOff = weekOffset - 1;
@@ -334,36 +359,185 @@ export default function DutyRoster() {
     return d.dutyType || 'PD-06';
   };
 
-  // Regular Duty Rows State (Wizard) - Pre-filled with standard regular duties
+  // Regular Duty Rows State (Wizard) - Pre-filled with standard regular duties with multi-shift support
   const [regDuties, setRegDuties] = useState([
-    { id: 1, name: "Accident Investigation Duty", shift: "06:00–18:00", count: 2, location: "Main Station / Field", vehicle: true, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
-    { id: 2, name: "Motorcycle Patrol", shift: "06:00–18:00", count: 3, location: "Sector Patrol Area", vehicle: true, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
-    { id: 3, name: "119 Motorcycle Patrol", shift: "06:00–18:00", count: 2, location: "Emergency Response Patrol", vehicle: true, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
-    { id: 4, name: "Point Duty", shift: "06:00–14:00", count: 4, location: "Poruthota & Main Junctions", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
-    { id: 5, name: "Traffic Branch Duty", shift: "06:00–18:00", count: 2, location: "Traffic Branch HQ", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
-    { id: 6, name: "Court Duty", shift: "08:00–16:00", count: 2, location: "Magistrate Court", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+    {
+      id: 1,
+      name: "Accident Investigation",
+      expanded: true,
+      shifts: [
+        { id: 101, type: "Day", shift: "06:00–18:00", count: 2, location: "Main Station / Field", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+        { id: 102, type: "Night", shift: "18:00–06:00", count: 2, location: "Main Station / Field", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      ]
+    },
+    {
+      id: 2,
+      name: "Motorcycle Patrol",
+      expanded: false,
+      shifts: [
+        { id: 201, type: "Day", shift: "06:00–18:00", count: 3, location: "Sector Patrol Area", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+        { id: 202, type: "Night", shift: "18:00–06:00", count: 3, location: "Sector Patrol Area", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      ]
+    },
+    {
+      id: 3,
+      name: "119 Motorcycle Patrol",
+      expanded: false,
+      shifts: [
+        { id: 301, type: "Day", shift: "06:00–18:00", count: 2, location: "Emergency Response Patrol", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+        { id: 302, type: "Night", shift: "18:00–06:00", count: 2, location: "Emergency Response Patrol", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      ]
+    },
+    {
+      id: 4,
+      name: "Point Duty",
+      expanded: false,
+      shifts: [
+        { id: 401, type: "Day", shift: "06:00–14:00", count: 4, location: "Poruthota & Main Junctions", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+        { id: 402, type: "Night", shift: "14:00–22:00", count: 4, location: "Poruthota & Main Junctions", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      ]
+    },
+    {
+      id: 5,
+      name: "Traffic Branch Duty",
+      expanded: false,
+      shifts: [
+        { id: 501, type: "Day", shift: "06:00–18:00", count: 2, location: "Traffic Branch HQ", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+        { id: 502, type: "Night", shift: "18:00–06:00", count: 2, location: "Traffic Branch HQ", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      ]
+    },
+    {
+      id: 6,
+      name: "Court Duty",
+      expanded: false,
+      shifts: [
+        { id: 601, type: "Day", shift: "08:00–16:00", count: 2, location: "Magistrate Court", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+        { id: 602, type: "Night", shift: "08:00–16:00", count: 2, location: "Magistrate Court", frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      ]
+    }
   ]);
 
   // Special Duty Rows State (Wizard)
   const [specDuties, setSpecDuties] = useState([
-    { id: 1, type: "VIP Escort", date: "2026-09-16", location: "Negombo–Katunayake road", count: 4, shift: "06:00–14:00", vehicle: true }
+    { id: 1, type: "VIP Escort", date: formatDateISO(new Date()), location: "Negombo–Katunayake road", count: 4, shift: "06:00–14:00", vehicle: true }
   ]);
 
   const addRegDuty = () => {
+    const newId = Date.now();
     setRegDuties([
       ...regDuties,
-      { id: Date.now(), name: "", shift: "06:00–14:00", count: 1, location: "", vehicle: false, frequency: "everyday", selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] }
+      {
+        id: newId,
+        name: "",
+        expanded: true,
+        shifts: [
+          {
+            id: newId + 1,
+            type: "Day",
+            shift: "06:00–18:00",
+            count: 1,
+            location: "Main Station / Field",
+            frequency: "everyday",
+            selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+          }
+        ]
+      }
     ]);
   };
 
-  const removeRegDuty = (id) => {
-    setRegDuties(regDuties.filter(r => r.id !== id));
+  const removeRegDuty = (dutyId) => {
+    setRegDuties(regDuties.filter(r => r.id !== dutyId));
+  };
+
+  const toggleDutyExpanded = (dutyId) => {
+    setRegDuties(regDuties.map(r => r.id === dutyId ? { ...r, expanded: !r.expanded } : r));
+  };
+
+  const addShiftToDuty = (dutyId) => {
+    const newShiftId = Date.now();
+    setRegDuties(regDuties.map(r => {
+      if (r.id === dutyId) {
+        const firstLocation = r.shifts?.[0]?.location || "Main Station / Field";
+        return {
+          ...r,
+          expanded: true,
+          shifts: [
+            ...(r.shifts || []),
+            {
+              id: newShiftId,
+              type: "Night",
+              shift: "18:00–06:00",
+              count: 1,
+              location: firstLocation,
+              frequency: "everyday",
+              selectedDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            }
+          ]
+        };
+      }
+      return r;
+    }));
+  };
+
+  const removeShiftFromDuty = (dutyId, shiftId) => {
+    setRegDuties(regDuties.map(r => {
+      if (r.id === dutyId) {
+        const remainingShifts = (r.shifts || []).filter(s => s.id !== shiftId);
+        return { ...r, shifts: remainingShifts };
+      }
+      return r;
+    }));
+  };
+
+  const updateDutyName = (dutyId, name) => {
+    setRegDuties(regDuties.map(r => r.id === dutyId ? { ...r, name } : r));
+  };
+
+  const updateShiftField = (dutyId, shiftId, field, value) => {
+    setRegDuties(regDuties.map(r => {
+      if (r.id === dutyId) {
+        const updatedShifts = (r.shifts || []).map(s => {
+          if (s.id === shiftId) {
+            const updatedShift = { ...s, [field]: value };
+            if (field === "frequency") {
+              if (value === "everyday") {
+                updatedShift.selectedDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+              } else if (!updatedShift.selectedDays || updatedShift.selectedDays.length === 0) {
+                updatedShift.selectedDays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+              }
+            }
+            return updatedShift;
+          }
+          return s;
+        });
+        return { ...r, shifts: updatedShifts };
+      }
+      return r;
+    }));
+  };
+
+  const getFlattenedRegDuties = () => {
+    const flattened = [];
+    (regDuties || []).forEach(d => {
+      (d.shifts || []).forEach(s => {
+        flattened.push({
+          name: d.name || "Regular Duty",
+          type: s.type || "",
+          shift: s.shift || "06:00–14:00",
+          count: Number(s.count) || 1,
+          location: s.location || "Main Station / Field",
+          frequency: s.frequency || "everyday",
+          selectedDays: s.selectedDays || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        });
+      });
+    });
+    return flattened;
   };
 
   const addSpecDuty = () => {
     setSpecDuties([
       ...specDuties,
-      { id: Date.now(), type: "", date: "2026-09-16", location: "", count: 1, shift: "06:00–14:00", vehicle: false }
+      { id: Date.now(), type: "", date: formatDateISO(new Date()), location: "", count: 1, shift: "06:00–14:00", vehicle: false }
     ]);
   };
 
@@ -427,7 +601,7 @@ export default function DutyRoster() {
     officerId: null,
     officerIdx: 0,
     dayIdx: 0,
-    date: "2026-09-14",
+    date: formatDateISO(new Date()),
     shift: "06:00 - 14:00 (Morning Shift)",
     officer: "PC 4471 Fernando",
     location: "Poruthota Junction",
@@ -672,7 +846,7 @@ export default function DutyRoster() {
       weekStart: currentWeek.startDateISO,
       startDate: currentWeek.startDateISO,
       endDate: currentWeek.endDateISO,
-      regularDuties: regDuties,
+      regularDuties: getFlattenedRegDuties(),
       specialDuties: specDuties,
       status: "PENDING_APPROVAL"
     });
@@ -697,7 +871,7 @@ export default function DutyRoster() {
         weekStart: currentWeek.startDateISO,
         startDate: currentWeek.startDateISO,
         endDate: currentWeek.endDateISO,
-        regularDuties: regDuties,
+        regularDuties: getFlattenedRegDuties(),
         specialDuties: specDuties
       });
       if (res && res.ok && res.data && res.data.roster) {
@@ -729,7 +903,7 @@ export default function DutyRoster() {
         weekStart: currentWeek.startDateISO,
         startDate: currentWeek.startDateISO,
         endDate: currentWeek.endDateISO,
-        regularDuties: regDuties,
+        regularDuties: getFlattenedRegDuties(),
         specialDuties: specDuties,
         status: "DRAFT"
       });
@@ -1042,7 +1216,7 @@ export default function DutyRoster() {
               </div>
               <div className="dr-mini-stats">
                 <div className="dr-mini-stat"><div className="n">{officersList.length}</div><div className="l">Officers available</div></div>
-                <div className="dr-mini-stat"><div className="n">{regDuties.reduce((acc, r) => acc + (Number(r.count) || 0), 0) * 7 + specDuties.reduce((acc, s) => acc + (Number(s.count) || 0), 0)}</div><div className="l">Duty slots this week</div></div>
+                <div className="dr-mini-stat"><div className="n">{getFlattenedRegDuties().reduce((acc, s) => acc + (Number(s.count) || 0), 0) * 7 + specDuties.reduce((acc, s) => acc + (Number(s.count) || 0), 0)}</div><div className="l">Duty slots this week</div></div>
                 <div className="dr-mini-stat warn"><div className="n">0</div><div className="l">Officers on leave</div></div>
               </div>
             </div>
@@ -1051,139 +1225,201 @@ export default function DutyRoster() {
           {/* STEP 2 */}
           {wizStep === 2 && (
             <div className="dr-form-card">
-              {/* Regular Duties Table */}
-              <h4 style={{ margin: "0 0 12px 0", color: "#1e293b", fontSize: "14px", fontWeight: "700" }}>
-                Regular Duties Setup & Frequency
+              <h4 style={{ margin: "0 0 16px 0", color: "#1e293b", fontSize: "15px", fontWeight: "700" }}>
+                Regular Duties Setup &amp; Frequency
               </h4>
               <table className="dr-duty-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '30px' }}>#</th>
+                    <th style={{ width: '40px' }}>#</th>
                     <th>Duty Name</th>
-                    <th>Shift</th>
-                    <th style={{ width: '90px' }}>Count</th>
-                    <th>Location</th>
-                    <th style={{ width: '130px' }}>Frequency</th>
-                    <th>Schedule Days</th>
-                    <th style={{ width: '40px' }}></th>
+                    <th style={{ width: '150px' }}>Schedule Days</th>
+                    <th style={{ width: '130px' }}>Overall Count</th>
+                    <th style={{ width: '140px' }}>Shift Count</th>
+                    <th style={{ width: '190px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {regDuties.map((row, idx) => (
-                    <tr key={row.id}>
-                      <td className="dr-row-num">{idx + 1}</td>
-                      <td>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) => {
-                            const updated = [...regDuties];
-                            updated[idx].name = e.target.value;
-                            setRegDuties(updated);
-                          }}
-                          placeholder="Duty name"
-                        />
-                      </td>
-                      <td>
-                        <select
-                          value={row.shift}
-                          onChange={(e) => {
-                            const updated = [...regDuties];
-                            updated[idx].shift = e.target.value;
-                            setRegDuties(updated);
-                          }}
-                        >
-                          <option value="06:00–18:00">06:00–18:00 (Day)</option>
-                          <option value="18:00–06:00">18:00–06:00 (Night)</option>
-                          <option value="06:00–14:00">06:00–14:00 (Day)</option>
-                          <option value="14:00–22:00">14:00–22:00 (Day/Eve)</option>
-                          <option value="22:00–06:00">22:00–06:00 (Night)</option>
-                          <option value="08:00–16:00">08:00–16:00 (Court)</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={row.count}
-                          onChange={(e) => {
-                            const updated = [...regDuties];
-                            updated[idx].count = Number(e.target.value);
-                            setRegDuties(updated);
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          value={row.location}
-                          onChange={(e) => {
-                            const updated = [...regDuties];
-                            updated[idx].location = e.target.value;
-                            setRegDuties(updated);
-                          }}
-                          placeholder="Location"
-                        />
-                      </td>
-                      <td>
-                        <select
-                          value={row.frequency || "everyday"}
-                          onChange={(e) => {
-                            const updated = [...regDuties];
-                            updated[idx].frequency = e.target.value;
-                            if (e.target.value === "everyday") {
-                              updated[idx].selectedDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-                            } else if (!updated[idx].selectedDays || updated[idx].selectedDays.length === 0) {
-                              updated[idx].selectedDays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-                            }
-                            setRegDuties(updated);
-                          }}
-                        >
-                          <option value="everyday">Every Day</option>
-                          <option value="selected">Selected Days</option>
-                        </select>
-                      </td>
-                      <td>
-                        {row.frequency === "selected" ? (
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => {
-                              const isChecked = (row.selectedDays || []).includes(day);
-                              return (
-                                <label key={day} style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "2px", cursor: "pointer" }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      const updated = [...regDuties];
-                                      const curDays = updated[idx].selectedDays || [];
-                                      if (e.target.checked) {
-                                        updated[idx].selectedDays = [...curDays, day];
-                                      } else {
-                                        updated[idx].selectedDays = curDays.filter(d => d !== day);
-                                      }
-                                      setRegDuties(updated);
-                                    }}
-                                  />
-                                  {day}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "12px", color: "#64748b" }}>Mon – Sun</span>
-                        )}
-                      </td>
+                  {regDuties.map((row, idx) => {
+                    const totalCount = (row.shifts || []).reduce((acc, s) => acc + (Number(s.count) || 0), 0);
+                    const shiftTypesLabel = (row.shifts || []).map(s => (s.type || s.shift || "").substring(0, 1).toUpperCase()).filter(Boolean).join("/");
+                    const shiftSummary = (row.shifts || []).length === 1 
+                      ? "1 Shift" 
+                      : `${(row.shifts || []).length} Shifts${shiftTypesLabel ? ` (${shiftTypesLabel})` : ''}`;
 
-                      <td>
-                        <button className="dr-icon-btn" onClick={() => removeRegDuty(row.id)}>
-                          <FiTrash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                    return (
+                      <React.Fragment key={row.id}>
+                        <tr>
+                          <td className="dr-row-num">{idx + 1}</td>
+                          <td>
+                            <input
+                              type="text"
+                              value={row.name}
+                              onChange={(e) => updateDutyName(row.id, e.target.value)}
+                              placeholder="Duty Name (e.g. Accident Investigation)"
+                              style={{ fontWeight: "600", color: "#0f172a" }}
+                            />
+                          </td>
+                          <td style={{ fontSize: "13px", color: "#475569", fontWeight: "500" }}>
+                            Mon – Sun
+                          </td>
+                          <td style={{ fontSize: "13px", color: "#0f172a", fontWeight: "700" }}>
+                            Total: {totalCount}
+                          </td>
+                          <td style={{ fontSize: "13px", color: "#334155", fontWeight: "600" }}>
+                            {shiftSummary}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                type="button"
+                                className={`dr-manage-shifts-btn ${row.expanded ? 'active' : ''}`}
+                                onClick={() => toggleDutyExpanded(row.id)}
+                              >
+                                <span>Manage Shifts ({(row.shifts || []).length})</span>
+                                {row.expanded ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                              </button>
+                              <button
+                                type="button"
+                                className="dr-icon-btn"
+                                onClick={() => removeRegDuty(row.id)}
+                                title="Delete duty"
+                              >
+                                <FiTrash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* EXPANDED DETAILED SHIFTS PANEL */}
+                        {row.expanded && (
+                          <tr>
+                            <td colSpan={6} style={{ padding: '4px 0 16px 0', borderBottom: '1px solid #e2e8f0' }}>
+                              <div className="dr-detailed-shifts-box">
+                                <div className="dr-detailed-shifts-header">
+                                  Detailed Shifts: {row.name || "Duty"}
+                                </div>
+                                <table className="dr-subduty-table">
+                                  <thead>
+                                    <tr>
+                                      <th style={{ width: '130px' }}>Shift Type</th>
+                                      <th style={{ width: '190px' }}>Time Block</th>
+                                      <th style={{ width: '90px' }}>Count</th>
+                                      <th>Location</th>
+                                      <th style={{ width: '160px' }}>Frequency</th>
+                                      <th style={{ width: '50px', textAlign: 'center' }}>Delete</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(row.shifts || []).map((s) => (
+                                      <tr key={s.id}>
+                                        <td>
+                                          <input
+                                            type="text"
+                                            value={s.type || ""}
+                                            onChange={(e) => updateShiftField(row.id, s.id, "type", e.target.value)}
+                                            placeholder="Day/Night"
+                                          />
+                                        </td>
+                                        <td>
+                                          <select
+                                            value={s.shift}
+                                            onChange={(e) => updateShiftField(row.id, s.id, "shift", e.target.value)}
+                                          >
+                                            <option value="06:00–18:00">06:00–18:00 (D)</option>
+                                            <option value="18:00–06:00">18:00–06:00 (N)</option>
+                                            <option value="06:00–14:00">06:00–14:00 (D)</option>
+                                            <option value="14:00–22:00">14:00–22:00 (D/Eve)</option>
+                                            <option value="22:00–06:00">22:00–06:00 (N)</option>
+                                            <option value="08:00–16:00">08:00–16:00 (Court)</option>
+                                          </select>
+                                        </td>
+                                        <td>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            value={s.count}
+                                            onChange={(e) => updateShiftField(row.id, s.id, "count", Number(e.target.value))}
+                                          />
+                                        </td>
+                                        <td>
+                                          <input
+                                            type="text"
+                                            value={s.location}
+                                            onChange={(e) => updateShiftField(row.id, s.id, "location", e.target.value)}
+                                            placeholder="Location"
+                                          />
+                                        </td>
+                                        <td>
+                                          <select
+                                            value={s.frequency || "everyday"}
+                                            onChange={(e) => updateShiftField(row.id, s.id, "frequency", e.target.value)}
+                                          >
+                                            <option value="everyday">Every Day</option>
+                                            <option value="selected">Selected Days</option>
+                                          </select>
+                                          {s.frequency === "selected" && (
+                                            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "6px" }}>
+                                              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => {
+                                                const isChecked = (s.selectedDays || []).includes(day);
+                                                return (
+                                                  <label key={day} style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "2px", cursor: "pointer" }}>
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isChecked}
+                                                      onChange={(e) => {
+                                                        const curDays = s.selectedDays || [];
+                                                        const newDays = e.target.checked
+                                                          ? [...curDays, day]
+                                                          : curDays.filter(d => d !== day);
+                                                        updateShiftField(row.id, s.id, "selectedDays", newDays);
+                                                      }}
+                                                    />
+                                                    {day}
+                                                  </label>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                          <button
+                                            type="button"
+                                            className="dr-icon-btn"
+                                            onClick={() => removeShiftFromDuty(row.id, s.id)}
+                                            title="Delete shift"
+                                          >
+                                            <FiTrash2 size={14} />
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                <button
+                                  type="button"
+                                  className="dr-add-shift-btn"
+                                  onClick={() => addShiftToDuty(row.id)}
+                                >
+                                  <FiPlus size={14} /> Add Shift for this Duty
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
-              <button className="dr-add-row-btn" onClick={addRegDuty}>
-                <FiPlus size={14} /> Add duty
+
+              <button
+                type="button"
+                className="dr-add-row-btn"
+                onClick={addRegDuty}
+                style={{ marginTop: "16px" }}
+              >
+                <FiPlus size={14} /> Add Duty
               </button>
             </div>
           )}
@@ -1482,30 +1718,77 @@ export default function DutyRoster() {
                 </tr>
               </thead>
               <tbody>
-                {dailyDuties.length > 0 ? (
-                  dailyDuties.map((duty, idx) => {
-                    const offObj = typeof duty.officerId === 'object' ? duty.officerId : officersList.find(o => o._id === duty.officerId);
-                    const offName = offObj ? `${offObj.rank || 'PC'} ${offObj.policeId || ''} - ${offObj.name || ''}` : "Assigned Officer";
+                {(() => {
+                  const groupedDailyDuties = (() => {
+                    const groupsMap = {};
+                    (dailyDuties || []).filter(d => d.dutyType !== 'OFF').forEach(duty => {
+                      const key = `${duty.dutyType || 'Point Duty'}__${duty.shift || ''}__${duty.location || ''}`;
+                      if (!groupsMap[key]) {
+                        groupsMap[key] = {
+                          key,
+                          dutyType: duty.dutyType,
+                          specialDutyText: duty.specialDutyText,
+                          shift: duty.shift,
+                          location: duty.location,
+                          officers: [],
+                          firstDuty: duty
+                        };
+                      }
+                      
+                      const offVal = duty.officer || duty.officerId;
+                      const offObj = typeof offVal === 'object' && offVal !== null 
+                        ? offVal 
+                        : officersList.find(o => String(o._id) === String(offVal));
+
+                      const offName = offObj 
+                        ? `${offObj.rank || 'PC'} ${offObj.policeId || ''} ${offObj.fullName || offObj.name || ''}`.trim() 
+                        : (typeof offVal === 'string' ? `Officer ID: ${offVal}` : "Assigned Officer");
+
+                      groupsMap[key].officers.push({ offObj, offName, duty });
+                    });
+
+                    return Object.values(groupsMap);
+                  })();
+
+                  if (groupedDailyDuties.length === 0) {
                     return (
-                      <tr key={duty._id || idx}>
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: "center", padding: "28px", color: "#64748b", fontSize: "14px" }}>
+                          No duties scheduled for this date in the database.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return groupedDailyDuties.map((group, idx) => {
+                    const firstDuty = group.firstDuty;
+                    const shiftStr = group.shift || "06:00 - 14:00";
+                    const is12Hr = shiftStr.includes('18:00') && shiftStr.includes('06:00');
+
+                    return (
+                      <tr key={group.key || idx}>
                         <td style={{ textAlign: "center", fontWeight: "700" }}>{idx + 1}</td>
                         <td>
                           <div className="dr-daily-duty-title">
-                            {duty.dutyType === 'Special Duty' ? (duty.specialDutyText || 'Special Duty') : duty.dutyType}
+                            {group.dutyType === 'Special Duty' ? (group.specialDutyText || 'Special Duty') : group.dutyType}
                           </div>
                         </td>
                         <td>
-                          <div className="dr-daily-shift-time">{duty.shift || "06:00 - 14:00"}</div>
+                          <div className="dr-daily-shift-time">{shiftStr}</div>
                           <span className="dr-daily-shift-pill">
-                            {duty.shift?.includes('18:00') && duty.shift?.includes('06:00') ? '12 hrs' : '8 hrs'}
+                            {is12Hr ? '12 hrs' : '8 hrs'}
                           </span>
                         </td>
                         <td>
-                          <div className="dr-daily-location">{duty.location || "Field"}</div>
+                          <div className="dr-daily-location">{group.location || "Field"}</div>
                         </td>
                         <td>
-                          <ul className="dr-daily-officer-list">
-                            <li className="dr-daily-officer-item">{offName}</li>
+                          <ul className="dr-daily-officer-list" style={{ margin: 0, paddingLeft: "18px" }}>
+                            {group.officers.map((offItem, oIdx) => (
+                              <li key={oIdx} className="dr-daily-officer-item" style={{ fontWeight: "600", color: "#1e293b", margin: "3px 0" }}>
+                                {offItem.offName}
+                              </li>
+                            ))}
                           </ul>
                         </td>
                         <td style={{ textAlign: "center" }}>
@@ -1515,18 +1798,19 @@ export default function DutyRoster() {
                             title="Edit Duty"
                             onClick={() => {
                               setModalError(null);
+                              const targetOff = group.officers[0]?.offObj;
                               setEditDutyData({
-                                dutyId: duty._id,
-                                rosterId: duty.rosterId,
-                                officerId: offObj ? offObj._id : null,
+                                dutyId: firstDuty._id,
+                                rosterId: firstDuty.rosterId || firstDuty.roster,
+                                officerId: targetOff ? targetOff._id : null,
                                 officerIdx: 0,
                                 dayIdx: 0,
-                                date: duty.date ? duty.date.substring(0, 10) : formatDateISO(dailyDate),
-                                shift: duty.shift || "06:00 - 14:00 (Morning Shift)",
-                                officer: offObj ? `${offObj.rank || 'PC'} ${offObj.policeId || ''} ${offObj.name || ''}`.trim() : "",
-                                location: duty.location || "",
-                                dutyType: duty.dutyType || "Point Duty",
-                                specialDutyText: duty.specialDutyText || ""
+                                date: firstDuty.date ? getLocalDateISO(firstDuty.date) : formatDateISO(dailyDate),
+                                shift: firstDuty.shift || "06:00 - 14:00 (Morning Shift)",
+                                officer: targetOff ? `${targetOff.rank || 'PC'} ${targetOff.policeId || ''} ${targetOff.fullName || targetOff.name || ''}`.trim() : "",
+                                location: firstDuty.location || "",
+                                dutyType: firstDuty.dutyType || "Point Duty",
+                                specialDutyText: firstDuty.specialDutyText || ""
                               });
                               setShowEditDutyModal(true);
                             }}
@@ -1536,14 +1820,8 @@ export default function DutyRoster() {
                         </td>
                       </tr>
                     );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "#64748b", fontSize: "14px" }}>
-                      No duties scheduled for this date in the database.
-                    </td>
-                  </tr>
-                )}
+                  });
+                })()}
               </tbody>
             </table>
           </div>

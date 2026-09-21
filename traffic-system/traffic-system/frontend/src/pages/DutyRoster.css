@@ -701,6 +701,114 @@ table.dr-duty-table select {
   padding: 12px 10px 4px 10px;
 }
 
+/* Manage Shifts Toggle Button */
+.dr-manage-shifts-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #1e3a8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dr-manage-shifts-btn:hover {
+  background-color: #2563eb;
+  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
+}
+
+.dr-manage-shifts-btn.active {
+  background-color: #1e293b;
+}
+
+/* Detailed Shifts Callout Panel */
+.dr-detailed-shifts-box {
+  background-color: #fff8f0;
+  border: 1px solid #f2cfbf;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 8px 10px 10px 10px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.dr-detailed-shifts-header {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #7c2d12;
+  margin-bottom: 12px;
+}
+
+/* Sub-Duty Nested Table */
+table.dr-subduty-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #ffffff;
+  border: 1px solid #f3d5c5;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+
+table.dr-subduty-table th {
+  background-color: #fef3c7;
+  color: #78350f;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #fde68a;
+}
+
+table.dr-subduty-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f3e8ff;
+  vertical-align: middle;
+}
+
+table.dr-subduty-table input[type="text"],
+table.dr-subduty-table input[type="number"],
+table.dr-subduty-table select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  background-color: #ffffff;
+}
+
+table.dr-subduty-table input[type="text"]:focus,
+table.dr-subduty-table input[type="number"]:focus,
+table.dr-subduty-table select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.dr-add-shift-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #1e3a8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dr-add-shift-btn:hover {
+  background-color: #2563eb;
+}
+
 .dr-note-banner {
   background: #fbefdd;
   border: 1px solid #efd7ae;
