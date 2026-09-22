@@ -1,11 +1,18 @@
 import React from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie, AreaChart, Area, LineChart, Line
+  PieChart, Pie, AreaChart, Area, LineChart, Line, LabelList
 } from "recharts";
 
 import {
-  accidentLocationData, accidentSeverityData, monthlyTrendData,
+  // New Accident Analytics Datasets (Picture 2 & Picture 3)
+  accidentSeverityByYearData,
+  roadUsersInFatalAccidentsByYearData,
+  fatalAccidentsByVehicleTypeData,
+  accidentsByHourOfDayData,
+  accidentsByDayOfWeekData,
+  fatalAccidentsByDivisionData,
+  // Violation & Strategic Datasets
   violationAreaData, violationTypeData, weeklyYearlyTrendData,
   peakHoursData, longTermStrategicData
 } from "./mockData";
@@ -176,7 +183,7 @@ function LiveAnalytics({
             display: "flex",
             alignItems: "flex-start",
             gap: 12,
-            marginBottom: 20
+            marginBottom: 24
           }}>
             <span style={{ fontSize: 18 }}>📍</span>
             <div>
@@ -189,32 +196,68 @@ function LiveAnalytics({
             </div>
           </div>
 
-          {/* 2-COLUMN GRID 1 */}
+          {/* ── PICTURE 2 CHARTS GRID ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-            {/* Accidents by Location */}
+            
+            {/* Chart 1: ACCIDENT SEVERITY BY YEAR */}
             <div style={{ ...reportStyles.cardSmall, padding: 22 }}>
-              <h3 style={reportStyles.subSectionTitle}>ACCIDENTS BY LOCATION</h3>
-              <div style={{ height: 220 }}>
+              <h3 style={reportStyles.subSectionTitle}>ACCIDENT SEVERITY BY YEAR</h3>
+              <div style={{ height: 230 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={accidentLocationData}>
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <BarChart data={accidentSeverityByYearData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <XAxis dataKey="category" tick={{ fontSize: 11, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
                     <Tooltip />
-                    <Bar dataKey="value" fill="#1E2A3B" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="y2024" name="2024" fill="#94a3b8" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="y2025" name="2025" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="y2026" name="2026" fill="#1e293b" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 10, fontSize: 11, fontWeight: 700, color: "#64748b" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, backgroundColor: "#94a3b8", borderRadius: 2 }} /> 2024</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, backgroundColor: "#3b82f6", borderRadius: 2 }} /> 2025</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, backgroundColor: "#1e293b", borderRadius: 2 }} /> 2026</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 6, fontSize: 11, color: "#64748b" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#ef4444" }} /> Fatal</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#16a34a" }} /> Serious Injury</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#34d399" }} /> Slight Injury</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#eab308" }} /> No Injury</span>
+              </div>
             </div>
 
-            {/* Accidents by Severity */}
+            {/* Chart 2: ROAD USERS IN FATAL ACCIDENTS BY YEAR */}
             <div style={{ ...reportStyles.cardSmall, padding: 22 }}>
-              <h3 style={reportStyles.subSectionTitle}>ACCIDENTS BY SEVERITY</h3>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", height: 220 }}>
-                <div style={{ width: 180, height: 180 }}>
+              <h3 style={reportStyles.subSectionTitle}>ROAD USERS IN FATAL ACCIDENTS BY YEAR</h3>
+              <div style={{ height: 230 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={roadUsersInFatalAccidentsByYearData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <XAxis dataKey="group" tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <Tooltip />
+                    <Bar dataKey="y2024" name="2024" fill="#2563eb" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="y2025" name="2025" fill="#16a34a" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="y2026" name="2026" fill="#db2777" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 10, fontSize: 11, fontWeight: 700, color: "#64748b" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, backgroundColor: "#2563eb", borderRadius: 2 }} /> 2024</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, backgroundColor: "#16a34a", borderRadius: 2 }} /> 2025</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, backgroundColor: "#db2777", borderRadius: 2 }} /> 2026</span>
+              </div>
+            </div>
+
+            {/* Chart 3: FATAL ACCIDENTS BY VEHICLE TYPE */}
+            <div style={{ ...reportStyles.cardSmall, padding: 22 }}>
+              <h3 style={reportStyles.subSectionTitle}>FATAL ACCIDENTS BY VEHICLE TYPE</h3>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 240 }}>
+                <div style={{ width: 200, height: 200 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={accidentSeverityData} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={3}>
-                        {accidentSeverityData.map((entry, index) => (
+                      <Pie data={fatalAccidentsByVehicleTypeData} dataKey="value" innerRadius={0} outerRadius={85} paddingAngle={1}>
+                        {fatalAccidentsByVehicleTypeData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -222,67 +265,107 @@ function LiveAnalytics({
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {accidentSeverityData.map((item, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: "2px", backgroundColor: item.color }} />
-                      <span style={{ color: "#475569", width: 120 }}>{item.name}</span>
-                      <strong style={{ color: "#0f172a" }}>{item.pct}</strong>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, paddingLeft: 20 }}>
+                  {fatalAccidentsByVehicleTypeData.map((item, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: item.color }} />
+                        <span style={{ color: "#475569", fontWeight: 500 }}>{item.name}</span>
+                      </div>
+                      <strong style={{ color: "#0f172a", fontFamily: "monospace", fontSize: 13 }}>{item.value.toLocaleString()}</strong>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
+
+            {/* Chart 4: ACCIDENTS BY HOUR OF DAY */}
+            <div style={{ ...reportStyles.cardSmall, padding: 22, position: "relative" }}>
+              <h3 style={reportStyles.subSectionTitle}>ACCIDENTS BY HOUR OF DAY</h3>
+              <div style={{ height: 210, marginTop: 10 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={accidentsByHourOfDayData} margin={{ top: 15, right: 10, left: -15, bottom: 0 }}>
+                    <XAxis dataKey="hour" tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} domain={[0, 4000]} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="accidents" stroke="#1e293b" fill="#f1f5f9" fillOpacity={0.6} strokeWidth={2.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* Peak indicator overlay badge */}
+              <div style={{
+                position: "absolute",
+                top: 75,
+                left: "48%",
+                backgroundColor: "#ffffff",
+                border: "1px solid #cbd5e1",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                borderRadius: "8px",
+                padding: "6px 12px",
+                fontSize: "11px",
+                color: "#1e293b",
+                pointerEvents: "none"
+              }}>
+                <strong style={{ display: "block" }}>1500</strong>
+                <span style={{ color: "#64748b" }}>Accidents : 3,140</span>
+              </div>
+
+              <p style={{ textAlign: "center", fontSize: 11, color: "#64748b", fontWeight: 600, margin: "8px 0 0 0" }}>
+                Peak: 1600–1800 hrs
+              </p>
+            </div>
+
           </div>
 
-          {/* 2-COLUMN GRID 2 */}
+          {/* ── PICTURE 3 CHARTS GRID ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            {/* Monthly Trend */}
+            
+            {/* Chart 5: ACCIDENTS BY DAY OF WEEK */}
             <div style={{ ...reportStyles.cardSmall, padding: 22 }}>
-              <h3 style={reportStyles.subSectionTitle}>MONTHLY TREND</h3>
-              <div style={{ height: 220 }}>
+              <h3 style={reportStyles.subSectionTitle}>ACCIDENTS BY DAY OF WEEK</h3>
+              <div style={{ height: 230, marginTop: 10 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={monthlyTrendData}>
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <LineChart data={accidentsByDayOfWeekData} margin={{ top: 15, right: 15, left: -10, bottom: 0 }}>
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748b" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} domain={[3800, 5200]} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="val" stroke="#1E2A3B" fill="#1E2A3B" fillOpacity={0.15} strokeWidth={2.5} />
-                  </AreaChart>
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#dc2626"
+                      strokeWidth={2.5}
+                      dot={{ r: 5, fill: "#dc2626", stroke: "#ffffff", strokeWidth: 2 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Top Danger Zones */}
+            {/* Chart 6: FATAL ACCIDENTS BY DIVISION / AREA */}
             <div style={{ ...reportStyles.cardSmall, padding: 22 }}>
-              <h3 style={reportStyles.subSectionTitle}>TOP DANGER ZONES</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[
-                  { location: "Negombo Junction", score: "87/100", pct: 87, color: "#dc2626", badgeBg: "#fee2e2" },
-                  { location: "Colombo Fort", score: "82/100", pct: 82, color: "#dc2626", badgeBg: "#fee2e2" },
-                  { location: "Koppara Junction", score: "68/100", pct: 68, color: "#d97706", badgeBg: "#fef3c7" },
-                  { location: "Kandy Road", score: "54/100", pct: 54, color: "#ca8a04", badgeBg: "#fef9c3" },
-                  { location: "Airport Road", score: "41/100", pct: 41, color: "#ca8a04", badgeBg: "#fef9c3" },
-                ].map((item, idx) => (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 12, color: "#64748b", width: 120, fontWeight: 600 }}>{item.location}</span>
-                    <div style={{ flex: 1, height: 10, backgroundColor: "#f1f5f9", borderRadius: 5, overflow: "hidden" }}>
-                      <div style={{ width: `${item.pct}%`, height: "100%", backgroundColor: item.color, borderRadius: 5 }} />
-                    </div>
-                    <span style={{
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      padding: "2px 8px",
-                      borderRadius: "12px",
-                      backgroundColor: item.badgeBg,
-                      color: item.color
-                    }}>
-                      {item.score}
-                    </span>
-                  </div>
-                ))}
+              <h3 style={reportStyles.subSectionTitle}>FATAL ACCIDENTS BY DIVISION / AREA</h3>
+              <div style={{ height: 230, marginTop: 10 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={fatalAccidentsByDivisionData} margin={{ top: 20, right: 5, left: -25, bottom: 45 }}>
+                    <XAxis
+                      dataKey="division"
+                      tick={{ fontSize: 9, fill: "#64748b", angle: -45, textAnchor: "end" }}
+                      interval={0}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: "#64748b" }} domain={[0, 160]} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#1e293b" radius={[2, 2, 0, 0]}>
+                      <LabelList dataKey="count" position="top" style={{ fontSize: "8px", fill: "#475569", fontWeight: 700 }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
+
           </div>
+
         </div>
       )}
 

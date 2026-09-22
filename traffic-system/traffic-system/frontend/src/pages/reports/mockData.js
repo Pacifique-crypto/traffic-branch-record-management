@@ -13,6 +13,82 @@ export const accidentSeverityData = [
   { name: "Fatal", value: 6, color: "#ef4444", pct: "6%" },
 ];
 
+// ── NEW ACCIDENT ANALYTICS CHART DATASETS (PICTURE 2 & PICTURE 3) ──
+export const accidentSeverityByYearData = [
+  { category: "Fatal", y2024: 2450, y2025: 2900, y2026: 2600 },
+  { category: "Serious Injury", y2024: 7600, y2025: 8800, y2026: 8100 },
+  { category: "Slight Injury", y2024: 10700, y2025: 12200, y2026: 11400 },
+  { category: "No Injury", y2024: 9500, y2025: 12000, y2026: 10900 },
+];
+
+export const roadUsersInFatalAccidentsByYearData = [
+  { group: "Pedestrians", y2024: 780, y2025: 960, y2026: 890 },
+  { group: "Motorcyclists", y2024: 930, y2025: 1040, y2026: 980 },
+  { group: "Cyclists", y2024: 230, y2025: 210, y2026: 190 },
+  { group: "Passengers", y2024: 190, y2025: 250, y2026: 220 },
+  { group: "Drivers", y2024: 280, y2025: 230, y2026: 240 },
+  { group: "Others", y2024: 410, y2025: 450, y2026: 400 },
+];
+
+export const fatalAccidentsByVehicleTypeData = [
+  { name: "Motorcycle", value: 8895, color: "#eab308" },
+  { name: "Bus", value: 5256, color: "#dc2626" },
+  { name: "Three-Wheeler", value: 3194, color: "#16a34a" },
+  { name: "Motor Car", value: 2101, color: "#2563eb" },
+  { name: "Lorry", value: 693, color: "#9333ea" },
+  { name: "Van", value: 268, color: "#f97316" },
+  { name: "Bicycle", value: 176, color: "#06b6d4" },
+  { name: "Other", value: 252, color: "#64748b" },
+];
+
+export const accidentsByHourOfDayData = [
+  { hour: "0800", accidents: 1200 },
+  { hour: "1200", accidents: 2100 },
+  { hour: "1500", accidents: 3140 },
+  { hour: "1600", accidents: 3800 },
+  { hour: "2000", accidents: 1800 },
+  { hour: "0000", accidents: 400 },
+  { hour: "0400", accidents: 200 },
+];
+
+export const accidentsByDayOfWeekData = [
+  { day: "Monday", count: 4700 },
+  { day: "Tuesday", count: 4500 },
+  { day: "Wednesday", count: 4700 },
+  { day: "Thursday", count: 4600 },
+  { day: "Friday", count: 4950 },
+  { day: "Saturday", count: 4400 },
+  { day: "Sunday", count: 4100 },
+];
+
+export const fatalAccidentsByDivisionData = [
+  { division: "Negombo", count: 147 },
+  { division: "Colombo", count: 127 },
+  { division: "Kandy", count: 111 },
+  { division: "Gampaha", count: 109 },
+  { division: "Kurunegala", count: 107 },
+  { division: "Galle", count: 103 },
+  { division: "Ratnapura", count: 101 },
+  { division: "Kalutara", count: 91 },
+  { division: "Matara", count: 89 },
+  { division: "Badulla", count: 85 },
+  { division: "Kegalle", count: 80 },
+  { division: "Hambantota", count: 75 },
+  { division: "Anuradhapura", count: 74 },
+  { division: "Jaffna", count: 72 },
+  { division: "Trincomalee", count: 67 },
+  { division: "Monaragala", count: 65 },
+  { division: "Polonnaruwa", count: 63 },
+  { division: "Nuwara Eliya", count: 59 },
+  { division: "Puttalam", count: 55 },
+  { division: "Ampara", count: 48 },
+  { division: "Matale", count: 44 },
+  { division: "Mannar", count: 35 },
+  { division: "Vavuniya", count: 29 },
+  { division: "Mullaitivu", count: 19 },
+  { division: "Kilinochchi", count: 17 },
+];
+
 export const monthlyTrendData = [
   { month: "Jan", val: 820 },
   { month: "Feb", val: 845 },
