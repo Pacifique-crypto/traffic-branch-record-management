@@ -3,6 +3,7 @@ const router = express.Router();
 const DutyRoster = require("../models/DutyRoster");
 const DutyAssignment = require("../models/DutyAssignment");
 const Officer = require("../models/Officer");
+const OfficerAvailability = require("../models/OfficerAvailability");
 const Notification = require("../models/Notification");
 const { verifyToken, authorizeRoles } = require("../middlewares/authMiddleware");
 const { validateAssignment, formatDateStr, toMidnight, parseShiftTimes } = require("../services/rosterValidator");
@@ -337,13 +338,14 @@ router.delete("/:id", verifyToken, authorizeRoles("it officer", "admin"), async 
 
 /**
  * @route   POST /api/duty-rosters/generate
- * @desc    Generate Weekly Roster Backend Engine - Validates rules, court duty restriction, max 2 consecutive same duty, workload balancing, and returns DRAFT roster with conflicts/warnings
+ * @desc    Generate Weekly Roster Backend Engine - High-Performance In-Memory Batch Architecture
  * @access  Private (IT Officer / Admin)
  */
 const generateDutyRosterHandler = async (req, res) => {
+  const t0 = Date.now();
   try {
     const weekStart = req.body.weekStart || req.body.startDate || req.body.startDateISO;
-    const { regularDuties = [], specialDuties = [], courtDutyOfficerIds = [] } = req.body;
+    const { regularDuties = [], specialDuties = [] } = req.body;
 
     if (!weekStart || isNaN(new Date(weekStart).getTime())) {
       return res.status(400).json({
@@ -387,14 +389,96 @@ const generateDutyRosterHandler = async (req, res) => {
       }
     }
 
-    // Fetch active officers
+    // ── 1. PREFETCH ACTIVE OFFICERS ──
     const activeOfficers = await Officer.find({ status: "Active" });
+    const t1 = Date.now();
     if (activeOfficers.length === 0) {
       return res.status(400).json({
         success: false,
         message: "No active officers available for roster generation."
       });
     }
+
+    const officerMap = {};
+    activeOfficers.forEach((o) => {
+      officerMap[String(o._id)] = o;
+    });
+
+    // ── 2. PREFETCH APPROVED LEAVES ──
+    const leaveWindowStart = new Date(start);
+    leaveWindowStart.setDate(leaveWindowStart.getDate() - 7);
+    const leaveWindowEnd = new Date(end);
+    leaveWindowEnd.setDate(leaveWindowEnd.getDate() + 7);
+
+    const approvedLeaves = await OfficerAvailability.find({
+      status: "Approved",
+      startDate: { $lte: leaveWindowEnd },
+      endDate: { $gte: leaveWindowStart }
+    });
+    const t2 = Date.now();
+
+    const leaveMap = {};
+    approvedLeaves.forEach((leave) => {
+      const oId = String(leave.officer);
+      if (!leaveMap[oId]) leaveMap[oId] = [];
+      leaveMap[oId].push({
+        startDate: toMidnight(leave.startDate),
+        endDate: toMidnight(leave.endDate),
+        leaveType: leave.leaveType
+      });
+    });
+
+    // ── 3. PREFETCH ACTIVE ROSTERS ──
+    const activeRosters = await DutyRoster.find({
+      status: { $in: [ROSTER_STATUSES.APPROVED, ROSTER_STATUSES.PUBLISHED] }
+    }).select("_id");
+    const t3 = Date.now();
+
+    const activeRosterIds = activeRosters.map((r) => String(r._id));
+    if (roster._id) activeRosterIds.push(String(roster._id));
+
+    // ── 4. PREFETCH EXISTING ASSIGNMENTS ──
+    const assignmentWindowStart = new Date(start);
+    assignmentWindowStart.setDate(assignmentWindowStart.getDate() - 7);
+    const assignmentWindowEnd = new Date(end);
+    assignmentWindowEnd.setDate(assignmentWindowEnd.getDate() + 7);
+
+    const existingAssignments = await DutyAssignment.find({
+      roster: { $in: activeRosterIds },
+      date: { $gte: assignmentWindowStart, $lte: assignmentWindowEnd }
+    });
+    const t4 = Date.now();
+
+    const assignmentsMap = {};
+    activeOfficers.forEach((o) => {
+      assignmentsMap[String(o._id)] = [];
+    });
+
+    existingAssignments.forEach((a) => {
+      const oId = String(a.officer);
+      if (!assignmentsMap[oId]) assignmentsMap[oId] = [];
+      assignmentsMap[oId].push({
+        _id: a._id,
+        officer: a.officer,
+        date: toMidnight(a.date),
+        dutyType: a.dutyType,
+        shift: a.shift,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        roster: a.roster
+      });
+    });
+
+    // ── 5. BUILD IN-MEMORY VALIDATION CONTEXT ──
+    const dbReadCounter = { count: 0 };
+    const validationContext = {
+      officerMap,
+      leaveMap,
+      activeRosterIds: new Set(activeRosterIds),
+      assignmentsMap,
+      roster,
+      dbReadCounter
+    };
 
     // Standard default duties if none provided in request
     const standardRegDuties = regularDuties.length > 0 ? regularDuties : [
@@ -406,7 +490,7 @@ const generateDutyRosterHandler = async (req, res) => {
       { name: "Court Duty", shift: "08:00–16:00", location: "Magistrate Court", count: 1, frequency: "selected", selectedDays: ["Mon", "Wed", "Fri"] }
     ];
 
-    // Track workload (number of assigned duty slots in current roster period)
+    // Workload Map Initialization
     const workloadMap = {};
     activeOfficers.forEach((o) => {
       workloadMap[String(o._id)] = 0;
@@ -414,11 +498,14 @@ const generateDutyRosterHandler = async (req, res) => {
 
     const generatedAssignments = [];
     const conflicts = [];
+    let candidateEvaluationsCount = 0;
 
     const dayNamesFull = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-    // Loop through days 0 to 6 (Sunday to Saturday)
+    const tGenStart = Date.now();
+
+    // ── 6. IN-MEMORY ROSTER GENERATION LOOP ──
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const currentDate = new Date(start);
       currentDate.setDate(currentDate.getDate() + dayOffset);
@@ -456,9 +543,10 @@ const generateDutyRosterHandler = async (req, res) => {
         let assignedForThisSlot = 0;
         const eligibleCandidates = [];
 
-        // Evaluate all active officers for this duty slot
+        // Evaluate all active officers in-memory
         for (const candidate of activeOfficers) {
           const candIdStr = String(candidate._id);
+          candidateEvaluationsCount++;
 
           const validation = await validateAssignment(
             {
@@ -468,7 +556,8 @@ const generateDutyRosterHandler = async (req, res) => {
               shift: shiftStr,
               location: locStr,
               roster: roster._id
-            }
+            },
+            { context: validationContext }
           );
 
           if (validation.valid) {
@@ -486,10 +575,9 @@ const generateDutyRosterHandler = async (req, res) => {
         for (let i = 0; i < eligibleCandidates.length && assignedForThisSlot < reqCount; i++) {
           const selectedObj = eligibleCandidates[i].officer;
           const selIdStr = String(selectedObj._id);
-
           const { startTime: pStart, endTime: pEnd } = parseShiftTimes(shiftStr);
 
-          const assignment = await DutyAssignment.create({
+          const assignmentDoc = {
             roster: roster._id,
             officer: selectedObj._id,
             date: currentDate,
@@ -500,9 +588,22 @@ const generateDutyRosterHandler = async (req, res) => {
             endTime: pEnd,
             location: locStr,
             requiredOfficerCount: reqCount
+          };
+
+          generatedAssignments.push(assignmentDoc);
+
+          // Update in-memory assignmentsMap immediately for subsequent evaluations
+          if (!assignmentsMap[selIdStr]) assignmentsMap[selIdStr] = [];
+          assignmentsMap[selIdStr].push({
+            officer: selectedObj._id,
+            date: toMidnight(currentDate),
+            dutyType: dutyName,
+            shift: shiftStr,
+            startTime: pStart,
+            endTime: pEnd,
+            roster: roster._id
           });
 
-          generatedAssignments.push(assignment);
           workloadMap[selIdStr] = (workloadMap[selIdStr] || 0) + 1;
           assignedForThisSlot++;
         }
@@ -513,9 +614,26 @@ const generateDutyRosterHandler = async (req, res) => {
         }
       }
     }
+    const tGenEnd = Date.now();
 
+    // ── 7. BULK SAVE ASSIGNMENTS IN DATABASE ──
+    const tSaveStart = Date.now();
+    if (generatedAssignments.length > 0) {
+      await DutyAssignment.insertMany(generatedAssignments);
+    }
     roster.conflicts = conflicts;
     await roster.save();
+    const tSaveEnd = Date.now();
+
+    // ── 8. PERFORMANCE INSTRUMENTATION LOGS ──
+    console.log(`[ROSTER PERF] Prefetch officers: ${t1 - t0} ms`);
+    console.log(`[ROSTER PERF] Prefetch leave: ${t2 - t1} ms`);
+    console.log(`[ROSTER PERF] Prefetch rosters: ${t3 - t2} ms`);
+    console.log(`[ROSTER PERF] Prefetch assignments: ${t4 - t3} ms`);
+    console.log(`[ROSTER PERF] Generation (In-Memory): ${tGenEnd - tGenStart} ms`);
+    console.log(`[ROSTER PERF] Database save (Bulk): ${tSaveEnd - tSaveStart} ms`);
+    console.log(`[ROSTER PERF] Total: ${tSaveEnd - t0} ms`);
+    console.log(`[ROSTER PERF] Candidate evaluations: ${candidateEvaluationsCount}, DB Reads inside loop: ${dbReadCounter.count}`);
 
     const populatedRoster = await DutyRoster.findById(roster._id)
       .populate("createdBy", "fullName username policeId rank")
