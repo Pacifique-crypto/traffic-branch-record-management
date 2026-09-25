@@ -13,7 +13,7 @@ export default function LiveDateTime() {
     return () => clearInterval(timer);
   }, []);
 
-  const timeString = formatTime(now);
+  const timeString = formatTime(now, { includeSeconds: true });
   const dateString = formatDate(now);
 
   return (

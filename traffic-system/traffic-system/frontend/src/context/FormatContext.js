@@ -27,8 +27,8 @@ export const FormatProvider = ({ children }) => {
     return formatDateUtil(dateInput, dateFormat);
   };
 
-  const formatTime = (timeInput) => {
-    return formatTimeUtil(timeInput, timeFormat);
+  const formatTime = (timeInput, options = { includeSeconds: false }) => {
+    return formatTimeUtil(timeInput, timeFormat, options.includeSeconds);
   };
 
   const formatDateTime = (dateInput) => {
