@@ -82,8 +82,13 @@ router.get("/", verifyToken, async (req, res) => {
     const { status, weekStart } = req.query;
     const filter = {};
 
+    const userRole = (req.user && req.user.role) ? (req.user.role || "").toLowerCase() : "";
+    const isOIC = userRole.includes("oic");
+
     if (status) {
       filter.status = status.toUpperCase();
+    } else if (isOIC) {
+      filter.status = { $ne: "DRAFT" };
     }
 
     if (weekStart) {
@@ -129,7 +134,15 @@ router.get("/week", verifyToken, async (req, res) => {
     }
 
     const start = toMidnight(startDate);
-    const roster = await DutyRoster.findOne({ weekStart: start })
+    const userRole = (req.user && req.user.role) ? (req.user.role || "").toLowerCase() : "";
+    const isOIC = userRole.includes("oic");
+
+    const queryFilter = { weekStart: start };
+    if (isOIC) {
+      queryFilter.status = { $ne: "DRAFT" };
+    }
+
+    const roster = await DutyRoster.findOne(queryFilter)
       .populate("createdBy", "fullName username policeId rank")
       .populate({
         path: "assignments",

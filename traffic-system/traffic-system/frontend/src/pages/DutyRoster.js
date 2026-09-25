@@ -194,11 +194,16 @@ export default function DutyRoster() {
   const fetchRostersList = async () => {
     try {
       const res = await getDutyRosters();
+      let list = [];
       if (Array.isArray(res)) {
-        setRostersList(res);
+        list = res;
       } else if (res && Array.isArray(res.rosters)) {
-        setRostersList(res.rosters);
+        list = res.rosters;
       }
+      if (isOIC) {
+        list = list.filter(r => (r.status || "").toUpperCase() !== "DRAFT");
+      }
+      setRostersList(list);
     } catch (err) {
       console.error("Error fetching rosters:", err);
     }
@@ -237,10 +242,15 @@ export default function DutyRoster() {
       const targetQueryDate = overrideDateISO || currentWeek.startDateISO;
       const res = await getDutyRosterByWeek(targetQueryDate);
       if (res && res.roster) {
+        if (isOIC && (res.roster.status || "").toUpperCase() === 'DRAFT') {
+          setCurrentWeekRoster(null);
+          setWeeklyDuties([]);
+          return;
+        }
         setCurrentWeekRoster(res.roster);
         setWeeklyDuties(res.duties || res.roster.assignments || []);
       } else {
-        if (selectedRoster && selectedRoster.assignments && Array.isArray(selectedRoster.assignments)) {
+        if (!isOIC && selectedRoster && selectedRoster.assignments && Array.isArray(selectedRoster.assignments)) {
           setCurrentWeekRoster(selectedRoster);
           setWeeklyDuties(selectedRoster.assignments);
         } else {
@@ -610,7 +620,11 @@ export default function DutyRoster() {
     };
 
     const targetStatus = statusMap[statusKey] || statusKey.toUpperCase();
-    const filtered = rostersList.filter(r => (r.status || "").toUpperCase() === targetStatus);
+    const filtered = rostersList.filter(r => {
+      const rStatus = (r.status || "").toUpperCase();
+      if (isOIC && rStatus === "DRAFT") return false;
+      return rStatus === targetStatus;
+    });
 
     return filtered.map(r => {
       const sRaw = r.weekStart || r.startDate;
@@ -1176,31 +1190,46 @@ export default function DutyRoster() {
           {dashMode === 'weekly' && (isOIC ? dashTab === 'pending' : dashTab === 'draft') && (
             <div style={{ marginTop: '20px' }}>
               {renderWeekNavigator()}
-              <div className="dr-grid-wrap">
-                <table className="dr-roster-grid">
-                  <thead>
-                    <tr>
-                      <th>Officer</th>
-                      {days.map((d, i) => <th key={i}>{d}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayOfficers.map((off, rIdx) => (
-                      <tr key={rIdx}>
-                        <td>{off}</td>
-                        {days.map((_, cIdx) => {
-                          const val = getCellValForOfficerAndDate(rIdx, cIdx);
-                          return (
-                            <td key={cIdx}>
-                              {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
-                            </td>
-                          );
-                        })}
+              {isOIC && (!currentWeekRoster || (currentWeekRoster.status || "").toUpperCase() === 'DRAFT') ? (
+                <div style={{
+                  padding: '32px 24px',
+                  textAlign: 'center',
+                  color: '#64748b',
+                  fontSize: '14px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '10px',
+                  border: '1px dashed #cbd5e1',
+                  marginTop: '12px'
+                }}>
+                  No submitted roster for this week. Rosters will appear here once submitted by the IT Officer.
+                </div>
+              ) : (
+                <div className="dr-grid-wrap">
+                  <table className="dr-roster-grid">
+                    <thead>
+                      <tr>
+                        <th>Officer</th>
+                        {days.map((d, i) => <th key={i}>{d}</th>)}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {displayOfficers.map((off, rIdx) => (
+                        <tr key={rIdx}>
+                          <td>{off}</td>
+                          {days.map((_, cIdx) => {
+                            const val = getCellValForOfficerAndDate(rIdx, cIdx);
+                            return (
+                              <td key={cIdx}>
+                                {renderDutyCell(val, () => handleCellClick(rIdx, cIdx, val))}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </section>
