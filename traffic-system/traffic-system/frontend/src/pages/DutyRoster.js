@@ -204,22 +204,71 @@ export default function DutyRoster() {
     }
   };
 
-  const fetchWeeklyData = async () => {
+  const setRosterDateAndOffset = (dateStr) => {
+    if (!dateStr) return null;
+    let d;
+    if (typeof dateStr === 'string' && dateStr.length >= 10 && dateStr.includes('-')) {
+      const parts = dateStr.substring(0, 10).split('-').map(Number);
+      d = new Date(parts[0], parts[1] - 1, parts[2]);
+    } else {
+      d = new Date(dateStr);
+    }
+    if (isNaN(d.getTime())) return null;
+
+    const day = d.getDay();
+    const sunObj = new Date(d);
+    sunObj.setDate(d.getDate() - day);
+    sunObj.setHours(0, 0, 0, 0);
+
+    const sunISO = formatDateISO(sunObj);
+    setCustomStartDate(sunISO);
+
+    const nowSun = getWeekSunday(0);
+    const diffMs = sunObj.getTime() - nowSun.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const newOff = Math.round(diffDays / 7);
+    setWeekOffset(newOff);
+    return sunISO;
+  };
+
+  const fetchWeeklyData = async (overrideDateISO = null) => {
     try {
       setIsLoading(true);
-      const res = await getDutyRosterByWeek(currentWeek.startDateISO);
+      const targetQueryDate = overrideDateISO || currentWeek.startDateISO;
+      const res = await getDutyRosterByWeek(targetQueryDate);
       if (res && res.roster) {
         setCurrentWeekRoster(res.roster);
         setWeeklyDuties(res.duties || res.roster.assignments || []);
       } else {
-        setCurrentWeekRoster(null);
-        setWeeklyDuties([]);
+        if (selectedRoster && selectedRoster.assignments && Array.isArray(selectedRoster.assignments)) {
+          setCurrentWeekRoster(selectedRoster);
+          setWeeklyDuties(selectedRoster.assignments);
+        } else {
+          setCurrentWeekRoster(null);
+          setWeeklyDuties([]);
+        }
       }
     } catch (err) {
       console.error("Error fetching weekly roster:", err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleViewRoster = (rosterItem) => {
+    const rawRoster = rosterItem.raw || rosterItem;
+    const startDateVal = rawRoster.weekStart || rawRoster.startDate;
+    
+    const targetSunISO = setRosterDateAndOffset(startDateVal) || currentWeek.startDateISO;
+
+    setSelectedRoster(rawRoster);
+    setCurrentWeekRoster(rawRoster);
+    if (rawRoster.assignments && Array.isArray(rawRoster.assignments) && rawRoster.assignments.length > 0) {
+      setWeeklyDuties(rawRoster.assignments);
+    }
+
+    setActiveScreen('viewRoster');
+    fetchWeeklyData(targetSunISO);
   };
 
   const fetchDailyData = async () => {
@@ -261,8 +310,8 @@ export default function DutyRoster() {
   }, []);
 
   useEffect(() => {
-    fetchWeeklyData();
-  }, [weekOffset]);
+    fetchWeeklyData(currentWeek.startDateISO);
+  }, [weekOffset, customStartDate]);
 
   useEffect(() => {
     fetchDailyData();
@@ -1110,10 +1159,7 @@ export default function DutyRoster() {
                     <span className={`dr-badge ${r.badge}`} style={{ marginRight: '10px' }}>{r.label}</span>
                     <button
                       className="dr-btn dr-btn-sm dr-btn-ghost"
-                      onClick={() => {
-                        setSelectedRoster(r.raw || r);
-                        setActiveScreen('viewRoster');
-                      }}
+                      onClick={() => handleViewRoster(r)}
                     >
                       View
                     </button>
